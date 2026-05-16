@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '../context/AuthContext'
 import Layout from '../components/Layout'
-import { getEspecialidades, getDoctoresPorEspecialidad, getHorarios, crearCita, getCitasPaciente, cancelarCita } from '../services/api'
+import { getEspecialidades, getDoctoresPorEspecialidad, getHorarios, crearCita, getCitasPaciente, cancelarCita, reprogramarCita } from '../services/api'
 
 export default function DashboardPaciente() {
   const { user } = useAuth()
@@ -13,11 +13,12 @@ export default function DashboardPaciente() {
   const [tab, setTab] = useState('inicio')
   const [loading, setLoading] = useState(false)
   const [success, setSuccess] = useState('')
+  const [reprogramacion, setReprogramacion] = useState(null)
 
   useEffect(() => {
     getEspecialidades().then(r => setEspecialidades(r.data))
     if (user?.id) getCitasPaciente(user.id).then(r => setCitas(r.data))
-  }, [])
+  }, [user?.id])
 
   const onEspecialidad = async (e) => {
     const id = e.target.value
@@ -60,6 +61,27 @@ export default function DashboardPaciente() {
       const res = await getCitasPaciente(user.id)
       setCitas(res.data)
     }
+  }
+
+  const abrirReprogramacion = async (cita) => {
+    const res = await getHorarios(cita.id_doctor)
+    setReprogramacion({ cita, id_horario: '', horarios: res.data })
+  }
+
+  const guardarReprogramacion = async (e) => {
+    e.preventDefault()
+    const horario = reprogramacion.horarios.find(h => String(h.id_horario) === String(reprogramacion.id_horario))
+    if (!horario) return
+
+    await reprogramarCita(reprogramacion.cita.id_cita, {
+      id_horario: parseInt(reprogramacion.id_horario),
+      fecha_hora: `${horario.fecha}T${horario.hora_inicio}`
+    })
+    const res = await getCitasPaciente(user.id)
+    setCitas(res.data)
+    setReprogramacion(null)
+    setSuccess('Cita reprogramada correctamente')
+    setTimeout(() => setSuccess(''), 3000)
   }
 
   const estadoColor = {
@@ -112,6 +134,11 @@ export default function DashboardPaciente() {
     </aside>
   )
 
+  const citasActivas = citas.filter(c => !['cancelada', 'completada'].includes(c.estado))
+  const proximaCita = [...citasActivas]
+    .filter(c => new Date(c.fecha_hora) >= new Date())
+    .sort((a, b) => new Date(a.fecha_hora) - new Date(b.fecha_hora))[0]
+
   return (
     <Layout sidebar={Sidebar}>
       <div className="p-8">
@@ -123,6 +150,28 @@ export default function DashboardPaciente() {
           <div>
             <h2 className="text-2xl font-bold text-gray-800 mb-1">Bienvenido, {user?.nombre?.split(' ')[0]} 👋</h2>
             <p className="text-gray-500 text-sm mb-8">Gestiona tus citas médicas desde aquí</p>
+            <div className="bg-white rounded-2xl border border-cyan-100 shadow-sm p-6 mb-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-base font-semibold text-gray-800">Próxima cita</h3>
+                  {proximaCita ? (
+                    <div className="mt-3 space-y-1">
+                      <p className="text-lg font-bold text-cyan-700">Dr. {proximaCita.doctor}</p>
+                      <p className="text-sm text-gray-500">{proximaCita.especialidad} · {new Date(proximaCita.fecha_hora).toLocaleString('es-PE')}</p>
+                      <span className={`inline-flex text-xs px-2 py-1 rounded-full font-medium ${estadoColor[proximaCita.estado]}`}>
+                        {proximaCita.estado}
+                      </span>
+                    </div>
+                  ) : (
+                    <p className="mt-3 text-sm text-gray-500">No tienes citas activas próximas.</p>
+                  )}
+                </div>
+                <button onClick={() => setTab('agendar')}
+                  className="bg-cyan-600 text-white px-5 py-2 rounded-xl text-sm font-semibold hover:bg-cyan-700 transition">
+                  Nueva cita
+                </button>
+              </div>
+            </div>
             <div className="grid grid-cols-3 gap-4 mb-8">
               <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
                 <div className="flex items-center justify-between mb-3">
@@ -225,6 +274,26 @@ export default function DashboardPaciente() {
           <div>
             <h2 className="text-2xl font-bold text-gray-800 mb-1">Mis Citas 📋</h2>
             <p className="text-gray-500 text-sm mb-8">Historial y estado de tus citas médicas</p>
+            {reprogramacion && (
+              <form onSubmit={guardarReprogramacion} className="bg-purple-50 border border-purple-200 rounded-2xl p-5 mb-6">
+                <h3 className="text-base font-semibold text-purple-900 mb-1">Reprogramar cita</h3>
+                <p className="text-sm text-purple-700 mb-4">Selecciona un nuevo horario con el mismo doctor.</p>
+                <div className="flex gap-3">
+                  <select className={selectClass} required value={reprogramacion.id_horario}
+                    onChange={e => setReprogramacion({...reprogramacion, id_horario: e.target.value})}>
+                    <option value="">Nuevo horario</option>
+                    {reprogramacion.horarios.map(h => (
+                      <option key={h.id_horario} value={h.id_horario}>{h.fecha} - {h.hora_inicio} a {h.hora_fin}</option>
+                    ))}
+                  </select>
+                  <button type="submit" className="px-5 py-2 rounded-xl bg-purple-600 text-white text-sm font-semibold">Guardar</button>
+                  <button type="button" onClick={() => setReprogramacion(null)}
+                    className="px-5 py-2 rounded-xl border border-purple-200 text-purple-700 text-sm font-semibold">
+                    Cancelar
+                  </button>
+                </div>
+              </form>
+            )}
             {citas.length === 0 ? (
               <div className="bg-white rounded-2xl border border-gray-100 p-16 text-center">
                 <span className="text-5xl">📭</span>
@@ -253,10 +322,16 @@ export default function DashboardPaciente() {
                       </div>
                     </div>
                     {c.estado !== 'cancelada' && c.estado !== 'completada' && (
-                      <button onClick={() => handleCancelar(c.id_cita)}
-                        className="text-sm px-3 py-1.5 rounded-lg border border-red-200 text-red-500 hover:bg-red-50 transition">
-                        Cancelar
-                      </button>
+                      <div className="flex gap-2">
+                        <button onClick={() => abrirReprogramacion(c)}
+                          className="text-sm px-3 py-1.5 rounded-lg border border-purple-200 text-purple-600 hover:bg-purple-50 transition">
+                          Reprogramar
+                        </button>
+                        <button onClick={() => handleCancelar(c.id_cita)}
+                          className="text-sm px-3 py-1.5 rounded-lg border border-red-200 text-red-500 hover:bg-red-50 transition">
+                          Cancelar
+                        </button>
+                      </div>
                     )}
                   </div>
                 ))}

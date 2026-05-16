@@ -1,19 +1,24 @@
-import { createContext, useContext, useState, useEffect } from 'react'
+/* eslint-disable react-refresh/only-export-components */
+import { createContext, useContext, useState } from 'react'
 
 const AuthContext = createContext()
 
-export function AuthProvider({ children }) {
-  const [user, setUser] = useState(null)
-  const [token, setToken] = useState(null)
+function getSavedUser() {
+  const savedUser = localStorage.getItem('user')
+  if (!savedUser) return null
 
-  useEffect(() => {
-    const savedUser = localStorage.getItem('user')
-    const savedToken = localStorage.getItem('token')
-    if (savedUser && savedToken) {
-      setUser(JSON.parse(savedUser))
-      setToken(savedToken)
-    }
-  }, [])
+  try {
+    return JSON.parse(savedUser)
+  } catch {
+    localStorage.removeItem('user')
+    return null
+  }
+}
+
+export function AuthProvider({ children }) {
+  const [user, setUser] = useState(getSavedUser)
+  const [token, setToken] = useState(() => localStorage.getItem('token'))
+  const ready = true
 
   const loginUser = (userData, accessToken) => {
     setUser(userData)
@@ -30,7 +35,7 @@ export function AuthProvider({ children }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, token, loginUser, logoutUser }}>
+    <AuthContext.Provider value={{ user, token, ready, loginUser, logoutUser }}>
       {children}
     </AuthContext.Provider>
   )

@@ -21,7 +21,8 @@ export default function Login() {
       loginUser({ id: id_usuario, email: form.email, rol, nombre: `${nombre} ${apellido}` }, access_token)
       if (rol === 'paciente') navigate('/dashboard/paciente')
       else if (rol === 'doctor') navigate('/dashboard/doctor')
-      else navigate('/dashboard/admin')
+      else if (rol === 'recepcionista' || rol === 'administrador') navigate('/dashboard/recepcionista')
+      else navigate('/login')
     } catch {
       setError('Correo o contraseña incorrectos')
     }

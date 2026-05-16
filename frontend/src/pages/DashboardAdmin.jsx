@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react'
+/* eslint-disable react-hooks/set-state-in-effect */
+import { useCallback, useEffect, useState } from 'react'
 import { useAuth } from '../context/AuthContext'
 import Layout from '../components/Layout'
-import { getEspecialidades, getDoctores } from '../services/api'
 import axios from 'axios'
 
 const API = axios.create({ baseURL: 'http://localhost:8000/api' })
@@ -23,11 +23,7 @@ export default function DashboardAdmin() {
   const [filtros, setFiltros] = useState({ estado: '', especialidad: '', doctor: '', fecha: '' })
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    fetchAll()
-  }, [])
-
-  const fetchAll = async () => {
+  const fetchAll = useCallback(async () => {
     setLoading(true)
     try {
       const [statsR, citasR, doctoresR, pacientesR, espR, espR2] = await Promise.all([
@@ -47,7 +43,11 @@ export default function DashboardAdmin() {
       setEspecialidades(espR2.data)
     } catch(e) { console.error(e) }
     setLoading(false)
-  }
+  }, [])
+
+  useEffect(() => {
+    fetchAll()
+  }, [fetchAll])
 
   const aplicarFiltros = (nuevosFiltros) => {
     setFiltros(nuevosFiltros)

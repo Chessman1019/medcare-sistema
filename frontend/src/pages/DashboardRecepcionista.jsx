@@ -1,0 +1,527 @@
+/* eslint-disable react-hooks/set-state-in-effect */
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useAuth } from '../context/AuthContext'
+import Layout from '../components/Layout'
+import {
+  cancelarCita,
+  confirmarCita,
+  getCitasHoy,
+  getDoctores,
+  getEspecialidades,
+  getHorarios,
+  getPacientes,
+  getStatsCitas,
+  getTodasCitas,
+  registrarAsistencia,
+  registrarPaciente,
+  registrarSalida,
+  reprogramarCita,
+} from '../services/api'
+
+const estadoClass = {
+  pendiente: 'bg-amber-50 text-amber-700 border-amber-200',
+  confirmada: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+  reprogramada: 'bg-violet-50 text-violet-700 border-violet-200',
+  en_atencion: 'bg-sky-50 text-sky-700 border-sky-200',
+  cancelada: 'bg-rose-50 text-rose-700 border-rose-200',
+  completada: 'bg-slate-100 text-slate-700 border-slate-200',
+}
+
+const emptyRegistro = {
+  nombre: '',
+  apellido: '',
+  email: '',
+  password: '',
+  telefono: '',
+  dni: '',
+  fecha_nacimiento: '',
+  genero: 'M',
+  seguro_medico: '',
+  direccion: '',
+}
+
+function formatDateTime(value) {
+  if (!value) return 'Sin fecha'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+  return date.toLocaleString('es-PE', {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  })
+}
+
+function doctorLabel(doctor) {
+  if (!doctor) return 'Doctor no asignado'
+  const source = doctor.usuario || doctor
+  return [source.nombre, source.apellido].filter(Boolean).join(' ') || doctor.doctor || 'Doctor'
+}
+
+export default function DashboardRecepcionista() {
+  const { user, logoutUser } = useAuth()
+  const [tab, setTab] = useState('dashboard')
+  const [loading, setLoading] = useState(true)
+  const [stats, setStats] = useState({})
+  const [citas, setCitas] = useState([])
+  const [citasHoy, setCitasHoy] = useState([])
+  const [doctores, setDoctores] = useState([])
+  const [pacientes, setPacientes] = useState([])
+  const [especialidades, setEspecialidades] = useState([])
+  const [filtros, setFiltros] = useState({ estado: '', doctor: '', fecha: '' })
+  const [agendaDoctor, setAgendaDoctor] = useState('')
+  const [horariosAgenda, setHorariosAgenda] = useState([])
+  const [reprogramacion, setReprogramacion] = useState(null)
+  const [registro, setRegistro] = useState(emptyRegistro)
+  const [message, setMessage] = useState('')
+
+  const fetchData = useCallback(async () => {
+    setLoading(true)
+    try {
+      const [statsR, todasR, hoyR, doctoresR, pacientesR, especialidadesR] = await Promise.all([
+        getStatsCitas(),
+        getTodasCitas(),
+        getCitasHoy(),
+        getDoctores(),
+        getPacientes(),
+        getEspecialidades(),
+      ])
+      setStats(statsR.data)
+      setCitas(todasR.data)
+      setCitasHoy(hoyR.data)
+      setDoctores(doctoresR.data)
+      setPacientes(pacientesR.data)
+      setEspecialidades(especialidadesR.data)
+    } catch (error) {
+      setMessage(error.response?.data?.detail || 'No se pudieron cargar los datos.')
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    fetchData()
+  }, [fetchData])
+
+  const citasFiltradas = useMemo(() => {
+    return citas.filter((cita) => {
+      const coincideEstado = !filtros.estado || cita.estado === filtros.estado
+      const coincideDoctor = !filtros.doctor || cita.doctor?.toLowerCase().includes(filtros.doctor.toLowerCase())
+      const coincideFecha = !filtros.fecha || cita.fecha_hora?.startsWith(filtros.fecha)
+      return coincideEstado && coincideDoctor && coincideFecha
+    })
+  }, [citas, filtros])
+
+  const cambiarEstado = async (id, accion) => {
+    const acciones = {
+      confirmar: confirmarCita,
+      asistencia: registrarAsistencia,
+      salida: registrarSalida,
+      cancelar: cancelarCita,
+    }
+    await acciones[accion](id)
+    setMessage('Cita actualizada correctamente.')
+    fetchData()
+  }
+
+  const abrirReprogramacion = async (cita) => {
+    setReprogramacion({ cita, id_doctor: cita.id_doctor, id_horario: '', horarios: [] })
+    const res = await getHorarios(cita.id_doctor)
+    setReprogramacion({ cita, id_doctor: cita.id_doctor, id_horario: '', horarios: res.data })
+  }
+
+  const cambiarDoctorReprogramacion = async (idDoctor) => {
+    const res = await getHorarios(idDoctor)
+    setReprogramacion((actual) => ({
+      ...actual,
+      id_doctor: idDoctor,
+      id_horario: '',
+      horarios: res.data,
+    }))
+  }
+
+  const guardarReprogramacion = async (event) => {
+    event.preventDefault()
+    const horario = reprogramacion.horarios.find((h) => String(h.id_horario) === String(reprogramacion.id_horario))
+    if (!horario) return
+
+    await reprogramarCita(reprogramacion.cita.id_cita, {
+      id_horario: Number(reprogramacion.id_horario),
+      fecha_hora: `${horario.fecha}T${horario.hora_inicio}`,
+    })
+    setReprogramacion(null)
+    setMessage('Cita reprogramada correctamente.')
+    fetchData()
+  }
+
+  const cargarDisponibilidad = async (idDoctor) => {
+    setAgendaDoctor(idDoctor)
+    if (!idDoctor) {
+      setHorariosAgenda([])
+      return
+    }
+    const res = await getHorarios(idDoctor)
+    setHorariosAgenda(res.data)
+  }
+
+  const registrarNuevoPaciente = async (event) => {
+    event.preventDefault()
+    await registrarPaciente(registro)
+    setRegistro(emptyRegistro)
+    setMessage('Paciente registrado correctamente.')
+    fetchData()
+  }
+
+  const sidebarItems = [
+    { path: 'dashboard', label: 'Dashboard' },
+    { path: 'agenda', label: 'Agenda global' },
+    { path: 'gestion', label: 'Gestion de citas' },
+    { path: 'registro', label: 'Registro paciente' },
+  ]
+
+  const Sidebar = (
+    <aside className="fixed left-0 top-14 bottom-12 z-40 flex w-64 flex-col overflow-y-auto bg-sky-700 text-white shadow-lg">
+      <div className="border-b border-white/20 p-4">
+        <p className="truncate text-sm font-semibold">{user?.nombre}</p>
+        <span className="mt-1 inline-flex rounded-md bg-white/15 px-2 py-1 text-xs">recepcionista</span>
+      </div>
+      <nav className="flex-1 space-y-1 p-4">
+        {sidebarItems.map((item) => (
+          <button
+            key={item.path}
+            type="button"
+            onClick={() => setTab(item.path)}
+            className={`w-full rounded-lg px-4 py-3 text-left text-sm font-medium transition ${
+              tab === item.path ? 'bg-white text-sky-700' : 'text-white hover:bg-white/15'
+            }`}
+          >
+            {item.label}
+          </button>
+        ))}
+      </nav>
+      <div className="border-t border-white/20 p-4">
+        <button
+          type="button"
+          onClick={() => {
+            logoutUser()
+            window.location.href = '/login'
+          }}
+          className="w-full rounded-lg px-4 py-3 text-left text-sm font-medium hover:bg-white/15"
+        >
+          Cerrar sesion
+        </button>
+      </div>
+    </aside>
+  )
+
+  if (loading) {
+    return (
+      <Layout sidebar={Sidebar}>
+        <div className="flex min-h-screen items-center justify-center text-sm text-slate-500">Cargando datos...</div>
+      </Layout>
+    )
+  }
+
+  return (
+    <Layout sidebar={Sidebar}>
+      <div className="space-y-6 p-8">
+        {message && (
+          <div className="rounded-lg border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-800">
+            {message}
+          </div>
+        )}
+
+        {tab === 'dashboard' && (
+          <section className="space-y-6">
+            <div>
+              <h2 className="text-2xl font-bold text-slate-900">Recepcion</h2>
+              <p className="mt-1 text-sm text-slate-500">Citas del dia, validaciones pendientes y actividad general.</p>
+            </div>
+
+            <div className="grid grid-cols-4 gap-4">
+              {[
+                ['Citas hoy', stats.citas_hoy ?? 0],
+                ['Pendientes', stats.pendientes ?? 0],
+                ['Confirmadas hoy', stats.confirmadas_hoy ?? 0],
+                ['En atencion', stats.en_atencion_hoy ?? 0],
+              ].map(([label, value]) => (
+                <div key={label} className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+                  <p className="text-sm text-slate-500">{label}</p>
+                  <p className="mt-2 text-3xl font-bold text-slate-900">{value}</p>
+                </div>
+              ))}
+            </div>
+
+            <div className="rounded-lg border border-slate-200 bg-white shadow-sm">
+              <div className="border-b border-slate-100 px-5 py-4">
+                <h3 className="font-semibold text-slate-900">Citas programadas para hoy</h3>
+              </div>
+              <div className="divide-y divide-slate-100">
+                {citasHoy.length === 0 ? (
+                  <p className="px-5 py-8 text-sm text-slate-500">No hay citas registradas para hoy.</p>
+                ) : (
+                  citasHoy.map((cita) => (
+                    <div key={cita.id_cita} className="grid grid-cols-[1.4fr_1.4fr_1fr_auto] items-center gap-4 px-5 py-4">
+                      <div>
+                        <p className="font-medium text-slate-900">{cita.paciente}</p>
+                        <p className="text-xs text-slate-500">DNI {cita.dni || 'sin registrar'}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-slate-700">Dr. {cita.doctor}</p>
+                        <p className="text-xs text-slate-500">{cita.especialidad}</p>
+                      </div>
+                      <p className="text-sm text-slate-600">{formatDateTime(cita.fecha_hora)}</p>
+                      <span className={`rounded-md border px-2 py-1 text-xs font-medium ${estadoClass[cita.estado] || estadoClass.pendiente}`}>
+                        {cita.estado}
+                      </span>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </section>
+        )}
+
+        {tab === 'agenda' && (
+          <section className="space-y-6">
+            <div>
+              <h2 className="text-2xl font-bold text-slate-900">Agenda global</h2>
+              <p className="mt-1 text-sm text-slate-500">Calendario operativo y disponibilidad por doctor.</p>
+            </div>
+
+            <div className="grid grid-cols-[2fr_1fr] gap-6">
+              <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+                <div className="mb-4 grid grid-cols-3 gap-3">
+                  <input
+                    type="date"
+                    className="rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                    value={filtros.fecha}
+                    onChange={(event) => setFiltros({ ...filtros, fecha: event.target.value })}
+                  />
+                  <input
+                    className="rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                    placeholder="Buscar doctor"
+                    value={filtros.doctor}
+                    onChange={(event) => setFiltros({ ...filtros, doctor: event.target.value })}
+                  />
+                  <select
+                    className="rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                    value={filtros.estado}
+                    onChange={(event) => setFiltros({ ...filtros, estado: event.target.value })}
+                  >
+                    <option value="">Todos los estados</option>
+                    <option value="pendiente">Pendiente</option>
+                    <option value="confirmada">Confirmada</option>
+                    <option value="reprogramada">Reprogramada</option>
+                    <option value="en_atencion">En atencion</option>
+                    <option value="completada">Completada</option>
+                    <option value="cancelada">Cancelada</option>
+                  </select>
+                </div>
+                <div className="divide-y divide-slate-100">
+                  {citasFiltradas.slice(0, 12).map((cita) => (
+                    <div key={cita.id_cita} className="grid grid-cols-[1fr_1fr_1fr_auto] items-center gap-3 py-3 text-sm">
+                      <span className="font-medium text-slate-900">{cita.paciente}</span>
+                      <span className="text-slate-600">Dr. {cita.doctor}</span>
+                      <span className="text-slate-500">{formatDateTime(cita.fecha_hora)}</span>
+                      <span className={`rounded-md border px-2 py-1 text-xs ${estadoClass[cita.estado] || estadoClass.pendiente}`}>
+                        {cita.estado}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+                <h3 className="font-semibold text-slate-900">Disponibilidad</h3>
+                <select
+                  className="mt-4 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                  value={agendaDoctor}
+                  onChange={(event) => cargarDisponibilidad(event.target.value)}
+                >
+                  <option value="">Selecciona doctor</option>
+                  {doctores.map((doctor) => (
+                    <option key={doctor.id_usuario} value={doctor.id_usuario}>
+                      Dr. {doctorLabel(doctor)}
+                    </option>
+                  ))}
+                </select>
+                <div className="mt-4 space-y-2">
+                  {horariosAgenda.length === 0 ? (
+                    <p className="text-sm text-slate-500">Sin horarios libres seleccionados.</p>
+                  ) : (
+                    horariosAgenda.slice(0, 8).map((horario) => (
+                      <div key={horario.id_horario} className="rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-700">
+                        {horario.fecha} - {horario.hora_inicio} a {horario.hora_fin}
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            </div>
+          </section>
+        )}
+
+        {tab === 'gestion' && (
+          <section className="space-y-6">
+            <div>
+              <h2 className="text-2xl font-bold text-slate-900">Gestion de citas</h2>
+              <p className="mt-1 text-sm text-slate-500">Confirmacion, reprogramacion, asistencia y salida.</p>
+            </div>
+
+            {reprogramacion && (
+              <form onSubmit={guardarReprogramacion} className="rounded-lg border border-violet-200 bg-violet-50 p-5">
+                <div className="mb-4">
+                  <h3 className="font-semibold text-violet-950">Reprogramar cita #{reprogramacion.cita.id_cita}</h3>
+                  <p className="text-sm text-violet-700">{reprogramacion.cita.paciente}</p>
+                </div>
+                <div className="grid grid-cols-[1fr_1fr_auto] gap-3">
+                  <select
+                    className="rounded-lg border border-violet-200 px-3 py-2 text-sm"
+                    value={reprogramacion.id_doctor}
+                    onChange={(event) => cambiarDoctorReprogramacion(event.target.value)}
+                  >
+                    {doctores.map((doctor) => (
+                      <option key={doctor.id_usuario} value={doctor.id_usuario}>
+                        Dr. {doctorLabel(doctor)}
+                      </option>
+                    ))}
+                  </select>
+                  <select
+                    className="rounded-lg border border-violet-200 px-3 py-2 text-sm"
+                    required
+                    value={reprogramacion.id_horario}
+                    onChange={(event) => setReprogramacion({ ...reprogramacion, id_horario: event.target.value })}
+                  >
+                    <option value="">Nuevo horario</option>
+                    {reprogramacion.horarios.map((horario) => (
+                      <option key={horario.id_horario} value={horario.id_horario}>
+                        {horario.fecha} - {horario.hora_inicio} a {horario.hora_fin}
+                      </option>
+                    ))}
+                  </select>
+                  <div className="flex gap-2">
+                    <button type="submit" className="rounded-lg bg-violet-700 px-4 py-2 text-sm font-semibold text-white">
+                      Guardar
+                    </button>
+                    <button type="button" onClick={() => setReprogramacion(null)} className="rounded-lg border border-violet-200 px-4 py-2 text-sm text-violet-700">
+                      Cancelar
+                    </button>
+                  </div>
+                </div>
+              </form>
+            )}
+
+            <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
+              <table className="w-full text-sm">
+                <thead className="bg-slate-50 text-xs uppercase text-slate-500">
+                  <tr>
+                    <th className="px-4 py-3 text-left">Paciente</th>
+                    <th className="px-4 py-3 text-left">Doctor</th>
+                    <th className="px-4 py-3 text-left">Fecha</th>
+                    <th className="px-4 py-3 text-left">Estado</th>
+                    <th className="px-4 py-3 text-left">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {citasFiltradas.map((cita) => (
+                    <tr key={cita.id_cita}>
+                      <td className="px-4 py-3">
+                        <p className="font-medium text-slate-900">{cita.paciente}</p>
+                        <p className="text-xs text-slate-500">{cita.dni}</p>
+                      </td>
+                      <td className="px-4 py-3 text-slate-600">Dr. {cita.doctor}</td>
+                      <td className="px-4 py-3 text-slate-600">{formatDateTime(cita.fecha_hora)}</td>
+                      <td className="px-4 py-3">
+                        <span className={`rounded-md border px-2 py-1 text-xs ${estadoClass[cita.estado] || estadoClass.pendiente}`}>
+                          {cita.estado}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex flex-wrap gap-2">
+                          {cita.estado === 'pendiente' && (
+                            <button type="button" onClick={() => cambiarEstado(cita.id_cita, 'confirmar')} className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white">
+                              Confirmar
+                            </button>
+                          )}
+                          {['pendiente', 'confirmada', 'reprogramada'].includes(cita.estado) && (
+                            <button type="button" onClick={() => abrirReprogramacion(cita)} className="rounded-lg border border-violet-200 px-3 py-1.5 text-xs font-semibold text-violet-700">
+                              Reprogramar
+                            </button>
+                          )}
+                          {['confirmada', 'reprogramada'].includes(cita.estado) && (
+                            <button type="button" onClick={() => cambiarEstado(cita.id_cita, 'asistencia')} className="rounded-lg bg-sky-600 px-3 py-1.5 text-xs font-semibold text-white">
+                              Asistencia
+                            </button>
+                          )}
+                          {cita.estado === 'en_atencion' && (
+                            <button type="button" onClick={() => cambiarEstado(cita.id_cita, 'salida')} className="rounded-lg bg-slate-700 px-3 py-1.5 text-xs font-semibold text-white">
+                              Salida
+                            </button>
+                          )}
+                          {!['cancelada', 'completada'].includes(cita.estado) && (
+                            <button type="button" onClick={() => cambiarEstado(cita.id_cita, 'cancelar')} className="rounded-lg border border-rose-200 px-3 py-1.5 text-xs font-semibold text-rose-700">
+                              Cancelar
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        )}
+
+        {tab === 'registro' && (
+          <section className="space-y-6">
+            <div>
+              <h2 className="text-2xl font-bold text-slate-900">Alta de paciente</h2>
+              <p className="mt-1 text-sm text-slate-500">{pacientes.length} pacientes registrados. {especialidades.length} especialidades disponibles.</p>
+            </div>
+            <form onSubmit={registrarNuevoPaciente} className="max-w-3xl rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
+              <div className="grid grid-cols-2 gap-4">
+                {[
+                  ['nombre', 'Nombre', 'text'],
+                  ['apellido', 'Apellido', 'text'],
+                  ['email', 'Correo', 'email'],
+                  ['password', 'Contrasena inicial', 'password'],
+                  ['dni', 'DNI', 'text'],
+                  ['telefono', 'Telefono', 'text'],
+                  ['fecha_nacimiento', 'Fecha de nacimiento', 'date'],
+                  ['seguro_medico', 'Seguro medico', 'text'],
+                  ['direccion', 'Direccion', 'text'],
+                ].map(([field, label, type]) => (
+                  <label key={field} className="text-sm font-medium text-slate-700">
+                    {label}
+                    <input
+                      type={type}
+                      required={!['telefono', 'seguro_medico', 'direccion'].includes(field)}
+                      className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                      value={registro[field]}
+                      onChange={(event) => setRegistro({ ...registro, [field]: event.target.value })}
+                    />
+                  </label>
+                ))}
+                <label className="text-sm font-medium text-slate-700">
+                  Genero
+                  <select
+                    className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                    value={registro.genero}
+                    onChange={(event) => setRegistro({ ...registro, genero: event.target.value })}
+                  >
+                    <option value="M">Masculino</option>
+                    <option value="F">Femenino</option>
+                    <option value="Otro">Otro</option>
+                  </select>
+                </label>
+              </div>
+              <button type="submit" className="mt-5 rounded-lg bg-sky-700 px-5 py-2.5 text-sm font-semibold text-white">
+                Registrar paciente
+              </button>
+            </form>
+          </section>
+        )}
+      </div>
+    </Layout>
+  )
+}
