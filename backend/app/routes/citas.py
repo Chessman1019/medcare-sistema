@@ -1,6 +1,14 @@
 from fastapi import APIRouter, HTTPException
-from app.schemas.cita import CitaCreate, CitaUpdate
-from app.services.cita_service import crear_cita, get_citas_paciente, get_citas_doctor, cancelar_cita
+from app.schemas.cita import AtencionCreate, CitaCreate, CitaReprogramar
+from app.services.cita_service import (
+    cancelar_cita,
+    cambiar_estado_cita,
+    crear_cita,
+    get_citas_doctor,
+    get_citas_paciente,
+    registrar_atencion,
+    reprogramar_cita,
+)
 from app.database import supabase
 
 router = APIRouter()
@@ -17,6 +25,8 @@ def nueva_cita(data: CitaCreate, id_paciente: int):
         "duracion_min": data.duracion_min,
         "estado": "pendiente"
     })
+    if not cita:
+        raise HTTPException(status_code=400, detail="No se pudo registrar la cita")
     return cita
 
 @router.get("/todas")
@@ -47,6 +57,8 @@ def estadisticas():
         "citas_hoy": len(citas_hoy),
         "confirmadas_hoy": len([c for c in citas_hoy if c["estado"] == "confirmada"]),
         "canceladas_hoy": len([c for c in citas_hoy if c["estado"] == "cancelada"]),
+        "en_atencion_hoy": len([c for c in citas_hoy if c["estado"] == "en_atencion"]),
+        "completadas_hoy": len([c for c in citas_hoy if c["estado"] == "completada"]),
         "pendientes": len([c for c in citas if c["estado"] == "pendiente"]),
         "total_pacientes": len(pacientes),
         "doctores_activos": len([d for d in doctores if d["disponible"]]),
@@ -69,10 +81,36 @@ def cancelar(id_cita: int):
 
 @router.put("/{id_cita}/confirmar")
 def confirmar(id_cita: int):
-    res = supabase.table("cita").update({"estado": "confirmada"}).eq("id_cita", id_cita).execute()
-    return res.data
+    return cambiar_estado_cita(id_cita, "confirmada")
+
+@router.put("/{id_cita}/asistencia")
+def registrar_asistencia(id_cita: int):
+    return cambiar_estado_cita(id_cita, "en_atencion")
+
+@router.put("/{id_cita}/reprogramar")
+def reprogramar(id_cita: int, data: CitaReprogramar):
+    try:
+        cita = reprogramar_cita(id_cita, data.id_horario, str(data.fecha_hora))
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error))
+    if not cita:
+        raise HTTPException(status_code=404, detail="Cita no encontrada")
+    return cita
+
+@router.post("/{id_cita}/atencion")
+def atender(id_cita: int, data: AtencionCreate):
+    try:
+        atencion = registrar_atencion(id_cita, data.model_dump())
+    except Exception as error:
+        raise HTTPException(status_code=400, detail=f"No se pudo registrar la atencion: {error}")
+    if not atencion:
+        raise HTTPException(status_code=404, detail="Cita no encontrada")
+    return atencion
 
 @router.put("/{id_cita}/completar")
 def completar(id_cita: int):
-    res = supabase.table("cita").update({"estado": "completada"}).eq("id_cita", id_cita).execute()
-    return res.data
+    return cambiar_estado_cita(id_cita, "completada")
+
+@router.put("/{id_cita}/salida")
+def registrar_salida(id_cita: int):
+    return cambiar_estado_cita(id_cita, "completada")
