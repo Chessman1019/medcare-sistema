@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import Layout from '../components/Layout'
 import PortalSidebar from '../components/PortalSidebar'
 import { useAuth } from '../context/AuthContext'
@@ -71,12 +71,34 @@ export default function DashboardPaciente() {
   const [success, setSuccess] = useState('')
   const [error, setError] = useState('')
   const [reprogramacion, setReprogramacion] = useState(null)
+  const [focusVersion, setFocusVersion] = useState(0)
+  const contentRef = useRef(null)
+  const quickPanelRef = useRef(null)
+
+  const requestFocus = () => setFocusVersion((current) => current + 1)
 
   const showSuccess = (message) => {
     setError('')
     setSuccess(message)
+    requestFocus()
     window.setTimeout(() => setSuccess(''), 3200)
   }
+
+  useEffect(() => {
+    if (!focusVersion) return
+    window.setTimeout(() => {
+      contentRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      contentRef.current?.focus({ preventScroll: true })
+    }, 0)
+  }, [focusVersion])
+
+  useEffect(() => {
+    if (!quickPanel) return
+    window.setTimeout(() => {
+      quickPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      quickPanelRef.current?.focus({ preventScroll: true })
+    }, 0)
+  }, [quickPanel])
 
   useEffect(() => {
     let mounted = true
@@ -135,12 +157,14 @@ export default function DashboardPaciente() {
   const handleSelectTab = (nextTab) => {
     setTab(nextTab)
     if (nextTab !== 'inicio') setQuickPanel(null)
+    requestFocus()
   }
 
   const openInicioPanel = (panel) => {
     setTab('inicio')
     setQuickPanel(panel)
     setError('')
+    requestFocus()
   }
 
   const sidebarItems = [
@@ -235,7 +259,7 @@ export default function DashboardPaciente() {
       setDoctores([])
       setHorarios([])
       await refreshCitas()
-      setTab('citas')
+      handleSelectTab('citas')
       showSuccess('Cita registrada. Recepción la validará y confirmará.')
     } catch (requestError) {
       setError(getErrorMessage(requestError, 'No se pudo registrar la cita. Intenta con otro horario.'))
@@ -262,7 +286,7 @@ export default function DashboardPaciente() {
 
   const abrirReprogramacion = async (cita) => {
     setError('')
-    setTab('citas')
+    handleSelectTab('citas')
     setQuickPanel(null)
     setReprogramacion({ cita, id_horario: '', horarios: [], loading: true })
 
@@ -324,7 +348,7 @@ export default function DashboardPaciente() {
     const [icon, title, description] = panelHeader
 
     return (
-      <section className="medcare-card overflow-hidden">
+      <section ref={quickPanelRef} tabIndex={-1} className="medcare-card overflow-hidden focus:outline-none">
         <div className="flex flex-col gap-4 border-b border-[#bdcbc7] bg-white px-7 py-6 md:flex-row md:items-center md:justify-between">
           <div className="flex items-start gap-4">
             <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#d8f4ee] text-[#006b5d]">
@@ -479,7 +503,7 @@ export default function DashboardPaciente() {
       helpItems={helpItems}
       appItems={appItems}
     >
-      <div className="mx-auto w-full max-w-[1440px] p-8">
+      <div ref={contentRef} tabIndex={-1} className="mx-auto w-full max-w-[1440px] p-8 focus:outline-none">
         {success && (
           <div className="mb-5 rounded-xl border border-[#b7e8df] bg-[#e5fbf7] px-5 py-4 text-sm font-bold text-[#006b5d]">
             {success}

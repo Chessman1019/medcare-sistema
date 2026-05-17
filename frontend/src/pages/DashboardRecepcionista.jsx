@@ -1,5 +1,5 @@
 /* eslint-disable react-hooks/set-state-in-effect */
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Layout from '../components/Layout'
 import PortalSidebar from '../components/PortalSidebar'
 import {
@@ -82,6 +82,10 @@ export default function DashboardRecepcionista() {
   const [registro, setRegistro] = useState(emptyRegistro)
   const [message, setMessage] = useState('')
   const [actionLoading, setActionLoading] = useState('')
+  const [focusVersion, setFocusVersion] = useState(0)
+  const contentRef = useRef(null)
+
+  const requestFocus = () => setFocusVersion((current) => current + 1)
 
   const fetchData = useCallback(async () => {
     setLoading(true)
@@ -111,6 +115,14 @@ export default function DashboardRecepcionista() {
     fetchData()
   }, [fetchData])
 
+  useEffect(() => {
+    if (!focusVersion) return
+    window.setTimeout(() => {
+      contentRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      contentRef.current?.focus({ preventScroll: true })
+    }, 0)
+  }, [focusVersion])
+
   const citasFiltradas = useMemo(() => {
     return citas.filter((cita) => {
       const coincideEstado = !filtros.estado || cita.estado === filtros.estado
@@ -126,10 +138,12 @@ export default function DashboardRecepcionista() {
   const goToTab = (nextTab, nextFilters = {}) => {
     setTab(nextTab)
     setFiltros((actual) => ({ ...actual, ...nextFilters }))
+    requestFocus()
   }
 
   const showMessage = (text) => {
     setMessage(text)
+    requestFocus()
     window.setTimeout(() => setMessage(''), 3500)
   }
 
@@ -153,7 +167,7 @@ export default function DashboardRecepcionista() {
   }
 
   const abrirReprogramacion = async (cita) => {
-    setTab('gestion')
+    goToTab('gestion')
     setReprogramacion({ cita, id_doctor: cita.id_doctor, id_horario: '', horarios: [], loading: true })
     try {
       const res = await getHorarios(cita.id_doctor)
@@ -254,20 +268,20 @@ export default function DashboardRecepcionista() {
       title: 'Registrar paciente',
       description: 'Crea una ficha de paciente para poder agendar o validar citas.',
       actionLabel: 'Abrir registro',
-      onClick: () => setTab('registro'),
+      onClick: () => goToTab('registro'),
     },
     {
       title: 'Gestionar asistencia',
       description: 'Confirma asistencia, salida, cancelación o reprogramación desde gestión.',
       actionLabel: 'Abrir gestión',
-      onClick: () => setTab('gestion'),
+      onClick: () => goToTab('gestion'),
     },
   ]
 
   const appItems = [
-    { title: 'Panel', description: 'Métricas rápidas del día.', actionLabel: 'Abrir', onClick: () => setTab('dashboard') },
-    { title: 'Agenda global', description: 'Calendario y disponibilidad por doctor.', actionLabel: 'Abrir', onClick: () => setTab('agenda') },
-    { title: 'Registro paciente', description: 'Alta de nuevos pacientes.', actionLabel: 'Abrir', onClick: () => setTab('registro') },
+    { title: 'Panel', description: 'Métricas rápidas del día.', actionLabel: 'Abrir', onClick: () => goToTab('dashboard') },
+    { title: 'Agenda global', description: 'Calendario y disponibilidad por doctor.', actionLabel: 'Abrir', onClick: () => goToTab('agenda') },
+    { title: 'Registro paciente', description: 'Alta de nuevos pacientes.', actionLabel: 'Abrir', onClick: () => goToTab('registro') },
   ]
 
   const sidebarItems = [
@@ -281,9 +295,9 @@ export default function DashboardRecepcionista() {
     <PortalSidebar
       active={tab}
       items={sidebarItems}
-      onSelect={setTab}
+      onSelect={(nextTab) => goToTab(nextTab)}
       ctaLabel="Nueva cita"
-      onCta={() => setTab('gestion')}
+      onCta={() => goToTab('gestion')}
       onSupport={() => showMessage('Soporte interno avisado. Revisa la campana para pendientes operativos.')}
     />
   )
@@ -307,7 +321,7 @@ export default function DashboardRecepcionista() {
       helpItems={helpItems}
       appItems={appItems}
     >
-      <div className="mx-auto w-full max-w-[1440px] space-y-7 p-8">
+      <div ref={contentRef} tabIndex={-1} className="mx-auto w-full max-w-[1440px] space-y-7 p-8 focus:outline-none">
         {message && (
           <div className="rounded-lg border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-800">
             {message}

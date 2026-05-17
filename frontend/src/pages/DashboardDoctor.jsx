@@ -1,5 +1,5 @@
 /* eslint-disable react-hooks/set-state-in-effect */
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useAuth } from '../context/AuthContext'
 import Layout from '../components/Layout'
 import PortalSidebar from '../components/PortalSidebar'
@@ -54,6 +54,15 @@ export default function DashboardDoctor() {
   const [searchTerm, setSearchTerm] = useState('')
   const [message, setMessage] = useState('')
   const [saving, setSaving] = useState(false)
+  const [focusVersion, setFocusVersion] = useState(0)
+  const contentRef = useRef(null)
+
+  const requestFocus = () => setFocusVersion((current) => current + 1)
+
+  const goToTab = (nextTab) => {
+    setTab(nextTab)
+    requestFocus()
+  }
 
   const fetchCitas = useCallback(async () => {
     if (!userId) return
@@ -71,6 +80,14 @@ export default function DashboardDoctor() {
   useEffect(() => {
     fetchCitas()
   }, [fetchCitas])
+
+  useEffect(() => {
+    if (!focusVersion) return
+    window.setTimeout(() => {
+      contentRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      contentRef.current?.focus({ preventScroll: true })
+    }, 0)
+  }, [focusVersion])
 
   const agendaDiaria = useMemo(() => {
     const term = searchTerm.trim().toLowerCase()
@@ -91,7 +108,7 @@ export default function DashboardDoctor() {
   const abrirAtencion = async (cita) => {
     setSelected(cita)
     setForm(emptyAtencion)
-    setTab('atencion')
+    goToTab('atencion')
     try {
       const res = await getHistorial(cita.id_paciente)
       setHistorial(res.data)
@@ -110,7 +127,7 @@ export default function DashboardDoctor() {
       setForm(emptyAtencion)
       setHistorial([])
       await fetchCitas()
-      setTab('agenda')
+      goToTab('agenda')
     } catch (error) {
       setMessage(error.response?.data?.detail || 'No se pudo registrar la atención.')
     } finally {
@@ -127,7 +144,7 @@ export default function DashboardDoctor() {
       description: agendaDiaria.length ? 'Revisa la agenda cronológica y empieza la atención desde cada ficha.' : 'No tienes pacientes programados para hoy.',
       time: 'Hoy',
       actionLabel: 'Ver agenda',
-      onClick: () => setTab('agenda'),
+      onClick: () => goToTab('agenda'),
     },
     {
       title: `${enAtencion.length} en atención`,
@@ -136,7 +153,7 @@ export default function DashboardDoctor() {
       actionLabel: 'Abrir atención',
       onClick: () => {
         if (enAtencion[0]) abrirAtencion(enAtencion[0])
-        else setTab('agenda')
+        else goToTab('agenda')
       },
     },
   ]
@@ -146,20 +163,20 @@ export default function DashboardDoctor() {
       title: 'Registrar atención',
       description: 'Selecciona un paciente confirmado y completa diagnóstico, tratamiento y observaciones.',
       actionLabel: 'Ir a agenda',
-      onClick: () => setTab('agenda'),
+      onClick: () => goToTab('agenda'),
     },
     {
       title: 'Consultar historial',
       description: 'Elige un paciente para revisar atenciones previas antes de guardar la consulta.',
       actionLabel: 'Abrir historial',
-      onClick: () => setTab('historial'),
+      onClick: () => goToTab('historial'),
     },
   ]
 
   const appItems = [
-    { title: 'Agenda diaria', description: `${proximas.length} citas listas para atender.`, actionLabel: 'Abrir', onClick: () => setTab('agenda') },
-    { title: 'Atención', description: selected ? `Ficha activa: ${selected.paciente}` : 'Selecciona un paciente desde agenda.', actionLabel: 'Abrir', onClick: () => setTab('atencion') },
-    { title: 'Historial', description: `${pacientesUnicos.length} pacientes con citas registradas.`, actionLabel: 'Abrir', onClick: () => setTab('historial') },
+    { title: 'Agenda diaria', description: `${proximas.length} citas listas para atender.`, actionLabel: 'Abrir', onClick: () => goToTab('agenda') },
+    { title: 'Atención', description: selected ? `Ficha activa: ${selected.paciente}` : 'Selecciona un paciente desde agenda.', actionLabel: 'Abrir', onClick: () => goToTab('atencion') },
+    { title: 'Historial', description: `${pacientesUnicos.length} pacientes con citas registradas.`, actionLabel: 'Abrir', onClick: () => goToTab('historial') },
   ]
 
   const sidebarItems = [
@@ -172,10 +189,10 @@ export default function DashboardDoctor() {
     <PortalSidebar
       active={tab}
       items={sidebarItems}
-      onSelect={setTab}
+      onSelect={goToTab}
       ctaLabel="Ver agenda"
       ctaIcon="event"
-      onCta={() => setTab('agenda')}
+      onCta={() => goToTab('agenda')}
       onSupport={() => setMessage('Soporte médico avisado. Revisa la campana para alertas de agenda.')}
     />
   )
@@ -199,7 +216,7 @@ export default function DashboardDoctor() {
       helpItems={helpItems}
       appItems={appItems}
     >
-      <div className="mx-auto w-full max-w-[1440px] space-y-7 p-8">
+      <div ref={contentRef} tabIndex={-1} className="mx-auto w-full max-w-[1440px] space-y-7 p-8 focus:outline-none">
         {message && (
           <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
             {message}
@@ -214,15 +231,15 @@ export default function DashboardDoctor() {
             </div>
 
             <div className="grid grid-cols-3 gap-4">
-              <button type="button" onClick={() => setTab('agenda')} className="rounded-lg border border-slate-200 bg-white p-5 text-left shadow-sm transition hover:-translate-y-1 hover:border-[#12b8a3] hover:shadow-lg focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#12b8a3]/20 active:scale-[0.98]">
+              <button type="button" onClick={() => goToTab('agenda')} className="rounded-lg border border-slate-200 bg-white p-5 text-left shadow-sm transition hover:-translate-y-1 hover:border-[#12b8a3] hover:shadow-lg focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#12b8a3]/20 active:scale-[0.98]">
                 <p className="text-sm text-slate-500">Citas hoy</p>
                 <p className="mt-2 text-3xl font-bold text-slate-900">{agendaDiaria.length}</p>
               </button>
-              <button type="button" onClick={() => enAtencion[0] ? abrirAtencion(enAtencion[0]) : setTab('agenda')} className="rounded-lg border border-slate-200 bg-white p-5 text-left shadow-sm transition hover:-translate-y-1 hover:border-[#12b8a3] hover:shadow-lg focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#12b8a3]/20 active:scale-[0.98]">
+              <button type="button" onClick={() => enAtencion[0] ? abrirAtencion(enAtencion[0]) : goToTab('agenda')} className="rounded-lg border border-slate-200 bg-white p-5 text-left shadow-sm transition hover:-translate-y-1 hover:border-[#12b8a3] hover:shadow-lg focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#12b8a3]/20 active:scale-[0.98]">
                 <p className="text-sm text-slate-500">En atencion</p>
                 <p className="mt-2 text-3xl font-bold text-sky-700">{enAtencion.length}</p>
               </button>
-              <button type="button" onClick={() => setTab('historial')} className="rounded-lg border border-slate-200 bg-white p-5 text-left shadow-sm transition hover:-translate-y-1 hover:border-[#12b8a3] hover:shadow-lg focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#12b8a3]/20 active:scale-[0.98]">
+              <button type="button" onClick={() => goToTab('historial')} className="rounded-lg border border-slate-200 bg-white p-5 text-left shadow-sm transition hover:-translate-y-1 hover:border-[#12b8a3] hover:shadow-lg focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#12b8a3]/20 active:scale-[0.98]">
                 <p className="text-sm text-slate-500">Pacientes</p>
                 <p className="mt-2 text-3xl font-bold text-slate-900">{pacientesUnicos.length}</p>
               </button>
@@ -298,7 +315,7 @@ export default function DashboardDoctor() {
                       <dd className="font-medium text-slate-900">{selected.motivo || 'Sin motivo registrado'}</dd>
                     </div>
                   </dl>
-                  <button type="button" onClick={() => setTab('historial')} className={`mt-5 ${secondaryButton}`}>
+                  <button type="button" onClick={() => goToTab('historial')} className={`mt-5 ${secondaryButton}`}>
                     Ver historial
                   </button>
                 </div>
@@ -357,7 +374,7 @@ export default function DashboardDoctor() {
                     <button
                       key={cita.id_paciente}
                       type="button"
-                      onClick={() => abrirAtencion(cita).then(() => setTab('historial'))}
+                      onClick={() => abrirAtencion(cita).then(() => goToTab('historial'))}
                       className="w-full rounded-lg border border-slate-200 px-3 py-2 text-left text-sm transition hover:-translate-y-0.5 hover:border-[#12b8a3] hover:bg-[#f4fffc] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#12b8a3]/20 active:scale-[0.98]"
                     >
                       <p className="font-medium text-slate-900">{cita.paciente}</p>
