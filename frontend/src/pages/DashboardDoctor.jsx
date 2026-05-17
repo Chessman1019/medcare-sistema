@@ -14,6 +14,10 @@ const estadoClass = {
   cancelada: 'bg-rose-50 text-rose-700 border-rose-200',
 }
 
+const inputClass = 'mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm transition focus:border-[#007a68] focus:outline-none focus:ring-4 focus:ring-[#12b8a3]/15'
+const primaryButton = 'rounded-lg bg-[#007a68] px-5 py-2.5 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:brightness-105 hover:shadow-lg focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#12b8a3]/20 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60'
+const secondaryButton = 'rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:-translate-y-0.5 hover:border-[#12b8a3] hover:bg-[#f4fffc] hover:text-[#006b5d] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#12b8a3]/20 active:scale-[0.98]'
+
 const emptyAtencion = {
   diagnostico: '',
   observaciones: '',
@@ -40,38 +44,49 @@ function isToday(value) {
 
 export default function DashboardDoctor() {
   const { user } = useAuth()
+  const userId = user?.id
   const [tab, setTab] = useState('agenda')
   const [citas, setCitas] = useState([])
   const [loading, setLoading] = useState(true)
   const [selected, setSelected] = useState(null)
   const [historial, setHistorial] = useState([])
   const [form, setForm] = useState(emptyAtencion)
+  const [searchTerm, setSearchTerm] = useState('')
   const [message, setMessage] = useState('')
+  const [saving, setSaving] = useState(false)
 
   const fetchCitas = useCallback(async () => {
-    if (!user?.id) return
+    if (!userId) return
     setLoading(true)
     try {
-      const res = await getCitasDoctor(user.id)
-      setCitas(res.data)
+      const res = await getCitasDoctor(userId)
+      setCitas(res.data || [])
+    } catch (error) {
+      setMessage(error.response?.data?.detail || 'No se pudo cargar la agenda médica.')
     } finally {
       setLoading(false)
     }
-  }, [user?.id])
+  }, [userId])
 
   useEffect(() => {
     fetchCitas()
   }, [fetchCitas])
 
   const agendaDiaria = useMemo(() => {
+    const term = searchTerm.trim().toLowerCase()
     return citas
       .filter((cita) => isToday(cita.fecha_hora) && cita.estado !== 'cancelada')
+      .filter((cita) => !term || [cita.paciente, cita.dni, cita.especialidad, cita.estado, cita.motivo]
+        .some((field) => String(field || '').toLowerCase().includes(term)))
       .sort((a, b) => new Date(a.fecha_hora) - new Date(b.fecha_hora))
-  }, [citas])
+  }, [citas, searchTerm])
 
   const pacientesUnicos = useMemo(() => {
+    const term = searchTerm.trim().toLowerCase()
     return [...new Map(citas.map((cita) => [cita.id_paciente, cita])).values()]
-  }, [citas])
+      .filter((cita) => !term || [cita.paciente, cita.dni, cita.especialidad, cita.estado]
+        .some((field) => String(field || '').toLowerCase().includes(term)))
+  }, [citas, searchTerm])
 
   const abrirAtencion = async (cita) => {
     setSelected(cita)
@@ -87,14 +102,65 @@ export default function DashboardDoctor() {
 
   const guardarAtencion = async (event) => {
     event.preventDefault()
-    await registrarAtencion(selected.id_cita, form)
-    setMessage('Atención registrada y cita cerrada correctamente.')
-    setSelected(null)
-    setForm(emptyAtencion)
-    setHistorial([])
-    await fetchCitas()
-    setTab('agenda')
+    setSaving(true)
+    try {
+      await registrarAtencion(selected.id_cita, form)
+      setMessage('Atención registrada y cita cerrada correctamente.')
+      setSelected(null)
+      setForm(emptyAtencion)
+      setHistorial([])
+      await fetchCitas()
+      setTab('agenda')
+    } catch (error) {
+      setMessage(error.response?.data?.detail || 'No se pudo registrar la atención.')
+    } finally {
+      setSaving(false)
+    }
   }
+
+  const enAtencion = citas.filter((cita) => cita.estado === 'en_atencion')
+  const proximas = agendaDiaria.filter((cita) => ['confirmada', 'reprogramada', 'en_atencion'].includes(cita.estado))
+
+  const notificationItems = [
+    {
+      title: `${agendaDiaria.length} pacientes hoy`,
+      description: agendaDiaria.length ? 'Revisa la agenda cronológica y empieza la atención desde cada ficha.' : 'No tienes pacientes programados para hoy.',
+      time: 'Hoy',
+      actionLabel: 'Ver agenda',
+      onClick: () => setTab('agenda'),
+    },
+    {
+      title: `${enAtencion.length} en atención`,
+      description: enAtencion.length ? 'Hay consultas abiertas que pueden requerir cierre clínico.' : 'No hay atenciones abiertas en este momento.',
+      time: 'Ahora',
+      actionLabel: 'Abrir atención',
+      onClick: () => {
+        if (enAtencion[0]) abrirAtencion(enAtencion[0])
+        else setTab('agenda')
+      },
+    },
+  ]
+
+  const helpItems = [
+    {
+      title: 'Registrar atención',
+      description: 'Selecciona un paciente confirmado y completa diagnóstico, tratamiento y observaciones.',
+      actionLabel: 'Ir a agenda',
+      onClick: () => setTab('agenda'),
+    },
+    {
+      title: 'Consultar historial',
+      description: 'Elige un paciente para revisar atenciones previas antes de guardar la consulta.',
+      actionLabel: 'Abrir historial',
+      onClick: () => setTab('historial'),
+    },
+  ]
+
+  const appItems = [
+    { title: 'Agenda diaria', description: `${proximas.length} citas listas para atender.`, actionLabel: 'Abrir', onClick: () => setTab('agenda') },
+    { title: 'Atención', description: selected ? `Ficha activa: ${selected.paciente}` : 'Selecciona un paciente desde agenda.', actionLabel: 'Abrir', onClick: () => setTab('atencion') },
+    { title: 'Historial', description: `${pacientesUnicos.length} pacientes con citas registradas.`, actionLabel: 'Abrir', onClick: () => setTab('historial') },
+  ]
 
   const sidebarItems = [
     { path: 'agenda', icon: 'dashboard', label: 'Agenda diaria' },
@@ -110,19 +176,29 @@ export default function DashboardDoctor() {
       ctaLabel="Ver agenda"
       ctaIcon="event"
       onCta={() => setTab('agenda')}
+      onSupport={() => setMessage('Soporte médico avisado. Revisa la campana para alertas de agenda.')}
     />
   )
 
   if (loading) {
     return (
-      <Layout sidebar={Sidebar} title="Panel médico">
+      <Layout sidebar={Sidebar} title="Panel médico" notificationItems={notificationItems} helpItems={helpItems} appItems={appItems}>
         <div className="flex min-h-screen items-center justify-center text-sm text-slate-500">Cargando agenda...</div>
       </Layout>
     )
   }
 
   return (
-    <Layout sidebar={Sidebar} title="Panel médico">
+    <Layout
+      sidebar={Sidebar}
+      title="Panel médico"
+      searchValue={searchTerm}
+      searchPlaceholder="Buscar pacientes, DNI o estados..."
+      onSearchChange={setSearchTerm}
+      notificationItems={notificationItems}
+      helpItems={helpItems}
+      appItems={appItems}
+    >
       <div className="mx-auto w-full max-w-[1440px] space-y-7 p-8">
         {message && (
           <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
@@ -138,18 +214,18 @@ export default function DashboardDoctor() {
             </div>
 
             <div className="grid grid-cols-3 gap-4">
-              <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+              <button type="button" onClick={() => setTab('agenda')} className="rounded-lg border border-slate-200 bg-white p-5 text-left shadow-sm transition hover:-translate-y-1 hover:border-[#12b8a3] hover:shadow-lg focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#12b8a3]/20 active:scale-[0.98]">
                 <p className="text-sm text-slate-500">Citas hoy</p>
                 <p className="mt-2 text-3xl font-bold text-slate-900">{agendaDiaria.length}</p>
-              </div>
-              <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+              </button>
+              <button type="button" onClick={() => enAtencion[0] ? abrirAtencion(enAtencion[0]) : setTab('agenda')} className="rounded-lg border border-slate-200 bg-white p-5 text-left shadow-sm transition hover:-translate-y-1 hover:border-[#12b8a3] hover:shadow-lg focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#12b8a3]/20 active:scale-[0.98]">
                 <p className="text-sm text-slate-500">En atencion</p>
-                <p className="mt-2 text-3xl font-bold text-sky-700">{citas.filter(c => c.estado === 'en_atencion').length}</p>
-              </div>
-              <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+                <p className="mt-2 text-3xl font-bold text-sky-700">{enAtencion.length}</p>
+              </button>
+              <button type="button" onClick={() => setTab('historial')} className="rounded-lg border border-slate-200 bg-white p-5 text-left shadow-sm transition hover:-translate-y-1 hover:border-[#12b8a3] hover:shadow-lg focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#12b8a3]/20 active:scale-[0.98]">
                 <p className="text-sm text-slate-500">Pacientes</p>
                 <p className="mt-2 text-3xl font-bold text-slate-900">{pacientesUnicos.length}</p>
-              </div>
+              </button>
             </div>
 
             <div className="rounded-lg border border-slate-200 bg-white shadow-sm">
@@ -161,7 +237,7 @@ export default function DashboardDoctor() {
                   <p className="px-5 py-8 text-sm text-slate-500">No tienes citas programadas para hoy.</p>
                 ) : (
                   agendaDiaria.map((cita) => (
-                    <div key={cita.id_cita} className="grid grid-cols-[1.2fr_1fr_auto_auto] items-center gap-4 px-5 py-4">
+                    <div key={cita.id_cita} className="grid grid-cols-[1.2fr_1fr_auto_auto] items-center gap-4 px-5 py-4 transition hover:bg-[#f8fbff]">
                       <div>
                         <p className="font-medium text-slate-900">{cita.paciente}</p>
                         <p className="text-xs text-slate-500">DNI {cita.dni || 'sin registrar'}</p>
@@ -174,7 +250,7 @@ export default function DashboardDoctor() {
                         <button
                           type="button"
                           onClick={() => abrirAtencion(cita)}
-                          className="rounded-lg bg-sky-700 px-4 py-2 text-sm font-semibold text-white"
+                          className={primaryButton}
                         >
                           Atender
                         </button>
@@ -222,6 +298,9 @@ export default function DashboardDoctor() {
                       <dd className="font-medium text-slate-900">{selected.motivo || 'Sin motivo registrado'}</dd>
                     </div>
                   </dl>
+                  <button type="button" onClick={() => setTab('historial')} className={`mt-5 ${secondaryButton}`}>
+                    Ver historial
+                  </button>
                 </div>
 
                 <form onSubmit={guardarAtencion} className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
@@ -231,7 +310,7 @@ export default function DashboardDoctor() {
                     <textarea
                       required
                       rows={3}
-                      className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                      className={inputClass}
                       value={form.diagnostico}
                       onChange={(event) => setForm({ ...form, diagnostico: event.target.value })}
                     />
@@ -240,7 +319,7 @@ export default function DashboardDoctor() {
                     Observaciones
                     <textarea
                       rows={3}
-                      className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                      className={inputClass}
                       value={form.observaciones}
                       onChange={(event) => setForm({ ...form, observaciones: event.target.value })}
                     />
@@ -249,13 +328,13 @@ export default function DashboardDoctor() {
                     Tratamiento
                     <textarea
                       rows={2}
-                      className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                      className={inputClass}
                       value={form.tratamiento}
                       onChange={(event) => setForm({ ...form, tratamiento: event.target.value })}
                     />
                   </label>
-                  <button type="submit" className="mt-5 rounded-lg bg-sky-700 px-5 py-2.5 text-sm font-semibold text-white">
-                    Guardar atencion y registrar salida
+                  <button type="submit" disabled={saving} className={`mt-5 ${primaryButton}`}>
+                    {saving ? 'Guardando...' : 'Guardar atencion y registrar salida'}
                   </button>
                 </form>
               </div>
@@ -279,7 +358,7 @@ export default function DashboardDoctor() {
                       key={cita.id_paciente}
                       type="button"
                       onClick={() => abrirAtencion(cita).then(() => setTab('historial'))}
-                      className="w-full rounded-lg border border-slate-200 px-3 py-2 text-left text-sm hover:bg-slate-50"
+                      className="w-full rounded-lg border border-slate-200 px-3 py-2 text-left text-sm transition hover:-translate-y-0.5 hover:border-[#12b8a3] hover:bg-[#f4fffc] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#12b8a3]/20 active:scale-[0.98]"
                     >
                       <p className="font-medium text-slate-900">{cita.paciente}</p>
                       <p className="text-xs text-slate-500">{cita.dni}</p>

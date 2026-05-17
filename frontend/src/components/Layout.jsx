@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useAuth } from '../context/AuthContext'
 
 const roleLabel = {
@@ -7,6 +8,72 @@ const roleLabel = {
   administrador: 'Administrador',
 }
 
+function HeaderDropdown({ title, icon, items = [], emptyText, onClose }) {
+  return (
+    <div className="absolute right-0 top-12 z-50 w-[22rem] max-w-[calc(100vw-2rem)] overflow-hidden rounded-2xl border border-[#bdcbc7] bg-white shadow-2xl shadow-[#08284d]/12">
+      <div className="flex items-center justify-between border-b border-[#d8e3fb] bg-[#f8fbff] px-5 py-4">
+        <div className="flex items-center gap-3">
+          <span className="flex h-10 w-10 items-center justify-center rounded-full bg-[#d8f4ee] text-[#006b5d]">
+            <span className="material-symbols-outlined">{icon}</span>
+          </span>
+          <p className="font-extrabold text-[#101828]">{title}</p>
+        </div>
+        <button
+          type="button"
+          onClick={onClose}
+          className="rounded-lg p-1.5 text-[#52615f] transition hover:bg-white hover:text-[#006b5d] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#12b8a3]/20 active:scale-95"
+          aria-label="Cerrar menú"
+        >
+          <span className="material-symbols-outlined text-[20px]">close</span>
+        </button>
+      </div>
+
+      <div className="max-h-[420px] overflow-y-auto p-3">
+        {items.length === 0 ? (
+          <p className="rounded-xl bg-[#edf2ff] p-4 text-sm text-[#52615f]">{emptyText}</p>
+        ) : (
+          <div className="space-y-2">
+            {items.map((item) => {
+              const body = (
+                <>
+                  <div className="flex items-start justify-between gap-4">
+                    <p className="font-extrabold text-[#101828]">{item.title}</p>
+                    {item.time && <span className="shrink-0 text-xs font-bold text-[#52615f]">{item.time}</span>}
+                  </div>
+                  {item.description && <p className="mt-1 text-sm leading-5 text-[#52615f]">{item.description}</p>}
+                  {item.actionLabel && <p className="mt-3 text-sm font-extrabold text-[#006b5d]">{item.actionLabel}</p>}
+                </>
+              )
+
+              if (item.onClick) {
+                return (
+                  <button
+                    key={item.title}
+                    type="button"
+                    onClick={() => {
+                      item.onClick()
+                      onClose()
+                    }}
+                    className="w-full rounded-xl border border-transparent p-4 text-left transition hover:-translate-y-0.5 hover:border-[#12b8a3]/35 hover:bg-[#f4fffc] hover:shadow-sm focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#12b8a3]/20 active:scale-[0.98]"
+                  >
+                    {body}
+                  </button>
+                )
+              }
+
+              return (
+                <div key={item.title} className="rounded-xl border border-[#edf2ff] bg-white p-4">
+                  {body}
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
 export default function Layout({
   children,
   sidebar,
@@ -14,11 +81,12 @@ export default function Layout({
   searchValue,
   searchPlaceholder = 'Buscar pacientes, citas o historiales...',
   onSearchChange,
-  onNotifications,
-  onHelp,
-  onApps,
+  notificationItems = [],
+  helpItems = [],
+  appItems = [],
 }) {
   const { user } = useAuth()
+  const [openMenu, setOpenMenu] = useState(null)
 
   if (!sidebar) {
     return (
@@ -29,6 +97,7 @@ export default function Layout({
   }
 
   const topButtonClass = 'rounded-xl p-2 text-[#223330] transition hover:-translate-y-0.5 hover:bg-[#edf2ff] hover:text-[#006b5d] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#12b8a3]/20 active:scale-[0.95]'
+  const toggleMenu = (menu) => setOpenMenu((current) => (current === menu ? null : menu))
 
   return (
     <div className="medcare-shell min-h-screen">
@@ -55,16 +124,52 @@ export default function Layout({
         </div>
 
         <div className="flex items-center gap-6">
-          <button type="button" onClick={onNotifications} className={`relative ${topButtonClass}`} aria-label="Notificaciones">
-            <span className="material-symbols-outlined">notifications</span>
-            <span className="absolute right-1.5 top-1 h-2.5 w-2.5 rounded-full bg-[#ba1a1a]" />
-          </button>
-          <button type="button" onClick={onHelp} className={topButtonClass} aria-label="Ayuda">
-            <span className="material-symbols-outlined">help</span>
-          </button>
-          <button type="button" onClick={onApps} className={`hidden md:block ${topButtonClass}`} aria-label="Aplicaciones">
-            <span className="material-symbols-outlined">apps</span>
-          </button>
+          <div className="relative">
+            <button type="button" onClick={() => toggleMenu('notifications')} className={`relative ${topButtonClass}`} aria-label="Notificaciones" aria-expanded={openMenu === 'notifications'}>
+              <span className="material-symbols-outlined">notifications</span>
+              {notificationItems.length > 0 && <span className="absolute right-1.5 top-1 h-2.5 w-2.5 rounded-full bg-[#ba1a1a]" />}
+            </button>
+            {openMenu === 'notifications' && (
+              <HeaderDropdown
+                title="Notificaciones"
+                icon="notifications"
+                items={notificationItems}
+                emptyText="No tienes notificaciones nuevas por ahora."
+                onClose={() => setOpenMenu(null)}
+              />
+            )}
+          </div>
+
+          <div className="relative">
+            <button type="button" onClick={() => toggleMenu('help')} className={topButtonClass} aria-label="Ayuda" aria-expanded={openMenu === 'help'}>
+              <span className="material-symbols-outlined">help</span>
+            </button>
+            {openMenu === 'help' && (
+              <HeaderDropdown
+                title="Ayuda rápida"
+                icon="help"
+                items={helpItems}
+                emptyText="No hay accesos de ayuda configurados para esta vista."
+                onClose={() => setOpenMenu(null)}
+              />
+            )}
+          </div>
+
+          <div className="relative hidden md:block">
+            <button type="button" onClick={() => toggleMenu('apps')} className={topButtonClass} aria-label="Aplicaciones" aria-expanded={openMenu === 'apps'}>
+              <span className="material-symbols-outlined">apps</span>
+            </button>
+            {openMenu === 'apps' && (
+              <HeaderDropdown
+                title="Accesos rápidos"
+                icon="apps"
+                items={appItems}
+                emptyText="No hay accesos rápidos configurados."
+                onClose={() => setOpenMenu(null)}
+              />
+            )}
+          </div>
+
           <div className="hidden h-10 w-px bg-[#bdcbc7] md:block" />
           <div className="flex items-center gap-3">
             <div className="text-right">

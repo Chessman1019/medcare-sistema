@@ -427,6 +427,47 @@ export default function DashboardPaciente() {
     )
   }
 
+  const notificationItems = [
+    {
+      title: activeAppointments ? `${activeAppointments} citas activas` : 'Sin citas activas',
+      description: activeAppointments
+        ? 'Puedes revisar, cancelar o reprogramar tus citas desde el historial.'
+        : 'Agenda una nueva cita cuando necesites atención.',
+      time: 'Ahora',
+      actionLabel: activeAppointments ? 'Ver mis citas' : 'Agendar cita',
+      onClick: () => handleSelectTab(activeAppointments ? 'citas' : 'agendar'),
+    },
+    ...(proximaCita ? [{
+      title: 'Recordatorio de próxima cita',
+      description: `Tu siguiente atención es con Dr. ${proximaCita.doctor} el ${formatDate(proximaCita.fecha_hora)}.`,
+      time: '24 h antes',
+      actionLabel: 'Ver detalle',
+      onClick: () => openInicioPanel('notificaciones'),
+    }] : []),
+  ]
+
+  const helpItems = [
+    {
+      title: 'Soporte del paciente',
+      description: 'Pide ayuda para horarios, reprogramaciones o información de tu atención.',
+      actionLabel: 'Solicitar apoyo',
+      onClick: () => openInicioPanel('soporte'),
+    },
+    {
+      title: 'Nueva solicitud',
+      description: 'Abre el formulario para elegir especialidad, doctor y horario.',
+      actionLabel: 'Agendar cita',
+      onClick: () => handleSelectTab('agendar'),
+    },
+  ]
+
+  const appItems = quickActions.map((action) => ({
+    title: action.label,
+    description: action.detail,
+    actionLabel: 'Abrir',
+    onClick: () => openInicioPanel(action.key),
+  }))
+
   return (
     <Layout
       sidebar={sidebar}
@@ -434,9 +475,9 @@ export default function DashboardPaciente() {
       searchValue={searchTerm}
       searchPlaceholder="Buscar mis citas, doctores o estados..."
       onSearchChange={setSearchTerm}
-      onNotifications={() => openInicioPanel('notificaciones')}
-      onHelp={() => openInicioPanel('soporte')}
-      onApps={() => openInicioPanel('apps')}
+      notificationItems={notificationItems}
+      helpItems={helpItems}
+      appItems={appItems}
     >
       <div className="mx-auto w-full max-w-[1440px] p-8">
         {success && (
