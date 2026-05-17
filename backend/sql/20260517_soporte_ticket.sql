@@ -78,7 +78,8 @@ BEFORE UPDATE ON public.soporte_ticket
 FOR EACH ROW
 EXECUTE FUNCTION public.set_soporte_ticket_updated_at();
 
-CREATE OR REPLACE VIEW public.v_soporte_ticket_detalle AS
+CREATE OR REPLACE VIEW public.v_soporte_ticket_detalle
+WITH (security_invoker = true) AS
 SELECT
   st.id_ticket,
   st.id_usuario,
@@ -109,7 +110,50 @@ LEFT JOIN public.cita c ON c.id_cita = st.id_cita
 LEFT JOIN public.usuario pu ON pu.id_usuario = c.id_paciente
 LEFT JOIN public.usuario du ON du.id_usuario = c.id_doctor;
 
-ALTER TABLE public.soporte_ticket DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.soporte_ticket ENABLE ROW LEVEL SECURITY;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'soporte_ticket'
+      AND policyname = 'soporte_ticket_dev_select'
+  ) THEN
+    CREATE POLICY soporte_ticket_dev_select
+      ON public.soporte_ticket
+      FOR SELECT
+      TO anon, authenticated
+      USING (true);
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'soporte_ticket'
+      AND policyname = 'soporte_ticket_dev_insert'
+  ) THEN
+    CREATE POLICY soporte_ticket_dev_insert
+      ON public.soporte_ticket
+      FOR INSERT
+      TO anon, authenticated
+      WITH CHECK (true);
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'soporte_ticket'
+      AND policyname = 'soporte_ticket_dev_update'
+  ) THEN
+    CREATE POLICY soporte_ticket_dev_update
+      ON public.soporte_ticket
+      FOR UPDATE
+      TO anon, authenticated
+      USING (true)
+      WITH CHECK (true);
+  END IF;
+END $$;
 
 GRANT SELECT, INSERT, UPDATE ON public.soporte_ticket TO anon, authenticated, service_role;
 GRANT SELECT ON public.v_soporte_ticket_detalle TO anon, authenticated, service_role;
