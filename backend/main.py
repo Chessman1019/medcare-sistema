@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.routes import auth, citas, horarios, historial, notificaciones, usuarios
+from app.routes import auth, citas, horarios, historial, notificaciones, soporte, usuarios
 
 app = FastAPI(
     title="MedCare API",
@@ -22,6 +22,7 @@ app.include_router(citas.router,     prefix="/api/citas",     tags=["Citas"])
 app.include_router(horarios.router,  prefix="/api/horarios",  tags=["Horarios"])
 app.include_router(historial.router, prefix="/api/historial", tags=["Historial"])
 app.include_router(notificaciones.router, prefix="/api/notificaciones", tags=["Notificaciones"])
+app.include_router(soporte.router, prefix="/api/soporte", tags=["Soporte"])
 
 @app.get("/")
 def root():

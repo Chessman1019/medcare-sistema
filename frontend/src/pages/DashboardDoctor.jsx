@@ -161,9 +161,9 @@ export default function DashboardDoctor() {
         id_cita: selected?.id_cita,
       })
       await refreshNotificaciones()
-      setMessage('Solicitud de soporte médico registrada en Supabase.')
+      setMessage('Ticket de soporte medico registrado en Supabase.')
     } catch (error) {
-      setMessage(error.response?.data?.detail || 'No se pudo registrar soporte. Debe existir al menos una cita.')
+      setMessage(error.response?.data?.detail || 'No se pudo registrar soporte.')
     } finally {
       setSaving(false)
     }

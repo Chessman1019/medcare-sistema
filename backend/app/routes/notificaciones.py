@@ -16,23 +16,6 @@ def _listar_notificaciones(campo: str | None = None, valor: int | None = None, l
     return res.data or []
 
 
-def _buscar_cita_contexto(data: SoporteCreate):
-    if data.id_cita:
-        res = supabase.table("cita").select("*").eq("id_cita", data.id_cita).limit(1).execute()
-        return res.data[0] if res.data else None
-
-    rol = data.rol.lower()
-    query = supabase.table("cita").select("*")
-
-    if rol == "paciente":
-        query = query.eq("id_paciente", data.id_usuario)
-    elif rol == "doctor":
-        query = query.eq("id_doctor", data.id_usuario)
-
-    res = query.order("fecha_hora", desc=True).limit(1).execute()
-    return res.data[0] if res.data else None
-
-
 @router.get("/paciente/{id_paciente}")
 def notificaciones_paciente(id_paciente: int):
     return _listar_notificaciones("id_paciente", id_paciente)
@@ -67,28 +50,21 @@ def crear_solicitud_soporte(data: SoporteCreate):
     if not mensaje:
         raise HTTPException(status_code=400, detail="El mensaje de soporte no puede estar vacio")
 
-    cita = _buscar_cita_contexto(data)
-    if not cita:
-        raise HTTPException(
-            status_code=400,
-            detail="No se encontro una cita asociada para registrar la solicitud de soporte",
-        )
-
-    contexto = f" ({data.contexto})" if data.contexto else ""
     payload = {
-        "id_cita": cita["id_cita"],
-        "tipo": "cita_creada",
-        "canal": "sistema",
-        "mensaje": f"Soporte {data.rol} #{data.id_usuario}{contexto}: {mensaje}",
-        "enviada": False,
-        "fecha_programada": datetime.now(timezone.utc).isoformat(),
+        "id_usuario": data.id_usuario,
+        "rol": data.rol,
+        "contexto": data.contexto,
+        "mensaje": mensaje,
+        "id_cita": data.id_cita,
+        "prioridad": "normal",
+        "estado": "abierto",
     }
 
-    res = supabase.table("notificacion").insert(payload).execute()
+    res = supabase.table("soporte_ticket").insert(payload).execute()
     if not res.data:
         raise HTTPException(status_code=400, detail="No se pudo registrar la solicitud de soporte")
 
     return {
         "mensaje": "Solicitud de soporte registrada correctamente",
-        "notificacion": res.data[0],
+        "ticket": res.data[0],
     }

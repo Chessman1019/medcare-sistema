@@ -227,10 +227,6 @@ export default function DashboardPaciente() {
 
   const handleEnviarSoporte = async (contexto, mensaje = supportMessage) => {
     const cita = getCitaParaSoporte()
-    if (!cita) {
-      setError('Primero agenda una cita para asociar tu solicitud de soporte.')
-      return
-    }
 
     setSupportLoading(true)
     try {
@@ -239,10 +235,10 @@ export default function DashboardPaciente() {
         rol: 'paciente',
         contexto,
         mensaje,
-        id_cita: cita.id_cita,
+        id_cita: cita?.id_cita,
       })
       await refreshNotificaciones()
-      showSuccess('Solicitud registrada en Supabase. Recepción podrá verla desde notificaciones.')
+      showSuccess('Solicitud registrada en Supabase. Recepcion podra verla desde soporte.')
     } catch (requestError) {
       setError(getErrorMessage(requestError, 'No se pudo registrar la solicitud de soporte.'))
     } finally {
@@ -464,7 +460,7 @@ export default function DashboardPaciente() {
                 <p className="text-sm font-bold uppercase tracking-widest text-[#006b5d]">Pendiente</p>
                 <p className="mt-2 text-4xl font-extrabold text-[#101828]">S/ 0.00</p>
               </div>
-              <button type="button" onClick={() => handleEnviarSoporte('comprobante', 'Solicito apoyo con comprobante o estado de pago.')} disabled={supportLoading || citas.length === 0} className="medcare-primary-button rounded-2xl px-5 py-4 text-left focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#12b8a3]/20 disabled:cursor-not-allowed disabled:opacity-60">
+              <button type="button" onClick={() => handleEnviarSoporte('comprobante', 'Solicito apoyo con comprobante o estado de pago.')} disabled={supportLoading} className="medcare-primary-button rounded-2xl px-5 py-4 text-left focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#12b8a3]/20 disabled:cursor-not-allowed disabled:opacity-60">
                 Solicitar comprobante
               </button>
             </div>

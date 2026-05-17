@@ -2,18 +2,21 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Layout from '../components/Layout'
 import PortalSidebar from '../components/PortalSidebar'
+import { useAuth } from '../context/AuthContext'
 import {
+  actualizarSoporteTicket,
   cancelarCita,
   confirmarCita,
+  enviarSoporte,
   getCitasHoy,
   getDoctores,
   getEspecialidades,
   getHorarios,
   getNotificacionesAdmin,
   getPacientes,
+  getSoporteTickets,
   getStatsCitas,
   getTodasCitas,
-  enviarSoporte,
   marcarNotificacionEnviada,
   registrarAsistencia,
   registrarPaciente,
@@ -28,6 +31,13 @@ const estadoClass = {
   en_atencion: 'bg-sky-50 text-sky-700 border-sky-200',
   cancelada: 'bg-rose-50 text-rose-700 border-rose-200',
   completada: 'bg-slate-100 text-slate-700 border-slate-200',
+}
+
+const ticketEstadoClass = {
+  abierto: 'bg-amber-50 text-amber-700 border-amber-200',
+  en_revision: 'bg-sky-50 text-sky-700 border-sky-200',
+  resuelto: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+  cerrado: 'bg-slate-100 text-slate-700 border-slate-200',
 }
 
 const inputClass = 'rounded-lg border border-slate-200 px-3 py-2 text-sm transition focus:border-[#007a68] focus:outline-none focus:ring-4 focus:ring-[#12b8a3]/15 disabled:cursor-not-allowed disabled:bg-slate-50'
@@ -69,12 +79,14 @@ function todayInputValue() {
 }
 
 export default function DashboardRecepcionista() {
+  const { user } = useAuth()
   const [tab, setTab] = useState('dashboard')
   const [loading, setLoading] = useState(true)
   const [stats, setStats] = useState({})
   const [citas, setCitas] = useState([])
   const [citasHoy, setCitasHoy] = useState([])
   const [notificaciones, setNotificaciones] = useState([])
+  const [soporteTickets, setSoporteTickets] = useState([])
   const [doctores, setDoctores] = useState([])
   const [pacientes, setPacientes] = useState([])
   const [especialidades, setEspecialidades] = useState([])
@@ -94,7 +106,7 @@ export default function DashboardRecepcionista() {
   const fetchData = useCallback(async () => {
     setLoading(true)
     try {
-      const [statsR, todasR, hoyR, doctoresR, pacientesR, especialidadesR, notificacionesR] = await Promise.all([
+      const [statsR, todasR, hoyR, doctoresR, pacientesR, especialidadesR, notificacionesR, soporteR] = await Promise.all([
         getStatsCitas(),
         getTodasCitas(),
         getCitasHoy(),
@@ -102,6 +114,7 @@ export default function DashboardRecepcionista() {
         getPacientes(),
         getEspecialidades(),
         getNotificacionesAdmin(),
+        getSoporteTickets(),
       ])
       setStats(statsR.data)
       setCitas(todasR.data)
@@ -110,6 +123,7 @@ export default function DashboardRecepcionista() {
       setPacientes(pacientesR.data)
       setEspecialidades(especialidadesR.data)
       setNotificaciones(notificacionesR.data || [])
+      setSoporteTickets(soporteR.data || [])
     } catch (error) {
       setMessage(error.response?.data?.detail || 'No se pudieron cargar los datos.')
     } finally {
@@ -158,6 +172,11 @@ export default function DashboardRecepcionista() {
     setNotificaciones(res.data || [])
   }
 
+  const refreshSoporte = async () => {
+    const res = await getSoporteTickets()
+    setSoporteTickets(res.data || [])
+  }
+
   const handleNotificacion = async (notificacion) => {
     try {
       if (!notificacion.enviada) {
@@ -174,15 +193,33 @@ export default function DashboardRecepcionista() {
     setActionLoading('soporte')
     try {
       await enviarSoporte({
-        id_usuario: 0,
-        rol: 'administrador',
-        contexto: 'soporte recepción',
+        id_usuario: user?.id,
+        rol: user?.rol || 'recepcionista',
+        contexto: 'soporte recepcion',
         mensaje: 'Recepción solicita apoyo operativo desde el portal.',
       })
-      await refreshNotificaciones()
-      showMessage('Solicitud de soporte registrada en Supabase.')
+      await refreshSoporte()
+      goToTab('soporte')
+      showMessage('Ticket de soporte registrado en Supabase.')
     } catch (error) {
-      showMessage(error.response?.data?.detail || 'No se pudo registrar soporte. Debe existir al menos una cita.')
+      showMessage(error.response?.data?.detail || 'No se pudo registrar soporte.')
+    } finally {
+      setActionLoading('')
+    }
+  }
+
+  const actualizarTicket = async (ticket, estado) => {
+    setActionLoading(`ticket-${ticket.id_ticket}`)
+    try {
+      await actualizarSoporteTicket(ticket.id_ticket, {
+        estado,
+        asignado_a: user?.id,
+        respuesta: estado === 'resuelto' ? 'Ticket atendido por recepcion.' : 'Ticket en revision por recepcion.',
+      })
+      await refreshSoporte()
+      showMessage('Ticket de soporte actualizado.')
+    } catch (error) {
+      showMessage(error.response?.data?.detail || 'No se pudo actualizar el ticket de soporte.')
     } finally {
       setActionLoading('')
     }
@@ -287,7 +324,8 @@ export default function DashboardRecepcionista() {
     }
   }
 
-  const notificationItems = notificaciones.length ? notificaciones.slice(0, 8).map((item) => ({
+  const ticketsActivos = soporteTickets.filter((ticket) => ['abierto', 'en_revision'].includes(ticket.estado))
+  const citaNotificationItems = notificaciones.length ? notificaciones.slice(0, 8).map((item) => ({
     title: item.tipo?.replaceAll('_', ' ') || 'Notificación',
     description: item.mensaje,
     time: formatDateTime(item.fecha_programada),
@@ -310,6 +348,17 @@ export default function DashboardRecepcionista() {
     },
   ]
 
+  const notificationItems = [
+    ...ticketsActivos.slice(0, 3).map((ticket) => ({
+      title: `Soporte ${ticket.rol}`,
+      description: ticket.mensaje,
+      time: formatDateTime(ticket.fecha_actualizacion),
+      actionLabel: 'Abrir soporte',
+      onClick: () => goToTab('soporte'),
+    })),
+    ...citaNotificationItems.slice(0, 5),
+  ]
+
   const helpItems = [
     {
       title: 'Registrar paciente',
@@ -329,6 +378,7 @@ export default function DashboardRecepcionista() {
     { title: 'Panel', description: 'Métricas rápidas del día.', actionLabel: 'Abrir', onClick: () => goToTab('dashboard') },
     { title: 'Agenda global', description: 'Calendario y disponibilidad por doctor.', actionLabel: 'Abrir', onClick: () => goToTab('agenda') },
     { title: 'Registro paciente', description: 'Alta de nuevos pacientes.', actionLabel: 'Abrir', onClick: () => goToTab('registro') },
+    { title: 'Soporte', description: `${ticketsActivos.length} tickets activos.`, actionLabel: 'Abrir', onClick: () => goToTab('soporte') },
   ]
 
   const sidebarItems = [
@@ -336,6 +386,7 @@ export default function DashboardRecepcionista() {
     { path: 'agenda', icon: 'calendar_month', label: 'Agenda global' },
     { path: 'gestion', icon: 'event_note', label: 'Gestión de citas' },
     { path: 'registro', icon: 'person_add', label: 'Registro paciente' },
+    { path: 'soporte', icon: 'support_agent', label: 'Soporte' },
   ]
 
   const Sidebar = (
@@ -345,7 +396,7 @@ export default function DashboardRecepcionista() {
       onSelect={(nextTab) => goToTab(nextTab)}
       ctaLabel="Nueva cita"
       onCta={() => goToTab('gestion')}
-      onSupport={registrarSoporteInterno}
+      onSupport={() => goToTab('soporte')}
     />
   )
 
@@ -666,6 +717,86 @@ export default function DashboardRecepcionista() {
                 {actionLoading === 'registro' ? 'Registrando...' : 'Registrar paciente'}
               </button>
             </form>
+          </section>
+        )}
+
+        {tab === 'soporte' && (
+          <section className="space-y-6">
+            <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+              <div>
+                <h2 className="text-2xl font-bold text-slate-900">Tickets de soporte</h2>
+                <p className="mt-1 text-sm text-slate-500">Solicitudes de pacientes, medicos y recepcion para seguimiento operativo.</p>
+              </div>
+              <button type="button" onClick={registrarSoporteInterno} disabled={actionLoading === 'soporte'} className={primaryButton}>
+                {actionLoading === 'soporte' ? 'Registrando...' : 'Crear ticket interno'}
+              </button>
+            </div>
+
+            <div className="grid grid-cols-4 gap-4">
+              {[
+                ['Abiertos', soporteTickets.filter((ticket) => ticket.estado === 'abierto').length],
+                ['En revision', soporteTickets.filter((ticket) => ticket.estado === 'en_revision').length],
+                ['Resueltos', soporteTickets.filter((ticket) => ticket.estado === 'resuelto').length],
+                ['Total', soporteTickets.length],
+              ].map(([label, value]) => (
+                <div key={label} className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+                  <p className="text-sm text-slate-500">{label}</p>
+                  <p className="mt-2 text-3xl font-bold text-slate-900">{value}</p>
+                </div>
+              ))}
+            </div>
+
+            <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
+              <table className="w-full text-sm">
+                <thead className="bg-slate-50 text-xs uppercase text-slate-500">
+                  <tr>
+                    <th className="px-4 py-3 text-left">Solicitante</th>
+                    <th className="px-4 py-3 text-left">Mensaje</th>
+                    <th className="px-4 py-3 text-left">Estado</th>
+                    <th className="px-4 py-3 text-left">Fecha</th>
+                    <th className="px-4 py-3 text-left">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {soporteTickets.length === 0 ? (
+                    <tr>
+                      <td colSpan="5" className="px-4 py-10 text-center text-slate-500">No hay tickets de soporte registrados.</td>
+                    </tr>
+                  ) : soporteTickets.map((ticket) => (
+                    <tr key={ticket.id_ticket} className="transition hover:bg-[#f8fbff]">
+                      <td className="px-4 py-4">
+                        <p className="font-medium text-slate-900">{ticket.solicitante || `Usuario #${ticket.id_usuario || 'sin registrar'}`}</p>
+                        <p className="text-xs text-slate-500">{ticket.rol}{ticket.contexto ? ` - ${ticket.contexto}` : ''}</p>
+                      </td>
+                      <td className="max-w-md px-4 py-4 text-slate-700">
+                        <p>{ticket.mensaje}</p>
+                        {ticket.id_cita && <p className="mt-1 text-xs text-slate-500">Cita #{ticket.id_cita}</p>}
+                      </td>
+                      <td className="px-4 py-4">
+                        <span className={`rounded-md border px-2 py-1 text-xs font-medium ${ticketEstadoClass[ticket.estado] || ticketEstadoClass.abierto}`}>
+                          {ticket.estado?.replaceAll('_', ' ')}
+                        </span>
+                      </td>
+                      <td className="px-4 py-4 text-slate-600">{formatDateTime(ticket.fecha_actualizacion)}</td>
+                      <td className="px-4 py-4">
+                        <div className="flex flex-wrap gap-2">
+                          {ticket.estado === 'abierto' && (
+                            <button type="button" onClick={() => actualizarTicket(ticket, 'en_revision')} disabled={actionLoading === `ticket-${ticket.id_ticket}`} className={secondaryButton}>
+                              Revisar
+                            </button>
+                          )}
+                          {!['resuelto', 'cerrado'].includes(ticket.estado) && (
+                            <button type="button" onClick={() => actualizarTicket(ticket, 'resuelto')} disabled={actionLoading === `ticket-${ticket.id_ticket}`} className={primaryButton}>
+                              Resolver
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </section>
         )}
       </div>

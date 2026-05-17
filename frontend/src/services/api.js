@@ -41,4 +41,6 @@ export const getNotificacionesPaciente = (id) => API.get(`/notificaciones/pacien
 export const getNotificacionesDoctor = (id) => API.get(`/notificaciones/doctor/${id}`)
 export const getNotificacionesAdmin = () => API.get('/notificaciones/admin')
 export const marcarNotificacionEnviada = (id) => API.put(`/notificaciones/${id}/marcar-enviada`)
-export const enviarSoporte = (data) => API.post('/notificaciones/soporte', data)
+export const getSoporteTickets = (params = {}) => API.get('/soporte/tickets', { params })
+export const enviarSoporte = (data) => API.post('/soporte/tickets', data)
+export const actualizarSoporteTicket = (id, data) => API.put(`/soporte/tickets/${id}/estado`, data)
