@@ -570,7 +570,7 @@ export default function DashboardPaciente() {
       helpItems={helpItems}
       appItems={appItems}
     >
-      <div ref={contentRef} tabIndex={-1} className="mx-auto w-full max-w-[1440px] p-8 focus:outline-none">
+      <div ref={contentRef} tabIndex={-1} className="mx-auto w-full max-w-[1440px] p-4 focus:outline-none sm:p-6 lg:p-8">
         {success && (
           <div className="mb-5 rounded-xl border border-[#b7e8df] bg-[#e5fbf7] px-5 py-4 text-sm font-bold text-[#006b5d]">
             {success}
@@ -591,9 +591,9 @@ export default function DashboardPaciente() {
               <p className="mt-2 text-lg text-[#52615f]">Aquí tienes el resumen de tu atención médica.</p>
             </div>
 
-            <div className="grid grid-cols-1 gap-7 xl:grid-cols-[1fr_380px]">
+            <div className="grid grid-cols-1 gap-5 lg:gap-7 xl:grid-cols-[1fr_380px]">
               <section className="medcare-card overflow-hidden">
-                <div className="bg-gradient-to-br from-white via-white to-[#ecfffb] p-8">
+                <div className="bg-gradient-to-br from-white via-white to-[#ecfffb] p-5 sm:p-8">
                   <p className="mb-6 flex items-center gap-2 text-sm font-extrabold uppercase tracking-[0.16em] text-[#006b5d]">
                     <span className="material-symbols-outlined">event_upcoming</span>
                     Próxima cita
@@ -621,7 +621,7 @@ export default function DashboardPaciente() {
                       </div>
                     </div>
                   ) : (
-                    <div className="rounded-2xl bg-[#edf2ff] p-8 text-[#52615f]">
+                    <div className="rounded-2xl bg-[#edf2ff] p-5 text-[#52615f] sm:p-8">
                       <p>No tienes citas próximas. Puedes solicitar una nueva cita cuando lo necesites.</p>
                       <button type="button" onClick={() => handleSelectTab('agendar')} className="medcare-primary-button mt-5 px-6 py-3 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#12b8a3]/20">
                         Agendar cita
@@ -631,7 +631,7 @@ export default function DashboardPaciente() {
                 </div>
               </section>
 
-              <section className="grid grid-cols-2 gap-5">
+              <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:gap-5">
                 {quickActions.map((action) => (
                   <button
                     key={action.key}
@@ -653,7 +653,7 @@ export default function DashboardPaciente() {
             {renderQuickPanel()}
 
             <section className="medcare-card overflow-hidden">
-              <div className="flex items-center justify-between border-b border-[#bdcbc7] px-8 py-6">
+              <div className="flex flex-col gap-3 border-b border-[#bdcbc7] px-5 py-5 sm:flex-row sm:items-center sm:justify-between sm:px-8 sm:py-6">
                 <div>
                   <h3 className="text-2xl font-extrabold text-[#101828]">Actividad reciente</h3>
                   {searchTerm && <p className="mt-1 text-sm text-[#52615f]">Filtrado por: “{searchTerm}”</p>}
@@ -718,9 +718,9 @@ export default function DashboardPaciente() {
         )}
 
         {tab === 'agendar' && (
-          <div className="grid grid-cols-1 gap-7 xl:grid-cols-[1fr_420px]">
+          <div className="grid grid-cols-1 gap-5 lg:gap-7 xl:grid-cols-[1fr_420px]">
             <div className="space-y-7">
-              <div className="medcare-card-soft grid gap-4 p-6 md:grid-cols-[1fr_auto_1fr_auto_1fr] md:items-center">
+              <div className="medcare-card-soft grid gap-4 p-5 sm:p-6 md:grid-cols-[1fr_auto_1fr_auto_1fr] md:items-center">
                 {[
                   ['1', 'Especialidad', selectedEspecialidad?.nombre || 'Seleccionar'],
                   ['2', 'Doctor', selectedDoctor ? `Dr. ${doctorFullName(selectedDoctor)}` : 'Seleccionar'],
@@ -745,7 +745,7 @@ export default function DashboardPaciente() {
               </div>
 
               <form onSubmit={handleAgendar} className="grid grid-cols-1 gap-7 lg:grid-cols-2">
-                <section className="medcare-card p-7">
+                <section className="medcare-card p-5 sm:p-7">
                   <h3 className="text-2xl font-extrabold text-[#101828]">Selecciona especialista</h3>
                   <div className="mt-6 space-y-5">
                     <label className="block text-sm font-bold text-[#223330]">
@@ -771,10 +771,10 @@ export default function DashboardPaciente() {
                   </div>
                 </section>
 
-                <section className="medcare-card p-7">
+                <section className="medcare-card p-5 sm:p-7">
                   <h3 className="text-2xl font-extrabold text-[#101828]">Fecha y hora</h3>
                   <p className="mt-2 text-sm text-[#52615f]">Horarios disponibles para el doctor seleccionado.</p>
-                  <div className="mt-6 grid grid-cols-2 gap-3">
+                  <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
                     {loadingHorarios ? (
                       <p className="col-span-2 rounded-xl bg-[#edf2ff] p-5 text-sm text-[#52615f]">Cargando horarios disponibles...</p>
                     ) : horarios.length === 0 ? (
@@ -804,7 +804,7 @@ export default function DashboardPaciente() {
               </form>
             </div>
 
-            <aside className="medcare-card sticky top-28 h-fit overflow-hidden">
+            <aside className="medcare-card h-fit overflow-hidden xl:sticky xl:top-28">
               <div className="bg-[#007a68] p-7 text-white">
                 <h3 className="text-2xl font-extrabold">Resumen de cita</h3>
               </div>

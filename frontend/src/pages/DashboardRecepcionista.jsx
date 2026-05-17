@@ -419,7 +419,7 @@ export default function DashboardRecepcionista() {
       helpItems={helpItems}
       appItems={appItems}
     >
-      <div ref={contentRef} tabIndex={-1} className="mx-auto w-full max-w-[1440px] space-y-7 p-8 focus:outline-none">
+      <div ref={contentRef} tabIndex={-1} className="mx-auto w-full max-w-[1440px] space-y-6 p-4 focus:outline-none sm:p-6 lg:space-y-7 lg:p-8">
         {message && (
           <div className="rounded-lg border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-800">
             {message}
@@ -433,7 +433,7 @@ export default function DashboardRecepcionista() {
               <p className="mt-1 text-sm text-slate-500">Citas del día, validaciones pendientes y actividad general.</p>
             </div>
 
-            <div className="grid grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
               {[
                 ['Citas hoy', stats.citas_hoy ?? 0, () => goToTab('agenda', { fecha: todayInputValue() })],
                 ['Pendientes', stats.pendientes ?? 0, () => goToTab('gestion', { estado: 'pendiente' })],
@@ -456,7 +456,7 @@ export default function DashboardRecepcionista() {
                   <p className="px-5 py-8 text-sm text-slate-500">No hay citas registradas para hoy.</p>
                 ) : (
                   citasHoy.map((cita) => (
-                    <button key={cita.id_cita} type="button" onClick={() => goToTab('gestion', { doctor: cita.doctor || '', fecha: cita.fecha_hora?.slice(0, 10) || '' })} className="grid w-full grid-cols-[1.4fr_1.4fr_1fr_auto] items-center gap-4 px-5 py-4 text-left transition hover:bg-[#f8fbff] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#12b8a3]/15">
+                    <button key={cita.id_cita} type="button" onClick={() => goToTab('gestion', { doctor: cita.doctor || '', fecha: cita.fecha_hora?.slice(0, 10) || '' })} className="grid w-full grid-cols-1 items-start gap-3 px-5 py-4 text-left transition hover:bg-[#f8fbff] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#12b8a3]/15 md:grid-cols-[1.4fr_1.4fr_1fr_auto] md:items-center md:gap-4">
                       <div>
                         <p className="font-medium text-slate-900">{cita.paciente}</p>
                         <p className="text-xs text-slate-500">DNI {cita.dni || 'sin registrar'}</p>
@@ -484,9 +484,9 @@ export default function DashboardRecepcionista() {
               <p className="mt-1 text-sm text-slate-500">Calendario operativo y disponibilidad por doctor.</p>
             </div>
 
-            <div className="grid grid-cols-[2fr_1fr] gap-6">
+            <div className="grid grid-cols-1 gap-5 xl:grid-cols-[2fr_1fr] xl:gap-6">
               <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-                <div className="mb-4 grid grid-cols-3 gap-3">
+                <div className="mb-4 grid grid-cols-1 gap-3 md:grid-cols-3">
                   <input
                     type="date"
                     className={inputClass}
@@ -515,7 +515,7 @@ export default function DashboardRecepcionista() {
                 </div>
                 <div className="divide-y divide-slate-100">
                   {citasFiltradas.slice(0, 12).map((cita) => (
-                    <button key={cita.id_cita} type="button" onClick={() => goToTab('gestion', { doctor: cita.doctor || '', fecha: cita.fecha_hora?.slice(0, 10) || '' })} className="grid w-full grid-cols-[1fr_1fr_1fr_auto] items-center gap-3 rounded-lg px-3 py-3 text-left text-sm transition hover:bg-[#f8fbff] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#12b8a3]/15">
+                    <button key={cita.id_cita} type="button" onClick={() => goToTab('gestion', { doctor: cita.doctor || '', fecha: cita.fecha_hora?.slice(0, 10) || '' })} className="grid w-full grid-cols-1 items-start gap-2 rounded-lg px-3 py-3 text-left text-sm transition hover:bg-[#f8fbff] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#12b8a3]/15 md:grid-cols-[1fr_1fr_1fr_auto] md:items-center md:gap-3">
                       <span className="font-medium text-slate-900">{cita.paciente}</span>
                       <span className="text-slate-600">Dr. {cita.doctor}</span>
                       <span className="text-slate-500">{formatDateTime(cita.fecha_hora)}</span>
@@ -570,7 +570,7 @@ export default function DashboardRecepcionista() {
                   <h3 className="font-semibold text-violet-950">Reprogramar cita #{reprogramacion.cita.id_cita}</h3>
                   <p className="text-sm text-violet-700">{reprogramacion.cita.paciente}</p>
                 </div>
-                <div className="grid grid-cols-[1fr_1fr_auto] gap-3">
+                <div className="grid grid-cols-1 gap-3 lg:grid-cols-[1fr_1fr_auto]">
                   <select
                     className={inputClass}
                     value={reprogramacion.id_doctor}
@@ -608,8 +608,8 @@ export default function DashboardRecepcionista() {
               </form>
             )}
 
-            <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
-              <table className="w-full text-sm">
+            <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white shadow-sm">
+              <table className="w-full min-w-[860px] text-sm">
                 <thead className="bg-slate-50 text-xs uppercase text-slate-500">
                   <tr>
                     <th className="px-4 py-3 text-left">Paciente</th>
@@ -676,8 +676,8 @@ export default function DashboardRecepcionista() {
               <h2 className="text-2xl font-bold text-slate-900">Alta de paciente</h2>
               <p className="mt-1 text-sm text-slate-500">{pacientes.length} pacientes registrados. {especialidades.length} especialidades disponibles.</p>
             </div>
-            <form onSubmit={registrarNuevoPaciente} className="max-w-3xl rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
-              <div className="grid grid-cols-2 gap-4">
+            <form onSubmit={registrarNuevoPaciente} className="max-w-3xl rounded-lg border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 {[
                   ['nombre', 'Nombre', 'text'],
                   ['apellido', 'Apellido', 'text'],
@@ -732,7 +732,7 @@ export default function DashboardRecepcionista() {
               </button>
             </div>
 
-            <div className="grid grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
               {[
                 ['Abiertos', soporteTickets.filter((ticket) => ticket.estado === 'abierto').length],
                 ['En revision', soporteTickets.filter((ticket) => ticket.estado === 'en_revision').length],
@@ -746,8 +746,8 @@ export default function DashboardRecepcionista() {
               ))}
             </div>
 
-            <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
-              <table className="w-full text-sm">
+            <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white shadow-sm">
+              <table className="w-full min-w-[900px] text-sm">
                 <thead className="bg-slate-50 text-xs uppercase text-slate-500">
                   <tr>
                     <th className="px-4 py-3 text-left">Solicitante</th>

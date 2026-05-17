@@ -274,7 +274,7 @@ export default function DashboardDoctor() {
       helpItems={helpItems}
       appItems={appItems}
     >
-      <div ref={contentRef} tabIndex={-1} className="mx-auto w-full max-w-[1440px] space-y-7 p-8 focus:outline-none">
+      <div ref={contentRef} tabIndex={-1} className="mx-auto w-full max-w-[1440px] space-y-6 p-4 focus:outline-none sm:p-6 lg:space-y-7 lg:p-8">
         {message && (
           <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
             {message}
@@ -288,7 +288,7 @@ export default function DashboardDoctor() {
               <p className="mt-1 text-sm text-slate-500">Lista cronologica de pacientes para atencion.</p>
             </div>
 
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
               <button type="button" onClick={() => goToTab('agenda')} className="rounded-lg border border-slate-200 bg-white p-5 text-left shadow-sm transition hover:-translate-y-1 hover:border-[#12b8a3] hover:shadow-lg focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#12b8a3]/20 active:scale-[0.98]">
                 <p className="text-sm text-slate-500">Citas hoy</p>
                 <p className="mt-2 text-3xl font-bold text-slate-900">{agendaDiaria.length}</p>
@@ -312,7 +312,7 @@ export default function DashboardDoctor() {
                   <p className="px-5 py-8 text-sm text-slate-500">No tienes citas programadas para hoy.</p>
                 ) : (
                   agendaDiaria.map((cita) => (
-                    <div key={cita.id_cita} className="grid grid-cols-[1.2fr_1fr_auto_auto] items-center gap-4 px-5 py-4 transition hover:bg-[#f8fbff]">
+                    <div key={cita.id_cita} className="grid grid-cols-1 items-start gap-3 px-5 py-4 transition hover:bg-[#f8fbff] md:grid-cols-[1.2fr_1fr_auto_auto] md:items-center md:gap-4">
                       <div>
                         <p className="font-medium text-slate-900">{cita.paciente}</p>
                         <p className="text-xs text-slate-500">DNI {cita.dni || 'sin registrar'}</p>
@@ -348,11 +348,11 @@ export default function DashboardDoctor() {
             </div>
 
             {!selected ? (
-              <div className="rounded-lg border border-slate-200 bg-white p-8 text-sm text-slate-500 shadow-sm">
+              <div className="rounded-lg border border-slate-200 bg-white p-5 text-sm text-slate-500 shadow-sm sm:p-8">
                 Selecciona un paciente desde la agenda diaria.
               </div>
             ) : (
-              <div className="grid grid-cols-[1fr_1.2fr] gap-6">
+              <div className="grid grid-cols-1 gap-5 xl:grid-cols-[1fr_1.2fr] xl:gap-6">
                 <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
                   <h3 className="font-semibold text-slate-900">Ficha del paciente</h3>
                   <dl className="mt-4 space-y-3 text-sm">
@@ -424,7 +424,7 @@ export default function DashboardDoctor() {
               <p className="mt-1 text-sm text-slate-500">Consulta de atenciones previas por paciente.</p>
             </div>
 
-            <div className="grid grid-cols-[280px_1fr] gap-6">
+            <div className="grid grid-cols-1 gap-5 lg:grid-cols-[280px_1fr] lg:gap-6">
               <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
                 <h3 className="mb-3 text-sm font-semibold text-slate-900">Pacientes atendidos</h3>
                 <div className="space-y-2">

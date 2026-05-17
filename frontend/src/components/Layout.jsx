@@ -10,7 +10,7 @@ const roleLabel = {
 
 function HeaderDropdown({ title, icon, items = [], emptyText, onClose }) {
   return (
-    <div className="absolute right-0 top-12 z-50 w-[22rem] max-w-[calc(100vw-2rem)] overflow-hidden rounded-2xl border border-[#bdcbc7] bg-white shadow-2xl shadow-[#08284d]/12">
+    <div className="fixed right-3 top-20 z-50 w-[calc(100vw-1.5rem)] overflow-hidden rounded-2xl border border-[#bdcbc7] bg-white shadow-2xl shadow-[#08284d]/12 sm:absolute sm:right-0 sm:top-12 sm:w-[22rem] sm:max-w-[calc(100vw-2rem)]">
       <div className="flex items-center justify-between border-b border-[#d8e3fb] bg-[#f8fbff] px-5 py-4">
         <div className="flex items-center gap-3">
           <span className="flex h-10 w-10 items-center justify-center rounded-full bg-[#d8f4ee] text-[#006b5d]">
@@ -28,7 +28,7 @@ function HeaderDropdown({ title, icon, items = [], emptyText, onClose }) {
         </button>
       </div>
 
-      <div className="max-h-[420px] overflow-y-auto p-3">
+      <div className="max-h-[min(420px,calc(100vh-7rem))] overflow-y-auto p-3">
         {items.length === 0 ? (
           <p className="rounded-xl bg-[#edf2ff] p-4 text-sm text-[#52615f]">{emptyText}</p>
         ) : (
@@ -102,12 +102,12 @@ export default function Layout({
   return (
     <div className="medcare-shell min-h-screen">
       {sidebar}
-      <header className="fixed left-72 right-0 top-0 z-40 flex h-20 items-center justify-between border-b border-[#bdcbc7] bg-white/95 px-8 backdrop-blur">
-        <div className="flex min-w-0 flex-1 items-center gap-5">
-          <h1 className="min-w-fit text-2xl font-extrabold tracking-tight text-[#101828]">
+      <header className="fixed left-0 right-0 top-0 z-40 flex min-h-20 flex-wrap items-center justify-between gap-3 border-b border-[#bdcbc7] bg-white/95 px-4 py-3 backdrop-blur lg:left-72 lg:h-20 lg:flex-nowrap lg:px-8 lg:py-0">
+        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-3 lg:flex-nowrap lg:gap-5">
+          <h1 className="min-w-0 truncate text-xl font-extrabold tracking-tight text-[#101828] sm:text-2xl">
             {title || 'Portal MedCare'}
           </h1>
-          <div className="hidden w-full max-w-xl items-center gap-3 rounded-full bg-[#edf2ff] px-5 py-3 text-[#52615f] transition focus-within:ring-4 focus-within:ring-[#12b8a3]/15 lg:flex">
+          <div className="order-3 flex w-full basis-full items-center gap-3 rounded-full bg-[#edf2ff] px-4 py-2.5 text-[#52615f] transition focus-within:ring-4 focus-within:ring-[#12b8a3]/15 sm:basis-auto lg:order-none lg:max-w-xl lg:px-5 lg:py-3">
             <span className="material-symbols-outlined text-[22px]">search</span>
             {onSearchChange ? (
               <input
@@ -123,7 +123,7 @@ export default function Layout({
           </div>
         </div>
 
-        <div className="flex items-center gap-6">
+        <div className="flex shrink-0 items-center gap-1.5 sm:gap-3 lg:gap-6">
           <div className="relative">
             <button type="button" onClick={() => toggleMenu('notifications')} className={`relative ${topButtonClass}`} aria-label="Notificaciones" aria-expanded={openMenu === 'notifications'}>
               <span className="material-symbols-outlined">notifications</span>
@@ -155,7 +155,7 @@ export default function Layout({
             )}
           </div>
 
-          <div className="relative hidden md:block">
+          <div className="relative hidden sm:block">
             <button type="button" onClick={() => toggleMenu('apps')} className={topButtonClass} aria-label="Aplicaciones" aria-expanded={openMenu === 'apps'}>
               <span className="material-symbols-outlined">apps</span>
             </button>
@@ -172,17 +172,17 @@ export default function Layout({
 
           <div className="hidden h-10 w-px bg-[#bdcbc7] md:block" />
           <div className="flex items-center gap-3">
-            <div className="text-right">
+            <div className="hidden text-right sm:block">
               <p className="text-sm font-extrabold text-[#101828]">{user?.nombre || 'Usuario MedCare'}</p>
               <p className="text-xs text-[#52615f]">{roleLabel[user?.rol] || 'Portal clínico'}</p>
             </div>
-            <div className="flex h-12 w-12 items-center justify-center rounded-full border-2 border-[#12b8a3] bg-white text-base font-extrabold text-[#006b5d]">
+            <div className="flex h-10 w-10 items-center justify-center rounded-full border-2 border-[#12b8a3] bg-white text-base font-extrabold text-[#006b5d] sm:h-12 sm:w-12">
               {user?.nombre?.charAt(0)?.toUpperCase() || 'M'}
             </div>
           </div>
         </div>
       </header>
-      <main className="ml-72 min-h-screen pt-20">
+      <main className="min-h-screen pb-28 pt-32 sm:pt-28 lg:ml-72 lg:pb-0 lg:pt-20">
         {children}
       </main>
     </div>
