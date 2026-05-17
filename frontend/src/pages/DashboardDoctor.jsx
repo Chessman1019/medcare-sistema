@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useAuth } from '../context/AuthContext'
 import Layout from '../components/Layout'
+import PortalSidebar from '../components/PortalSidebar'
 import { getCitasDoctor, getHistorial, registrarAtencion } from '../services/api'
 
 const estadoClass = {
@@ -38,7 +39,7 @@ function isToday(value) {
 }
 
 export default function DashboardDoctor() {
-  const { user, logoutUser } = useAuth()
+  const { user } = useAuth()
   const [tab, setTab] = useState('agenda')
   const [citas, setCitas] = useState([])
   const [loading, setLoading] = useState(true)
@@ -87,7 +88,7 @@ export default function DashboardDoctor() {
   const guardarAtencion = async (event) => {
     event.preventDefault()
     await registrarAtencion(selected.id_cita, form)
-    setMessage('Atencion registrada y cita cerrada correctamente.')
+    setMessage('Atención registrada y cita cerrada correctamente.')
     setSelected(null)
     setForm(emptyAtencion)
     setHistorial([])
@@ -96,57 +97,33 @@ export default function DashboardDoctor() {
   }
 
   const sidebarItems = [
-    { path: 'agenda', label: 'Agenda diaria' },
-    { path: 'atencion', label: 'Atencion' },
-    { path: 'historial', label: 'Historial' },
+    { path: 'agenda', icon: 'dashboard', label: 'Agenda diaria' },
+    { path: 'atencion', icon: 'clinical_notes', label: 'Atención' },
+    { path: 'historial', icon: 'folder_open', label: 'Historial' },
   ]
 
   const Sidebar = (
-    <aside className="fixed left-0 top-14 bottom-12 z-40 flex w-64 flex-col overflow-y-auto bg-sky-700 text-white shadow-lg">
-      <div className="border-b border-white/20 p-4">
-        <p className="truncate text-sm font-semibold">Dr. {user?.nombre}</p>
-        <span className="mt-1 inline-flex rounded-md bg-white/15 px-2 py-1 text-xs">doctor</span>
-      </div>
-      <nav className="flex-1 space-y-1 p-4">
-        {sidebarItems.map((item) => (
-          <button
-            key={item.path}
-            type="button"
-            onClick={() => setTab(item.path)}
-            className={`w-full rounded-lg px-4 py-3 text-left text-sm font-medium transition ${
-              tab === item.path ? 'bg-white text-sky-700' : 'text-white hover:bg-white/15'
-            }`}
-          >
-            {item.label}
-          </button>
-        ))}
-      </nav>
-      <div className="border-t border-white/20 p-4">
-        <button
-          type="button"
-          onClick={() => {
-            logoutUser()
-            window.location.href = '/login'
-          }}
-          className="w-full rounded-lg px-4 py-3 text-left text-sm font-medium hover:bg-white/15"
-        >
-          Cerrar sesion
-        </button>
-      </div>
-    </aside>
+    <PortalSidebar
+      active={tab}
+      items={sidebarItems}
+      onSelect={setTab}
+      ctaLabel="Ver agenda"
+      ctaIcon="event"
+      onCta={() => setTab('agenda')}
+    />
   )
 
   if (loading) {
     return (
-      <Layout sidebar={Sidebar}>
+      <Layout sidebar={Sidebar} title="Panel médico">
         <div className="flex min-h-screen items-center justify-center text-sm text-slate-500">Cargando agenda...</div>
       </Layout>
     )
   }
 
   return (
-    <Layout sidebar={Sidebar}>
-      <div className="space-y-6 p-8">
+    <Layout sidebar={Sidebar} title="Panel médico">
+      <div className="mx-auto w-full max-w-[1440px] space-y-7 p-8">
         {message && (
           <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
             {message}
@@ -215,8 +192,8 @@ export default function DashboardDoctor() {
         {tab === 'atencion' && (
           <section className="space-y-6">
             <div>
-              <h2 className="text-2xl font-bold text-slate-900">Atencion medica</h2>
-              <p className="mt-1 text-sm text-slate-500">Ficha del paciente, diagnostico y observaciones.</p>
+              <h2 className="text-2xl font-bold text-slate-900">Atención médica</h2>
+              <p className="mt-1 text-sm text-slate-500">Ficha del paciente, diagnóstico y observaciones.</p>
             </div>
 
             {!selected ? (
@@ -250,7 +227,7 @@ export default function DashboardDoctor() {
                 <form onSubmit={guardarAtencion} className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
                   <h3 className="font-semibold text-slate-900">Registro de atencion</h3>
                   <label className="mt-4 block text-sm font-medium text-slate-700">
-                    Diagnostico
+                    Diagnóstico
                     <textarea
                       required
                       rows={3}
@@ -320,7 +297,7 @@ export default function DashboardDoctor() {
                   <div className="space-y-3">
                     {historial.map((item, index) => (
                       <article key={item.id_historial || index} className="rounded-lg bg-slate-50 p-4 text-sm">
-                        <p className="font-semibold text-slate-900">{item.diagnostico || 'Sin diagnostico'}</p>
+                        <p className="font-semibold text-slate-900">{item.diagnostico || 'Sin diagnóstico'}</p>
                         {item.observaciones && <p className="mt-2 text-slate-600">{item.observaciones}</p>}
                         {item.tratamiento && <p className="mt-2 text-slate-600">Tratamiento: {item.tratamiento}</p>}
                       </article>

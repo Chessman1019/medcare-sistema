@@ -1,7 +1,7 @@
 /* eslint-disable react-hooks/set-state-in-effect */
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { useAuth } from '../context/AuthContext'
 import Layout from '../components/Layout'
+import PortalSidebar from '../components/PortalSidebar'
 import {
   cancelarCita,
   confirmarCita,
@@ -57,7 +57,6 @@ function doctorLabel(doctor) {
 }
 
 export default function DashboardRecepcionista() {
-  const { user, logoutUser } = useAuth()
   const [tab, setTab] = useState('dashboard')
   const [loading, setLoading] = useState(true)
   const [stats, setStats] = useState({})
@@ -171,58 +170,33 @@ export default function DashboardRecepcionista() {
   }
 
   const sidebarItems = [
-    { path: 'dashboard', label: 'Dashboard' },
-    { path: 'agenda', label: 'Agenda global' },
-    { path: 'gestion', label: 'Gestion de citas' },
-    { path: 'registro', label: 'Registro paciente' },
+    { path: 'dashboard', icon: 'dashboard', label: 'Panel' },
+    { path: 'agenda', icon: 'calendar_month', label: 'Agenda global' },
+    { path: 'gestion', icon: 'event_note', label: 'Gestión de citas' },
+    { path: 'registro', icon: 'person_add', label: 'Registro paciente' },
   ]
 
   const Sidebar = (
-    <aside className="fixed left-0 top-14 bottom-12 z-40 flex w-64 flex-col overflow-y-auto bg-sky-700 text-white shadow-lg">
-      <div className="border-b border-white/20 p-4">
-        <p className="truncate text-sm font-semibold">{user?.nombre}</p>
-        <span className="mt-1 inline-flex rounded-md bg-white/15 px-2 py-1 text-xs">recepcionista</span>
-      </div>
-      <nav className="flex-1 space-y-1 p-4">
-        {sidebarItems.map((item) => (
-          <button
-            key={item.path}
-            type="button"
-            onClick={() => setTab(item.path)}
-            className={`w-full rounded-lg px-4 py-3 text-left text-sm font-medium transition ${
-              tab === item.path ? 'bg-white text-sky-700' : 'text-white hover:bg-white/15'
-            }`}
-          >
-            {item.label}
-          </button>
-        ))}
-      </nav>
-      <div className="border-t border-white/20 p-4">
-        <button
-          type="button"
-          onClick={() => {
-            logoutUser()
-            window.location.href = '/login'
-          }}
-          className="w-full rounded-lg px-4 py-3 text-left text-sm font-medium hover:bg-white/15"
-        >
-          Cerrar sesion
-        </button>
-      </div>
-    </aside>
+    <PortalSidebar
+      active={tab}
+      items={sidebarItems}
+      onSelect={setTab}
+      ctaLabel="Nueva cita"
+      onCta={() => setTab('gestion')}
+    />
   )
 
   if (loading) {
     return (
-      <Layout sidebar={Sidebar}>
+      <Layout sidebar={Sidebar} title="Recepción">
         <div className="flex min-h-screen items-center justify-center text-sm text-slate-500">Cargando datos...</div>
       </Layout>
     )
   }
 
   return (
-    <Layout sidebar={Sidebar}>
-      <div className="space-y-6 p-8">
+    <Layout sidebar={Sidebar} title="Recepción">
+      <div className="mx-auto w-full max-w-[1440px] space-y-7 p-8">
         {message && (
           <div className="rounded-lg border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-800">
             {message}
@@ -232,8 +206,8 @@ export default function DashboardRecepcionista() {
         {tab === 'dashboard' && (
           <section className="space-y-6">
             <div>
-              <h2 className="text-2xl font-bold text-slate-900">Recepcion</h2>
-              <p className="mt-1 text-sm text-slate-500">Citas del dia, validaciones pendientes y actividad general.</p>
+              <h2 className="text-2xl font-bold text-slate-900">Recepción</h2>
+              <p className="mt-1 text-sm text-slate-500">Citas del día, validaciones pendientes y actividad general.</p>
             </div>
 
             <div className="grid grid-cols-4 gap-4">
@@ -363,8 +337,8 @@ export default function DashboardRecepcionista() {
         {tab === 'gestion' && (
           <section className="space-y-6">
             <div>
-              <h2 className="text-2xl font-bold text-slate-900">Gestion de citas</h2>
-              <p className="mt-1 text-sm text-slate-500">Confirmacion, reprogramacion, asistencia y salida.</p>
+              <h2 className="text-2xl font-bold text-slate-900">Gestión de citas</h2>
+              <p className="mt-1 text-sm text-slate-500">Confirmación, reprogramación, asistencia y salida.</p>
             </div>
 
             {reprogramacion && (

@@ -1,72 +1,63 @@
-export default function Layout({ children, sidebar }) {
-  return (
-    <div className="min-h-screen flex flex-col">
+import { useAuth } from '../context/AuthContext'
 
-      {/* BARRA SUPERIOR */}
-      <header style={{background: 'linear-gradient(90deg, #0284c7 0%, #0ea5e9 40%, #06b6d4 100%)'}}
-        className="fixed top-0 left-0 right-0 z-50 h-14 flex items-center justify-between px-6 shadow-lg">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center">
-            <span className="text-lg">🏥</span>
-          </div>
-          <div>
-            <span className="text-white font-bold text-base tracking-wide">MedCare</span>
-            <span className="text-cyan-200 text-xs ml-2">| Sistema de Gestión Médica</span>
+const roleLabel = {
+  paciente: 'Paciente',
+  doctor: 'Doctor',
+  recepcionista: 'Recepcionista',
+  administrador: 'Administrador',
+}
+
+export default function Layout({ children, sidebar, title }) {
+  const { user } = useAuth()
+
+  if (!sidebar) {
+    return (
+      <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,rgba(18,184,163,0.16),transparent_28rem),linear-gradient(135deg,#f8fbff_0%,#eef3ff_100%)]">
+        {children}
+      </div>
+    )
+  }
+
+  return (
+    <div className="medcare-shell min-h-screen">
+      {sidebar}
+      <header className="fixed left-72 right-0 top-0 z-40 flex h-20 items-center justify-between border-b border-[#bdcbc7] bg-white/95 px-8 backdrop-blur">
+        <div className="flex min-w-0 flex-1 items-center gap-5">
+          <h1 className="min-w-fit text-2xl font-extrabold tracking-tight text-[#101828]">
+            {title || 'Portal MedCare'}
+          </h1>
+          <div className="hidden w-full max-w-xl items-center gap-3 rounded-full bg-[#edf2ff] px-5 py-3 text-[#52615f] lg:flex">
+            <span className="material-symbols-outlined text-[22px]">search</span>
+            <span className="text-sm">Buscar pacientes, citas o historiales...</span>
           </div>
         </div>
+
         <div className="flex items-center gap-6">
-          <div className="flex items-center gap-1">
-            <span className="text-cyan-200 text-xs">🔒</span>
-            <span className="text-cyan-100 text-xs">Conexión segura</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <span className="text-cyan-200 text-xs">📡</span>
-            <span className="text-cyan-100 text-xs">API conectada</span>
-          </div>
-          <div className="flex items-center gap-1.5 bg-white/15 px-3 py-1 rounded-full">
-            <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse"></div>
-            <span className="text-white text-xs font-medium">En línea</span>
+          <button className="relative text-[#223330]" aria-label="Notificaciones">
+            <span className="material-symbols-outlined">notifications</span>
+            <span className="absolute -right-0.5 -top-1 h-2.5 w-2.5 rounded-full bg-[#ba1a1a]" />
+          </button>
+          <button className="text-[#223330]" aria-label="Ayuda">
+            <span className="material-symbols-outlined">help</span>
+          </button>
+          <button className="hidden text-[#223330] md:block" aria-label="Aplicaciones">
+            <span className="material-symbols-outlined">apps</span>
+          </button>
+          <div className="hidden h-10 w-px bg-[#bdcbc7] md:block" />
+          <div className="flex items-center gap-3">
+            <div className="text-right">
+              <p className="text-sm font-extrabold text-[#101828]">{user?.nombre || 'Usuario MedCare'}</p>
+              <p className="text-xs text-[#52615f]">{roleLabel[user?.rol] || 'Portal clínico'}</p>
+            </div>
+            <div className="flex h-12 w-12 items-center justify-center rounded-full border-2 border-[#12b8a3] bg-white text-base font-extrabold text-[#006b5d]">
+              {user?.nombre?.charAt(0)?.toUpperCase() || 'M'}
+            </div>
           </div>
         </div>
       </header>
-
-      {/* CONTENIDO CENTRAL */}
-      <div className="flex flex-1 pt-14 pb-12">
-        {sidebar && sidebar}
-        <main className={`flex-1 ${sidebar ? 'ml-64' : ''} bg-gray-100 min-h-full`}>
-          {children}
-        </main>
-      </div>
-
-      {/* BARRA INFERIOR */}
-      <footer style={{background: 'linear-gradient(90deg, #0284c7 0%, #0ea5e9 40%, #06b6d4 80%, #0284c7 100%)'}}
-        className="fixed bottom-0 left-0 right-0 z-50 h-12 flex items-center justify-between px-6 shadow-lg">
-        <div className="flex items-center gap-3">
-          <span className="text-white text-sm">🏥</span>
-          <span className="text-white text-xs font-semibold">MedCare S.A.C.</span>
-          <span className="text-cyan-300 text-xs">© 2026 — Todos los derechos reservados</span>
-        </div>
-        <div className="flex items-center gap-2">
-          {[
-            { icon: '🐍', label: 'Python' },
-            { icon: '⚛️', label: 'React' },
-            { icon: '🗄️', label: 'Supabase' },
-          ].map(tech => (
-            <span key={tech.label}
-              className="flex items-center gap-1 bg-white/15 text-white text-xs px-2.5 py-1 rounded-full">
-              {tech.icon} {tech.label}
-            </span>
-          ))}
-        </div>
-        <div className="flex items-center gap-4">
-          <span className="text-cyan-200 text-xs">📍 Lima, Perú</span>
-          <div className="flex items-center gap-1.5 bg-white/15 px-3 py-1 rounded-full">
-            <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse"></div>
-            <span className="text-white text-xs font-semibold">Sistema Activo</span>
-          </div>
-        </div>
-      </footer>
-
+      <main className="ml-72 min-h-screen pt-20">
+        {children}
+      </main>
     </div>
   )
 }

@@ -3,7 +3,6 @@ import Login from './pages/Login'
 import Register from './pages/Register'
 import DashboardPaciente from './pages/DashboardPaciente'
 import DashboardDoctor from './pages/DashboardDoctor'
-import DashboardAdmin from './pages/DashboardAdmin'
 import DashboardRecepcionista from './pages/DashboardRecepcionista'
 import ProtectedRoute from './components/ProtectedRoute'
 
@@ -23,7 +22,7 @@ export default function App() {
         <ProtectedRoute roles={['recepcionista', 'administrador']}><DashboardRecepcionista /></ProtectedRoute>
       } />
       <Route path="/dashboard/admin" element={
-        <ProtectedRoute rol="administrador"><DashboardAdmin /></ProtectedRoute>
+        <ProtectedRoute rol="administrador"><DashboardRecepcionista /></ProtectedRoute>
       } />
     </Routes>
   )

@@ -1,84 +1,151 @@
 import { useState } from 'react'
-import { useNavigate, Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { registrarPaciente } from '../services/api'
 import Layout from '../components/Layout'
 
+const initialForm = {
+  nombre: '',
+  apellido: '',
+  email: '',
+  password: '',
+  telefono: '',
+  dni: '',
+  fecha_nacimiento: '',
+  genero: 'M',
+  seguro_medico: '',
+}
+
 export default function Register() {
-  const [form, setForm] = useState({
-    nombre: '', apellido: '', email: '', password: '',
-    telefono: '', dni: '', fecha_nacimiento: '', genero: 'M', seguro_medico: ''
-  })
+  const [form, setForm] = useState(initialForm)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const navigate = useNavigate()
 
-  const handleSubmit = async (e) => {
-    e.preventDefault()
+  const handleSubmit = async (event) => {
+    event.preventDefault()
     setLoading(true)
     setError('')
     try {
       await registrarPaciente(form)
-      alert('✅ Registro exitoso! Ya puedes iniciar sesión.')
       navigate('/login')
     } catch (err) {
-      setError(err.response?.data?.detail || 'Error al registrar')
+      setError(err.response?.data?.detail || 'Error al registrar al paciente')
+    } finally {
+      setLoading(false)
     }
-    setLoading(false)
   }
 
-  const f = (field) => ({ value: form[field], onChange: e => setForm({...form, [field]: e.target.value}) })
-  const inputClass = "w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-cyan-400 text-sm transition"
-  const labelClass = "block text-sm font-medium text-gray-700 mb-1"
+  const bind = (field) => ({
+    value: form[field],
+    onChange: (event) => setForm({ ...form, [field]: event.target.value }),
+  })
 
   return (
     <Layout>
-      <div className="min-h-screen flex items-center justify-center p-4">
-        <div className="w-full max-w-lg">
-          <div className="text-center mb-8">
-            <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-cyan-400 to-blue-500 flex items-center justify-center text-4xl mx-auto shadow-lg">🏥</div>
-            <h1 className="text-3xl font-bold text-gray-800 mt-4">MedCare</h1>
-            <p className="text-gray-500 mt-1 text-sm">Crear cuenta de paciente</p>
+      <main className="flex min-h-screen items-center justify-center px-5 py-10">
+        <div className="w-full max-w-4xl">
+          <div className="mb-8 flex flex-col items-center text-center">
+            <img src="/medcare-logo.png" alt="Clínica MedCare S.A.C." className="h-24 w-auto object-contain" />
+            <p className="mt-4 text-sm font-extrabold uppercase tracking-[0.18em] text-[#006b5d]">Alta de paciente</p>
+            <h1 className="mt-2 text-4xl font-extrabold tracking-tight text-[#08284d]">Crear cuenta en MedCare</h1>
           </div>
-          <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-8">
-            <h2 className="text-xl font-semibold text-gray-800 mb-6">Registro de Paciente</h2>
-            {error && (
-              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl text-red-600 text-sm">⚠️ {error}</div>
-            )}
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div><label className={labelClass}>Nombre</label><input className={inputClass} placeholder="Ana" {...f('nombre')} required /></div>
-                <div><label className={labelClass}>Apellido</label><input className={inputClass} placeholder="García" {...f('apellido')} required /></div>
-              </div>
-              <div><label className={labelClass}>Correo electrónico</label><input className={inputClass} type="email" placeholder="correo@ejemplo.com" {...f('email')} required /></div>
-              <div><label className={labelClass}>Contraseña</label><input className={inputClass} type="password" placeholder="••••••••" {...f('password')} required /></div>
-              <div className="grid grid-cols-2 gap-4">
-                <div><label className={labelClass}>DNI</label><input className={inputClass} placeholder="12345678" maxLength={8} {...f('dni')} required /></div>
-                <div><label className={labelClass}>Teléfono</label><input className={inputClass} placeholder="999999999" {...f('telefono')} /></div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div><label className={labelClass}>Fecha nacimiento</label><input className={inputClass} type="date" {...f('fecha_nacimiento')} required /></div>
-                <div><label className={labelClass}>Género</label>
-                  <select className={inputClass} {...f('genero')}>
-                    <option value="M">Masculino</option>
-                    <option value="F">Femenino</option>
-                    <option value="Otro">Otro</option>
-                  </select>
+
+          <div className="medcare-card overflow-hidden">
+            <div className="grid grid-cols-1 lg:grid-cols-[0.9fr_1.1fr]">
+              <aside className="bg-[#eef3ff] p-8">
+                <h2 className="text-2xl font-extrabold text-[#101828]">Tu portal de salud</h2>
+                <p className="mt-3 text-sm leading-6 text-[#52615f]">
+                  Regístrate para solicitar citas, consultar tu historial y gestionar tus atenciones médicas.
+                </p>
+                <div className="mt-8 space-y-4">
+                  {[
+                    ['event_available', 'Agenda citas con especialistas'],
+                    ['clinical_notes', 'Consulta tus atenciones previas'],
+                    ['support_agent', 'Recibe soporte de recepción'],
+                  ].map(([icon, text]) => (
+                    <div key={text} className="flex items-center gap-3 rounded-xl bg-white/70 p-3">
+                      <span className="material-symbols-outlined text-[#006b5d]">{icon}</span>
+                      <span className="text-sm font-bold text-[#223330]">{text}</span>
+                    </div>
+                  ))}
                 </div>
-              </div>
-              <div><label className={labelClass}>Seguro médico (opcional)</label><input className={inputClass} placeholder="SIS, EsSalud, etc." {...f('seguro_medico')} /></div>
-              <button type="submit" disabled={loading}
-                style={{background: 'linear-gradient(90deg, #0ea5e9, #06b6d4)'}}
-                className="w-full py-3 text-white font-semibold rounded-xl transition shadow-sm disabled:opacity-60 hover:opacity-90">
-                {loading ? '⏳ Registrando...' : 'Crear cuenta →'}
-              </button>
-            </form>
-            <p className="text-center text-sm text-gray-500 mt-6">
-              ¿Ya tienes cuenta?{' '}
-              <Link to="/login" className="text-cyan-500 font-medium hover:underline">Inicia sesión</Link>
-            </p>
+              </aside>
+
+              <form onSubmit={handleSubmit} className="space-y-5 p-8">
+                {error && (
+                  <div className="rounded-xl border border-[#ffdad6] bg-[#fff0ef] px-4 py-3 text-sm font-semibold text-[#93000a]">
+                    {error}
+                  </div>
+                )}
+
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <label className="block text-sm font-bold text-[#223330]">
+                    Nombre
+                    <input className="medcare-input mt-2" placeholder="Ana" {...bind('nombre')} required />
+                  </label>
+                  <label className="block text-sm font-bold text-[#223330]">
+                    Apellido
+                    <input className="medcare-input mt-2" placeholder="García" {...bind('apellido')} required />
+                  </label>
+                </div>
+
+                <label className="block text-sm font-bold text-[#223330]">
+                  Correo electrónico
+                  <input className="medcare-input mt-2" type="email" placeholder="correo@ejemplo.com" {...bind('email')} required />
+                </label>
+
+                <label className="block text-sm font-bold text-[#223330]">
+                  Contraseña
+                  <input className="medcare-input mt-2" type="password" placeholder="••••••••" {...bind('password')} required />
+                </label>
+
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <label className="block text-sm font-bold text-[#223330]">
+                    DNI
+                    <input className="medcare-input mt-2" placeholder="12345678" maxLength={8} {...bind('dni')} required />
+                  </label>
+                  <label className="block text-sm font-bold text-[#223330]">
+                    Teléfono
+                    <input className="medcare-input mt-2" placeholder="999999999" {...bind('telefono')} />
+                  </label>
+                </div>
+
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <label className="block text-sm font-bold text-[#223330]">
+                    Fecha de nacimiento
+                    <input className="medcare-input mt-2" type="date" {...bind('fecha_nacimiento')} required />
+                  </label>
+                  <label className="block text-sm font-bold text-[#223330]">
+                    Género
+                    <select className="medcare-input mt-2" {...bind('genero')}>
+                      <option value="M">Masculino</option>
+                      <option value="F">Femenino</option>
+                      <option value="Otro">Otro</option>
+                    </select>
+                  </label>
+                </div>
+
+                <label className="block text-sm font-bold text-[#223330]">
+                  Seguro médico
+                  <input className="medcare-input mt-2" placeholder="SIS, EsSalud, EPS..." {...bind('seguro_medico')} />
+                </label>
+
+                <button type="submit" disabled={loading} className="medcare-primary-button flex w-full items-center justify-center gap-2 py-4 disabled:opacity-60">
+                  {loading ? 'Registrando...' : 'Crear cuenta'}
+                  <span className="material-symbols-outlined">arrow_forward</span>
+                </button>
+
+                <p className="text-center text-sm text-[#52615f]">
+                  ¿Ya tienes cuenta?{' '}
+                  <Link to="/login" className="font-extrabold text-[#006b5d] hover:underline">
+                    Inicia sesión
+                  </Link>
+                </p>
+              </form>
+            </div>
           </div>
         </div>
-      </div>
+      </main>
     </Layout>
   )
 }
