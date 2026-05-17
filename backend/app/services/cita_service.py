@@ -108,35 +108,16 @@ def registrar_atencion(id_cita: int, data: dict):
     if not cita:
         return None
 
-    registro_base = {
+    fecha_atencion = str(cita["fecha_hora"]).split("T")[0]
+    payload = {
+        "id_cita": id_cita,
         "id_paciente": cita["id_paciente"],
-        "id_doctor": cita["id_doctor"],
+        "fecha_atencion": fecha_atencion,
         "diagnostico": data["diagnostico"],
         "observaciones": data.get("observaciones"),
         "tratamiento": data.get("tratamiento"),
     }
 
-    intentos = [
-        {
-            **registro_base,
-            "id_cita": id_cita,
-            "fecha_atencion": cita["fecha_hora"],
-        },
-        {
-            **registro_base,
-            "id_cita": id_cita,
-            "fecha": cita["fecha_hora"],
-        },
-        registro_base,
-    ]
-
-    ultimo_error = None
-    for payload in intentos:
-        try:
-            res = supabase.table("historial_clinico").insert(payload).execute()
-            cambiar_estado_cita(id_cita, "completada")
-            return res.data
-        except Exception as error:
-            ultimo_error = error
-
-    raise ultimo_error
+    res = supabase.table("historial_clinico").insert(payload).execute()
+    cambiar_estado_cita(id_cita, "completada")
+    return res.data
