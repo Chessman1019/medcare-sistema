@@ -7,7 +7,17 @@ const roleLabel = {
   administrador: 'Administrador',
 }
 
-export default function Layout({ children, sidebar, title }) {
+export default function Layout({
+  children,
+  sidebar,
+  title,
+  searchValue,
+  searchPlaceholder = 'Buscar pacientes, citas o historiales...',
+  onSearchChange,
+  onNotifications,
+  onHelp,
+  onApps,
+}) {
   const { user } = useAuth()
 
   if (!sidebar) {
@@ -18,6 +28,8 @@ export default function Layout({ children, sidebar, title }) {
     )
   }
 
+  const topButtonClass = 'rounded-xl p-2 text-[#223330] transition hover:-translate-y-0.5 hover:bg-[#edf2ff] hover:text-[#006b5d] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#12b8a3]/20 active:scale-[0.95]'
+
   return (
     <div className="medcare-shell min-h-screen">
       {sidebar}
@@ -26,21 +38,31 @@ export default function Layout({ children, sidebar, title }) {
           <h1 className="min-w-fit text-2xl font-extrabold tracking-tight text-[#101828]">
             {title || 'Portal MedCare'}
           </h1>
-          <div className="hidden w-full max-w-xl items-center gap-3 rounded-full bg-[#edf2ff] px-5 py-3 text-[#52615f] lg:flex">
+          <div className="hidden w-full max-w-xl items-center gap-3 rounded-full bg-[#edf2ff] px-5 py-3 text-[#52615f] transition focus-within:ring-4 focus-within:ring-[#12b8a3]/15 lg:flex">
             <span className="material-symbols-outlined text-[22px]">search</span>
-            <span className="text-sm">Buscar pacientes, citas o historiales...</span>
+            {onSearchChange ? (
+              <input
+                type="search"
+                value={searchValue}
+                onChange={(event) => onSearchChange(event.target.value)}
+                placeholder={searchPlaceholder}
+                className="w-full bg-transparent text-sm text-[#101828] outline-none placeholder:text-[#52615f]"
+              />
+            ) : (
+              <span className="text-sm">{searchPlaceholder}</span>
+            )}
           </div>
         </div>
 
         <div className="flex items-center gap-6">
-          <button className="relative text-[#223330]" aria-label="Notificaciones">
+          <button type="button" onClick={onNotifications} className={`relative ${topButtonClass}`} aria-label="Notificaciones">
             <span className="material-symbols-outlined">notifications</span>
-            <span className="absolute -right-0.5 -top-1 h-2.5 w-2.5 rounded-full bg-[#ba1a1a]" />
+            <span className="absolute right-1.5 top-1 h-2.5 w-2.5 rounded-full bg-[#ba1a1a]" />
           </button>
-          <button className="text-[#223330]" aria-label="Ayuda">
+          <button type="button" onClick={onHelp} className={topButtonClass} aria-label="Ayuda">
             <span className="material-symbols-outlined">help</span>
           </button>
-          <button className="hidden text-[#223330] md:block" aria-label="Aplicaciones">
+          <button type="button" onClick={onApps} className={`hidden md:block ${topButtonClass}`} aria-label="Aplicaciones">
             <span className="material-symbols-outlined">apps</span>
           </button>
           <div className="hidden h-10 w-px bg-[#bdcbc7] md:block" />

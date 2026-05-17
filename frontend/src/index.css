@@ -101,10 +101,11 @@ body {
 
 .medcare-primary-button:hover {
   filter: brightness(1.05);
+  transform: translateY(-1px);
 }
 
 .medcare-primary-button:active {
-  transform: translateY(1px);
+  transform: translateY(0) scale(0.98);
 }
 
 .medcare-secondary-button {
@@ -113,4 +114,17 @@ body {
   background: white;
   color: var(--medcare-ink);
   font-weight: 800;
+  transition: transform 160ms ease, border-color 160ms ease, background 160ms ease, color 160ms ease, box-shadow 160ms ease;
+}
+
+.medcare-secondary-button:hover {
+  border-color: var(--medcare-accent);
+  background: #f4fffc;
+  color: var(--medcare-primary-strong);
+  box-shadow: 0 10px 20px rgba(8, 40, 77, 0.06);
+  transform: translateY(-1px);
+}
+
+.medcare-secondary-button:active {
+  transform: translateY(0) scale(0.98);
 }

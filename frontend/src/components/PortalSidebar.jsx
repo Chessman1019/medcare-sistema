@@ -7,6 +7,7 @@ export default function PortalSidebar({
   ctaLabel = 'Nueva cita',
   ctaIcon = 'add',
   onCta,
+  onSupport,
   ctaFirst = false,
 }) {
   const { logoutUser } = useAuth()
@@ -15,7 +16,7 @@ export default function PortalSidebar({
     <button
       type="button"
       onClick={onCta}
-      className="medcare-primary-button flex w-full items-center justify-center gap-3 px-4 py-4 text-base"
+      className="medcare-primary-button flex w-full items-center justify-center gap-3 px-4 py-4 text-base focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#12b8a3]/25"
     >
       <span className="material-symbols-outlined">{ctaIcon}</span>
       {ctaLabel}
@@ -38,10 +39,10 @@ export default function PortalSidebar({
             key={item.path}
             type="button"
             onClick={() => onSelect(item.path)}
-            className={`flex w-full items-center gap-4 rounded-xl px-5 py-4 text-left text-base font-semibold transition ${
+            className={`flex w-full items-center gap-4 rounded-xl px-5 py-4 text-left text-base font-semibold transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#12b8a3]/20 active:scale-[0.98] ${
               active === item.path
                 ? 'bg-[#12b8a3] text-[#06221f] shadow-sm'
-                : 'text-[#223330] hover:bg-[#edf2ff] hover:text-[#006b5d]'
+                : 'text-[#223330] hover:-translate-y-0.5 hover:bg-[#edf2ff] hover:text-[#006b5d]'
             }`}
           >
             <span className="material-symbols-outlined">{item.icon}</span>
@@ -52,7 +53,11 @@ export default function PortalSidebar({
 
       <div className="mt-auto space-y-4 border-t border-[#bdcbc7] pt-5">
         {!ctaFirst && cta}
-        <button type="button" className="flex w-full items-center gap-4 rounded-xl px-5 py-3 text-left text-base font-semibold text-[#223330] hover:bg-[#edf2ff]">
+        <button
+          type="button"
+          onClick={onSupport}
+          className="flex w-full items-center gap-4 rounded-xl px-5 py-3 text-left text-base font-semibold text-[#223330] transition hover:-translate-y-0.5 hover:bg-[#edf2ff] hover:text-[#006b5d] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#12b8a3]/20 active:scale-[0.98]"
+        >
           <span className="material-symbols-outlined">contact_support</span>
           Soporte
         </button>
@@ -62,7 +67,7 @@ export default function PortalSidebar({
             logoutUser()
             window.location.href = '/login'
           }}
-          className="flex w-full items-center gap-4 rounded-xl px-5 py-3 text-left text-base font-semibold text-[#223330] hover:bg-[#fff0ef] hover:text-[#ba1a1a]"
+          className="flex w-full items-center gap-4 rounded-xl px-5 py-3 text-left text-base font-semibold text-[#223330] transition hover:-translate-y-0.5 hover:bg-[#fff0ef] hover:text-[#ba1a1a] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#ffb4ab]/30 active:scale-[0.98]"
         >
           <span className="material-symbols-outlined">logout</span>
           Cerrar sesión
