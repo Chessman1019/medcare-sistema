@@ -8,7 +8,11 @@ import {
   getCitasPaciente,
   getDoctoresPorEspecialidad,
   getEspecialidades,
+  getHistorial,
   getHorarios,
+  getNotificacionesPaciente,
+  enviarSoporte,
+  marcarNotificacionEnviada,
   reprogramarCita,
 } from '../services/api'
 
@@ -59,11 +63,15 @@ export default function DashboardPaciente() {
   const [doctores, setDoctores] = useState([])
   const [horarios, setHorarios] = useState([])
   const [citas, setCitas] = useState([])
+  const [historial, setHistorial] = useState([])
+  const [notificaciones, setNotificaciones] = useState([])
   const [form, setForm] = useState({ id_especialidad: '', id_doctor: '', id_horario: '', motivo: '' })
   const [tab, setTab] = useState('inicio')
   const [quickPanel, setQuickPanel] = useState(null)
   const [searchTerm, setSearchTerm] = useState('')
+  const [supportMessage, setSupportMessage] = useState('Necesito ayuda con mi cita.')
   const [loading, setLoading] = useState(false)
+  const [supportLoading, setSupportLoading] = useState(false)
   const [loadingOptions, setLoadingOptions] = useState(false)
   const [loadingHorarios, setLoadingHorarios] = useState(false)
   const [cancelingId, setCancelingId] = useState(null)
@@ -112,12 +120,19 @@ export default function DashboardPaciente() {
       })
 
     if (user?.id) {
-      getCitasPaciente(user.id)
-        .then((res) => {
-          if (mounted) setCitas(res.data || [])
+      Promise.all([
+        getCitasPaciente(user.id),
+        getHistorial(user.id),
+        getNotificacionesPaciente(user.id),
+      ])
+        .then(([citasRes, historialRes, notificacionesRes]) => {
+          if (!mounted) return
+          setCitas(citasRes.data || [])
+          setHistorial(historialRes.data || [])
+          setNotificaciones(notificacionesRes.data || [])
         })
         .catch((requestError) => {
-          if (mounted) setError(getErrorMessage(requestError, 'No se pudieron cargar tus citas.'))
+          if (mounted) setError(getErrorMessage(requestError, 'No se pudieron cargar tus datos.'))
         })
     }
 
@@ -152,7 +167,6 @@ export default function DashboardPaciente() {
   const selectedDoctor = doctores.find((item) => String(item.id_usuario) === String(form.id_doctor))
   const selectedHorario = horarios.find((item) => String(item.id_horario) === String(form.id_horario))
   const activeAppointments = citas.filter((cita) => isManageable(cita)).length
-  const completedAppointments = citas.filter((cita) => cita.estado === 'completada').length
 
   const handleSelectTab = (nextTab) => {
     setTab(nextTab)
@@ -189,6 +203,51 @@ export default function DashboardPaciente() {
     if (!user?.id) return
     const res = await getCitasPaciente(user.id)
     setCitas(res.data || [])
+  }
+
+  const refreshNotificaciones = async () => {
+    if (!user?.id) return
+    const res = await getNotificacionesPaciente(user.id)
+    setNotificaciones(res.data || [])
+  }
+
+  const getCitaParaSoporte = () => proximaCita || citas.find((cita) => isManageable(cita)) || citas[0]
+
+  const handleNotificacion = async (notificacion) => {
+    try {
+      if (!notificacion.enviada) {
+        await marcarNotificacionEnviada(notificacion.id_notif)
+        await refreshNotificaciones()
+      }
+      handleSelectTab('citas')
+    } catch (requestError) {
+      setError(getErrorMessage(requestError, 'No se pudo actualizar la notificación.'))
+    }
+  }
+
+  const handleEnviarSoporte = async (contexto, mensaje = supportMessage) => {
+    const cita = getCitaParaSoporte()
+    if (!cita) {
+      setError('Primero agenda una cita para asociar tu solicitud de soporte.')
+      return
+    }
+
+    setSupportLoading(true)
+    try {
+      await enviarSoporte({
+        id_usuario: user.id,
+        rol: 'paciente',
+        contexto,
+        mensaje,
+        id_cita: cita.id_cita,
+      })
+      await refreshNotificaciones()
+      showSuccess('Solicitud registrada en Supabase. Recepción podrá verla desde notificaciones.')
+    } catch (requestError) {
+      setError(getErrorMessage(requestError, 'No se pudo registrar la solicitud de soporte.'))
+    } finally {
+      setSupportLoading(false)
+    }
   }
 
   const onEspecialidad = async (event) => {
@@ -326,7 +385,7 @@ export default function DashboardPaciente() {
   }
 
   const quickActions = [
-    { key: 'recetas', icon: 'clinical_notes', label: 'Recetas médicas', detail: `${completedAppointments} atenciones cerradas` },
+    { key: 'recetas', icon: 'clinical_notes', label: 'Recetas médicas', detail: `${historial.length} registros clínicos` },
     { key: 'resultados', icon: 'biotech', label: 'Resultados', detail: 'Revisa documentos clínicos' },
     { key: 'pagos', icon: 'payments', label: 'Pagos', detail: `${activeAppointments} citas activas` },
     { key: 'soporte', icon: 'support_agent', label: 'Soporte', detail: 'Ayuda con coordinación' },
@@ -367,12 +426,12 @@ export default function DashboardPaciente() {
         <div className="p-7">
           {quickPanel === 'recetas' && (
             <div className="space-y-4">
-              {completedAppointments ? (
-                citas.filter((cita) => cita.estado === 'completada').slice(0, 3).map((cita) => (
-                  <div key={cita.id_cita} className="rounded-2xl border border-[#bdcbc7] bg-white p-5">
-                    <p className="font-extrabold text-[#101828]">Atención con Dr. {cita.doctor}</p>
-                    <p className="mt-1 text-sm text-[#52615f]">{cita.especialidad} · {formatDate(cita.fecha_hora)}</p>
-                    <p className="mt-3 rounded-xl bg-[#edf2ff] px-4 py-3 text-sm text-[#46514f]">Receta pendiente de digitalización en el módulo clínico.</p>
+              {historial.length ? (
+                historial.slice(0, 3).map((item) => (
+                  <div key={item.id_historial} className="rounded-2xl border border-[#bdcbc7] bg-white p-5">
+                    <p className="font-extrabold text-[#101828]">{item.tratamiento || 'Tratamiento registrado'}</p>
+                    <p className="mt-1 text-sm text-[#52615f]">Atención del {item.fecha_atencion}</p>
+                    <p className="mt-3 rounded-xl bg-[#edf2ff] px-4 py-3 text-sm text-[#46514f]">{item.observaciones || 'Sin observaciones adicionales.'}</p>
                   </div>
                 ))
               ) : (
@@ -385,8 +444,8 @@ export default function DashboardPaciente() {
             <div className="grid gap-4 md:grid-cols-2">
               <div className="rounded-2xl border border-[#bdcbc7] bg-white p-5">
                 <p className="font-extrabold text-[#101828]">Resultados disponibles</p>
-                <p className="mt-2 text-3xl font-extrabold text-[#006b5d]">0</p>
-                <p className="mt-2 text-sm text-[#52615f]">Cuando un doctor adjunte resultados, aparecerán aquí.</p>
+                <p className="mt-2 text-3xl font-extrabold text-[#006b5d]">{historial.length}</p>
+                <p className="mt-2 text-sm text-[#52615f]">{historial[0]?.diagnostico || 'Cuando un doctor registre diagnóstico, aparecerá aquí.'}</p>
               </div>
               <button type="button" onClick={() => handleSelectTab('citas')} className="rounded-2xl border border-[#bdcbc7] bg-white p-5 text-left transition hover:-translate-y-0.5 hover:border-[#12b8a3] hover:shadow-md focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#12b8a3]/20 active:scale-[0.98]">
                 <p className="font-extrabold text-[#101828]">Ver historial</p>
@@ -405,8 +464,8 @@ export default function DashboardPaciente() {
                 <p className="text-sm font-bold uppercase tracking-widest text-[#006b5d]">Pendiente</p>
                 <p className="mt-2 text-4xl font-extrabold text-[#101828]">S/ 0.00</p>
               </div>
-              <button type="button" onClick={() => showSuccess('Comprobante preparado para descarga cuando exista una cita facturada.')} className="medcare-primary-button rounded-2xl px-5 py-4 text-left focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#12b8a3]/20">
-                Preparar comprobante
+              <button type="button" onClick={() => handleEnviarSoporte('comprobante', 'Solicito apoyo con comprobante o estado de pago.')} disabled={supportLoading || citas.length === 0} className="medcare-primary-button rounded-2xl px-5 py-4 text-left focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#12b8a3]/20 disabled:cursor-not-allowed disabled:opacity-60">
+                Solicitar comprobante
               </button>
             </div>
           )}
@@ -415,9 +474,15 @@ export default function DashboardPaciente() {
             <div className="grid gap-4 md:grid-cols-[1fr_auto] md:items-center">
               <div className="rounded-2xl bg-[#edf2ff] p-5 text-[#52615f]">
                 Un coordinador puede ayudarte con horarios, cancelaciones o información de tu atención. Usa el botón para dejar una solicitud rápida.
+                <textarea
+                  className="medcare-input mt-4 min-h-24"
+                  value={supportMessage}
+                  onChange={(event) => setSupportMessage(event.target.value)}
+                  placeholder="Describe qué necesitas..."
+                />
               </div>
-              <button type="button" onClick={() => showSuccess('Solicitud enviada. Coordinación se comunicará contigo.')} className="medcare-primary-button px-6 py-4 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#12b8a3]/20">
-                Solicitar apoyo
+              <button type="button" onClick={() => handleEnviarSoporte('soporte paciente')} disabled={supportLoading} className="medcare-primary-button px-6 py-4 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#12b8a3]/20 disabled:cursor-not-allowed disabled:opacity-60">
+                {supportLoading ? 'Enviando...' : 'Solicitar apoyo'}
               </button>
             </div>
           )}
@@ -425,8 +490,8 @@ export default function DashboardPaciente() {
           {quickPanel === 'notificaciones' && (
             <div className="space-y-4">
               <div className="rounded-2xl border border-[#bdcbc7] bg-white p-5">
-                <p className="font-extrabold text-[#101828]">{activeAppointments} citas activas</p>
-                <p className="mt-1 text-sm text-[#52615f]">Recibirás avisos cuando recepción confirme o cambie una cita.</p>
+                <p className="font-extrabold text-[#101828]">{notificaciones.filter((item) => !item.enviada).length} notificaciones pendientes</p>
+                <p className="mt-1 text-sm text-[#52615f]">{notificaciones[0]?.mensaje || 'Recibirás avisos cuando recepción confirme o cambie una cita.'}</p>
               </div>
               {proximaCita && (
                 <div className="rounded-2xl bg-[#e5fbf7] p-5 text-[#006b5d]">
@@ -451,7 +516,13 @@ export default function DashboardPaciente() {
     )
   }
 
-  const notificationItems = [
+  const notificationItems = notificaciones.length ? notificaciones.slice(0, 6).map((item) => ({
+    title: item.tipo?.replaceAll('_', ' ') || 'Notificación',
+    description: item.mensaje,
+    time: formatDate(item.fecha_programada),
+    actionLabel: item.enviada ? 'Ver citas' : 'Marcar como vista',
+    onClick: () => handleNotificacion(item),
+  })) : [
     {
       title: activeAppointments ? `${activeAppointments} citas activas` : 'Sin citas activas',
       description: activeAppointments

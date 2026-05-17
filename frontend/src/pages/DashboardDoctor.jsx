@@ -3,7 +3,14 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useAuth } from '../context/AuthContext'
 import Layout from '../components/Layout'
 import PortalSidebar from '../components/PortalSidebar'
-import { getCitasDoctor, getHistorial, registrarAtencion } from '../services/api'
+import {
+  enviarSoporte,
+  getCitasDoctor,
+  getHistorial,
+  getNotificacionesDoctor,
+  marcarNotificacionEnviada,
+  registrarAtencion,
+} from '../services/api'
 
 const estadoClass = {
   pendiente: 'bg-amber-50 text-amber-700 border-amber-200',
@@ -47,6 +54,7 @@ export default function DashboardDoctor() {
   const userId = user?.id
   const [tab, setTab] = useState('agenda')
   const [citas, setCitas] = useState([])
+  const [notificaciones, setNotificaciones] = useState([])
   const [loading, setLoading] = useState(true)
   const [selected, setSelected] = useState(null)
   const [historial, setHistorial] = useState([])
@@ -68,8 +76,12 @@ export default function DashboardDoctor() {
     if (!userId) return
     setLoading(true)
     try {
-      const res = await getCitasDoctor(userId)
-      setCitas(res.data || [])
+      const [citasRes, notificacionesRes] = await Promise.all([
+        getCitasDoctor(userId),
+        getNotificacionesDoctor(userId),
+      ])
+      setCitas(citasRes.data || [])
+      setNotificaciones(notificacionesRes.data || [])
     } catch (error) {
       setMessage(error.response?.data?.detail || 'No se pudo cargar la agenda médica.')
     } finally {
@@ -117,6 +129,46 @@ export default function DashboardDoctor() {
     }
   }
 
+  const refreshNotificaciones = async () => {
+    if (!userId) return
+    const res = await getNotificacionesDoctor(userId)
+    setNotificaciones(res.data || [])
+  }
+
+  const handleNotificacion = async (notificacion) => {
+    try {
+      if (!notificacion.enviada) {
+        await marcarNotificacionEnviada(notificacion.id_notif)
+        await refreshNotificaciones()
+      }
+      const cita = citas.find((item) => item.id_cita === notificacion.id_cita)
+      if (cita) abrirAtencion(cita)
+      else goToTab('agenda')
+    } catch (error) {
+      setMessage(error.response?.data?.detail || 'No se pudo actualizar la notificación.')
+    }
+  }
+
+  const registrarSoporteMedico = async () => {
+    if (!userId) return
+    setSaving(true)
+    try {
+      await enviarSoporte({
+        id_usuario: userId,
+        rol: 'doctor',
+        contexto: 'soporte médico',
+        mensaje: 'El médico solicita apoyo operativo desde el portal.',
+        id_cita: selected?.id_cita,
+      })
+      await refreshNotificaciones()
+      setMessage('Solicitud de soporte médico registrada en Supabase.')
+    } catch (error) {
+      setMessage(error.response?.data?.detail || 'No se pudo registrar soporte. Debe existir al menos una cita.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
   const guardarAtencion = async (event) => {
     event.preventDefault()
     setSaving(true)
@@ -138,7 +190,13 @@ export default function DashboardDoctor() {
   const enAtencion = citas.filter((cita) => cita.estado === 'en_atencion')
   const proximas = agendaDiaria.filter((cita) => ['confirmada', 'reprogramada', 'en_atencion'].includes(cita.estado))
 
-  const notificationItems = [
+  const notificationItems = notificaciones.length ? notificaciones.slice(0, 6).map((item) => ({
+    title: item.tipo?.replaceAll('_', ' ') || 'Notificación',
+    description: item.mensaje,
+    time: formatDateTime(item.fecha_programada),
+    actionLabel: item.enviada ? 'Abrir atención' : 'Marcar como vista',
+    onClick: () => handleNotificacion(item),
+  })) : [
     {
       title: `${agendaDiaria.length} pacientes hoy`,
       description: agendaDiaria.length ? 'Revisa la agenda cronológica y empieza la atención desde cada ficha.' : 'No tienes pacientes programados para hoy.',
@@ -193,7 +251,7 @@ export default function DashboardDoctor() {
       ctaLabel="Ver agenda"
       ctaIcon="event"
       onCta={() => goToTab('agenda')}
-      onSupport={() => setMessage('Soporte médico avisado. Revisa la campana para alertas de agenda.')}
+      onSupport={registrarSoporteMedico}
     />
   )
 

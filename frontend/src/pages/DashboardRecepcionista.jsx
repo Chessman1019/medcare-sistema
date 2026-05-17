@@ -9,9 +9,12 @@ import {
   getDoctores,
   getEspecialidades,
   getHorarios,
+  getNotificacionesAdmin,
   getPacientes,
   getStatsCitas,
   getTodasCitas,
+  enviarSoporte,
+  marcarNotificacionEnviada,
   registrarAsistencia,
   registrarPaciente,
   registrarSalida,
@@ -71,6 +74,7 @@ export default function DashboardRecepcionista() {
   const [stats, setStats] = useState({})
   const [citas, setCitas] = useState([])
   const [citasHoy, setCitasHoy] = useState([])
+  const [notificaciones, setNotificaciones] = useState([])
   const [doctores, setDoctores] = useState([])
   const [pacientes, setPacientes] = useState([])
   const [especialidades, setEspecialidades] = useState([])
@@ -90,13 +94,14 @@ export default function DashboardRecepcionista() {
   const fetchData = useCallback(async () => {
     setLoading(true)
     try {
-      const [statsR, todasR, hoyR, doctoresR, pacientesR, especialidadesR] = await Promise.all([
+      const [statsR, todasR, hoyR, doctoresR, pacientesR, especialidadesR, notificacionesR] = await Promise.all([
         getStatsCitas(),
         getTodasCitas(),
         getCitasHoy(),
         getDoctores(),
         getPacientes(),
         getEspecialidades(),
+        getNotificacionesAdmin(),
       ])
       setStats(statsR.data)
       setCitas(todasR.data)
@@ -104,6 +109,7 @@ export default function DashboardRecepcionista() {
       setDoctores(doctoresR.data)
       setPacientes(pacientesR.data)
       setEspecialidades(especialidadesR.data)
+      setNotificaciones(notificacionesR.data || [])
     } catch (error) {
       setMessage(error.response?.data?.detail || 'No se pudieron cargar los datos.')
     } finally {
@@ -145,6 +151,41 @@ export default function DashboardRecepcionista() {
     setMessage(text)
     requestFocus()
     window.setTimeout(() => setMessage(''), 3500)
+  }
+
+  const refreshNotificaciones = async () => {
+    const res = await getNotificacionesAdmin()
+    setNotificaciones(res.data || [])
+  }
+
+  const handleNotificacion = async (notificacion) => {
+    try {
+      if (!notificacion.enviada) {
+        await marcarNotificacionEnviada(notificacion.id_notif)
+        await refreshNotificaciones()
+      }
+      goToTab('gestion', { doctor: notificacion.doctor || '', fecha: notificacion.fecha_hora?.slice(0, 10) || '' })
+    } catch (error) {
+      showMessage(error.response?.data?.detail || 'No se pudo actualizar la notificación.')
+    }
+  }
+
+  const registrarSoporteInterno = async () => {
+    setActionLoading('soporte')
+    try {
+      await enviarSoporte({
+        id_usuario: 0,
+        rol: 'administrador',
+        contexto: 'soporte recepción',
+        mensaje: 'Recepción solicita apoyo operativo desde el portal.',
+      })
+      await refreshNotificaciones()
+      showMessage('Solicitud de soporte registrada en Supabase.')
+    } catch (error) {
+      showMessage(error.response?.data?.detail || 'No se pudo registrar soporte. Debe existir al menos una cita.')
+    } finally {
+      setActionLoading('')
+    }
   }
 
   const cambiarEstado = async (id, accion) => {
@@ -246,7 +287,13 @@ export default function DashboardRecepcionista() {
     }
   }
 
-  const notificationItems = [
+  const notificationItems = notificaciones.length ? notificaciones.slice(0, 8).map((item) => ({
+    title: item.tipo?.replaceAll('_', ' ') || 'Notificación',
+    description: item.mensaje,
+    time: formatDateTime(item.fecha_programada),
+    actionLabel: item.enviada ? 'Abrir gestión' : 'Marcar como vista',
+    onClick: () => handleNotificacion(item),
+  })) : [
     {
       title: `${stats.pendientes ?? 0} citas pendientes`,
       description: 'Valida solicitudes nuevas para que los pacientes reciban confirmación.',
@@ -298,7 +345,7 @@ export default function DashboardRecepcionista() {
       onSelect={(nextTab) => goToTab(nextTab)}
       ctaLabel="Nueva cita"
       onCta={() => goToTab('gestion')}
-      onSupport={() => showMessage('Soporte interno avisado. Revisa la campana para pendientes operativos.')}
+      onSupport={registrarSoporteInterno}
     />
   )
 

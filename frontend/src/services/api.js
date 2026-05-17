@@ -36,3 +36,9 @@ export const reprogramarCita = (id, data) => API.put(`/citas/${id}/reprogramar`,
 export const registrarAtencion = (id, data) => API.post(`/citas/${id}/atencion`, data)
 
 export const getHistorial = (id) => API.get(`/historial/${id}`)
+
+export const getNotificacionesPaciente = (id) => API.get(`/notificaciones/paciente/${id}`)
+export const getNotificacionesDoctor = (id) => API.get(`/notificaciones/doctor/${id}`)
+export const getNotificacionesAdmin = () => API.get('/notificaciones/admin')
+export const marcarNotificacionEnviada = (id) => API.put(`/notificaciones/${id}/marcar-enviada`)
+export const enviarSoporte = (data) => API.post('/notificaciones/soporte', data)
