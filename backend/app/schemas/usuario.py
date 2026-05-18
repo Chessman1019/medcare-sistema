@@ -51,6 +51,17 @@ class UsuarioAdminCreate(UsuarioBase):
     codigo_empleado: Optional[str] = None
     turno: Optional[str] = None
 
+class UsuarioPerfilUpdate(BaseModel):
+    nombre: Optional[str] = None
+    apellido: Optional[str] = None
+    telefono: Optional[str] = None
+    direccion: Optional[str] = None
+    seguro_medico: Optional[str] = None
+
+class UsuarioCambiarContrasena(BaseModel):
+    contrasena_actual: str
+    nueva_contrasena: str
+
 class UsuarioResponse(BaseModel):
     id_usuario: int
     nombre: str

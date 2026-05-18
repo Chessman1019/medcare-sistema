@@ -224,6 +224,10 @@ export default function DashboardRecepcionista() {
   }, [fetchData])
 
   useEffect(() => {
+    if (isAdmin && tab === 'registro') setTab('usuarios')
+  }, [isAdmin, tab])
+
+  useEffect(() => {
     if (!focusVersion) return
     window.setTimeout(() => {
       contentRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
@@ -515,12 +519,17 @@ export default function DashboardRecepcionista() {
   ]
 
   const helpItems = [
-    {
+    ...(isAdmin ? [{
+      title: 'Gestionar usuarios',
+      description: 'Crea cuentas de administradores, recepcionistas, médicos y pacientes desde un solo lugar.',
+      actionLabel: 'Abrir usuarios',
+      onClick: () => goToTab('usuarios'),
+    }] : [{
       title: 'Registrar paciente',
       description: 'Crea una ficha de paciente para poder agendar o validar citas.',
       actionLabel: 'Abrir registro',
       onClick: () => goToTab('registro'),
-    },
+    }]),
     {
       title: 'Gestionar asistencia',
       description: 'Confirma asistencia, salida, cancelación o reprogramación desde gestión.',
@@ -532,7 +541,7 @@ export default function DashboardRecepcionista() {
   const appItems = [
     { title: 'Panel', description: 'Métricas rápidas del día.', actionLabel: 'Abrir', onClick: () => goToTab('dashboard') },
     { title: 'Agenda global', description: 'Calendario y disponibilidad por doctor.', actionLabel: 'Abrir', onClick: () => goToTab('agenda') },
-    { title: 'Registro paciente', description: 'Alta de nuevos pacientes.', actionLabel: 'Abrir', onClick: () => goToTab('registro') },
+    ...(!isAdmin ? [{ title: 'Registro paciente', description: 'Alta de nuevos pacientes.', actionLabel: 'Abrir', onClick: () => goToTab('registro') }] : []),
     ...(isAdmin ? [{ title: 'Usuarios', description: `${usuarios.length} cuentas registradas.`, actionLabel: 'Abrir', onClick: () => goToTab('usuarios') }] : []),
     { title: 'Soporte', description: `${ticketsActivos.length} tickets activos.`, actionLabel: 'Abrir', onClick: () => goToTab('soporte') },
   ]
@@ -541,7 +550,7 @@ export default function DashboardRecepcionista() {
     { path: 'dashboard', icon: 'dashboard', label: 'Panel' },
     { path: 'agenda', icon: 'calendar_month', label: 'Agenda global' },
     { path: 'gestion', icon: 'event_note', label: 'Gestión de citas' },
-    { path: 'registro', icon: 'person_add', label: 'Registro paciente' },
+    ...(!isAdmin ? [{ path: 'registro', icon: 'person_add', label: 'Registro paciente' }] : []),
     ...(isAdmin ? [{ path: 'usuarios', icon: 'admin_panel_settings', label: 'Usuarios' }] : []),
     { path: 'soporte', icon: 'support_agent', label: 'Soporte' },
   ]
@@ -1118,7 +1127,7 @@ export default function DashboardRecepcionista() {
                       <td className="px-4 py-4 text-slate-600">
                         {item.tipo_usuario === 'doctor' && <span>{item.doctor?.especialidad?.nombre || 'Sin especialidad'} · CMP {item.doctor?.cmp || 'sin registrar'}</span>}
                         {item.tipo_usuario === 'paciente' && <span>DNI {item.paciente?.dni || 'sin registrar'}</span>}
-                        {['recepcionista', 'administrador'].includes(item.tipo_usuario) && <span>Código de empleado {item.administrador?.codigo_empleado || item.administrador?.legajo || 'sin registrar'}</span>}
+                        {['recepcionista', 'administrador'].includes(item.tipo_usuario) && <span>{item.administrador?.codigo_empleado || item.administrador?.legajo || 'Código de empleado sin registrar'}</span>}
                       </td>
                       <td className="px-4 py-4">
                         <span className={`rounded-md px-2 py-1 text-xs font-semibold ${item.activo ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'}`}>

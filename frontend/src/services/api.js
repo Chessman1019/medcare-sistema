@@ -15,6 +15,9 @@ export const registrarPaciente = (data) => API.post('/auth/registro/paciente', d
 export const solicitarRecuperacionContrasena = (data) => API.post('/auth/recuperar-contrasena/solicitar', data)
 export const verificarCodigoRecuperacion = (data) => API.post('/auth/recuperar-contrasena/verificar', data)
 export const restablecerContrasena = (data) => API.post('/auth/recuperar-contrasena/restablecer', data)
+export const getPerfil = () => API.get('/auth/me')
+export const actualizarPerfil = (data) => API.put('/auth/me', data)
+export const cambiarContrasenaPerfil = (data) => API.put('/auth/me/contrasena', data)
 
 export const getEspecialidades = () => API.get('/usuarios/especialidades')
 export const getDoctores = () => API.get('/usuarios/doctores')

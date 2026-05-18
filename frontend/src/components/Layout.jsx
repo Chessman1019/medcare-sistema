@@ -1,12 +1,5 @@
 import { useState } from 'react'
-import { useAuth } from '../context/AuthContext'
-
-const roleLabel = {
-  paciente: 'Paciente',
-  doctor: 'Doctor',
-  recepcionista: 'Recepcionista',
-  administrador: 'Administrador',
-}
+import ProfileMenu from './ProfileMenu'
 
 function HeaderDropdown({ title, icon, items = [], emptyText, onClose }) {
   return (
@@ -85,7 +78,6 @@ export default function Layout({
   helpItems = [],
   appItems = [],
 }) {
-  const { user } = useAuth()
   const [openMenu, setOpenMenu] = useState(null)
 
   if (!sidebar) {
@@ -171,15 +163,7 @@ export default function Layout({
           </div>
 
           <div className="hidden h-10 w-px bg-[#bdcbc7] md:block" />
-          <div className="flex items-center gap-3">
-            <div className="hidden text-right sm:block">
-              <p className="text-sm font-extrabold text-[#101828]">{user?.nombre || 'Usuario MedCare'}</p>
-              <p className="text-xs text-[#52615f]">{roleLabel[user?.rol] || 'Portal clínico'}</p>
-            </div>
-            <div className="flex h-10 w-10 items-center justify-center rounded-full border-2 border-[#12b8a3] bg-white text-base font-extrabold text-[#006b5d] sm:h-12 sm:w-12">
-              {user?.nombre?.charAt(0)?.toUpperCase() || 'M'}
-            </div>
-          </div>
+          <ProfileMenu />
         </div>
       </header>
       <main className="min-h-screen pb-28 pt-32 sm:pt-28 lg:ml-72 lg:pb-0 lg:pt-20">

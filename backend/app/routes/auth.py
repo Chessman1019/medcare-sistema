@@ -1,15 +1,17 @@
 import secrets
 from datetime import datetime, timedelta, timezone
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, Header, HTTPException
 from app.schemas.usuario import (
     PacienteCreate,
     RecuperacionContrasenaRestablecer,
     RecuperacionContrasenaSolicitar,
     RecuperacionContrasenaVerificar,
+    UsuarioCambiarContrasena,
     UsuarioLogin,
+    UsuarioPerfilUpdate,
 )
-from app.services.auth_service import verify_password, create_access_token, hash_password, get_user_by_email
+from app.services.auth_service import verify_password, create_access_token, hash_password, get_user_by_email, decode_token
 from app.services.email_service import send_password_recovery_code
 from app.database import supabase
 
@@ -44,6 +46,21 @@ def _buscar_codigo_activo(usuario_id: int, codigo: str):
 
     return None
 
+
+def _get_current_user(authorization: str | None = Header(default=None)):
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Token requerido")
+
+    payload = decode_token(authorization.replace("Bearer ", "", 1).strip())
+    if not payload or not payload.get("sub"):
+        raise HTTPException(status_code=401, detail="Token inválido")
+
+    res = supabase.table("usuario").select("*").eq("id_usuario", int(payload["sub"])).limit(1).execute()
+    if not res.data:
+        raise HTTPException(status_code=401, detail="Usuario no encontrado")
+
+    return res.data[0]
+
 @router.post("/login")
 def login(data: UsuarioLogin):
     user = get_user_by_email(data.email)
@@ -55,9 +72,77 @@ def login(data: UsuarioLogin):
         "token_type": "bearer",
         "rol": user["tipo_usuario"],
         "id_usuario": user["id_usuario"],
+        "email": user["email"],
         "nombre": user["nombre"],
-        "apellido": user["apellido"]
+        "apellido": user["apellido"],
+        "telefono": user.get("telefono"),
     }
+
+
+@router.get("/me")
+def obtener_perfil(usuario: dict = Depends(_get_current_user)):
+    rol = usuario["tipo_usuario"]
+    perfil = {
+        "id_usuario": usuario["id_usuario"],
+        "nombre": usuario["nombre"],
+        "apellido": usuario["apellido"],
+        "email": usuario["email"],
+        "telefono": usuario.get("telefono"),
+        "activo": usuario["activo"],
+        "tipo_usuario": rol,
+        "fecha_registro": usuario.get("fecha_registro"),
+    }
+
+    if rol == "paciente":
+        res = supabase.table("paciente").select("*").eq("id_usuario", usuario["id_usuario"]).execute()
+        perfil["paciente"] = res.data[0] if res.data else None
+    elif rol == "doctor":
+        res = supabase.table("doctor").select("*, especialidad(*)").eq("id_usuario", usuario["id_usuario"]).execute()
+        perfil["doctor"] = res.data[0] if res.data else None
+    elif rol in {"administrador", "recepcionista"}:
+        res = supabase.table("administrador").select("*").eq("id_usuario", usuario["id_usuario"]).execute()
+        perfil["administrador"] = res.data[0] if res.data else None
+
+    return perfil
+
+
+@router.put("/me")
+def actualizar_perfil(data: UsuarioPerfilUpdate, usuario: dict = Depends(_get_current_user)):
+    usuario_update = {}
+    for campo in ("nombre", "apellido", "telefono"):
+        valor = getattr(data, campo)
+        if valor is not None:
+            usuario_update[campo] = valor.strip() if isinstance(valor, str) else valor
+
+    if usuario_update:
+        supabase.table("usuario").update(usuario_update).eq("id_usuario", usuario["id_usuario"]).execute()
+
+    if usuario["tipo_usuario"] == "paciente":
+        paciente_update = {}
+        for campo in ("direccion", "seguro_medico"):
+            valor = getattr(data, campo)
+            if valor is not None:
+                paciente_update[campo] = valor.strip() if isinstance(valor, str) else valor
+        if paciente_update:
+            supabase.table("paciente").update(paciente_update).eq("id_usuario", usuario["id_usuario"]).execute()
+
+    return obtener_perfil({**usuario, **usuario_update})
+
+
+@router.put("/me/contrasena")
+def cambiar_contrasena(data: UsuarioCambiarContrasena, usuario: dict = Depends(_get_current_user)):
+    if not verify_password(data.contrasena_actual, usuario["contrasena_hash"]):
+        raise HTTPException(status_code=400, detail="La contraseña actual no es correcta")
+
+    nueva_contrasena = data.nueva_contrasena.strip()
+    if len(nueva_contrasena) < 6:
+        raise HTTPException(status_code=400, detail="La nueva contraseña debe tener al menos 6 caracteres")
+
+    supabase.table("usuario").update({
+        "contrasena_hash": hash_password(nueva_contrasena),
+    }).eq("id_usuario", usuario["id_usuario"]).execute()
+
+    return {"mensaje": "Contraseña actualizada correctamente"}
 
 
 @router.post("/recuperar-contrasena/solicitar")
