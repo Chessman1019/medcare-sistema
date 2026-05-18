@@ -29,7 +29,7 @@ export default function Register() {
       await registrarPaciente(form)
       navigate('/login')
     } catch (err) {
-      setError(err.response?.data?.detail || 'Error al registrar al paciente')
+      setError(err.response?.data?.detail || 'No se pudo registrar al paciente.')
     } finally {
       setLoading(false)
     }

@@ -35,7 +35,7 @@ export default function Login() {
       else if (rol === 'recepcionista' || rol === 'administrador') navigate('/dashboard/recepcionista')
       else navigate('/login')
     } catch {
-      setError('Correo o contrasena incorrectos')
+      setError('Correo o contraseña incorrectos')
     } finally {
       setLoading(false)
     }
@@ -57,9 +57,9 @@ export default function Login() {
     try {
       await solicitarRecuperacionContrasena({ email: recovery.email })
       setRecoveryStep('code')
-      setRecoveryMessage('Te enviamos un codigo de 6 digitos si el correo existe en el sistema.')
+      setRecoveryMessage('Te enviamos un código de 6 dígitos si el correo existe en el sistema.')
     } catch (requestError) {
-      setError(requestError.response?.data?.detail || 'No se pudo enviar el codigo de recuperacion.')
+      setError(requestError.response?.data?.detail || 'No se pudo enviar el código de recuperación.')
     } finally {
       setRecoveryLoading(false)
     }
@@ -73,9 +73,9 @@ export default function Login() {
     try {
       await verificarCodigoRecuperacion({ email: recovery.email, codigo: recovery.codigo })
       setRecoveryStep('password')
-      setRecoveryMessage('Codigo validado. Ahora registra tu nueva contrasena.')
+      setRecoveryMessage('Código validado. Ahora registra tu nueva contraseña.')
     } catch (requestError) {
-      setError(requestError.response?.data?.detail || 'Codigo invalido o expirado.')
+      setError(requestError.response?.data?.detail || 'Código inválido o expirado.')
     } finally {
       setRecoveryLoading(false)
     }
@@ -88,7 +88,7 @@ export default function Login() {
     setError('')
 
     if (recovery.nueva_contrasena !== recovery.confirmar) {
-      setError('Las contrasenas no coinciden.')
+      setError('Las contraseñas no coinciden.')
       setRecoveryLoading(false)
       return
     }
@@ -103,9 +103,9 @@ export default function Login() {
       setRecovery({ email: '', codigo: '', nueva_contrasena: '', confirmar: '' })
       setRecoveryOpen(false)
       setRecoveryStep('email')
-      setRecoveryMessage('Contrasena restablecida. Ya puedes iniciar sesion.')
+      setRecoveryMessage('Contraseña restablecida. Ya puedes iniciar sesión.')
     } catch (requestError) {
-      setError(requestError.response?.data?.detail || 'No se pudo restablecer la contrasena.')
+      setError(requestError.response?.data?.detail || 'No se pudo restablecer la contraseña.')
     } finally {
       setRecoveryLoading(false)
     }
@@ -118,19 +118,19 @@ export default function Login() {
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_35%_25%,rgba(18,184,163,0.20),transparent_28rem),radial-gradient(circle_at_75%_70%,rgba(8,40,77,0.12),transparent_24rem)]" />
           <div className="relative flex h-full flex-col justify-between p-12">
             <div>
-              <img src="/medcare-logo.png" alt="Clinica MedCare S.A.C." className="h-28 w-auto object-contain object-left" />
+              <img src="/medcare-logo.png" alt="Clínica MedCare S.A.C." className="h-28 w-auto object-contain object-left" />
               <p className="mt-10 max-w-xl text-5xl font-extrabold leading-tight tracking-tight text-[#08284d]">
-                Gestion medica moderna para citas, atencion e historial clinico.
+                Gestión médica moderna para citas, atención e historial clínico.
               </p>
               <p className="mt-5 max-w-lg text-lg leading-8 text-[#52615f]">
-                Portal clinico integrado para pacientes, recepcionistas y doctores de Clinica MedCare S.A.C.
+                Portal clínico integrado para pacientes, recepcionistas y doctores de Clínica MedCare S.A.C.
               </p>
             </div>
 
             <div className="grid max-w-2xl grid-cols-3 gap-4">
               {[
                 ['Citas', 'Agendamiento claro'],
-                ['Atencion', 'Flujo clinico completo'],
+                ['Atención', 'Flujo clínico completo'],
                 ['Historial', 'Registro centralizado'],
               ].map(([title, text]) => (
                 <div key={title} className="medcare-card-soft p-4">
@@ -145,13 +145,13 @@ export default function Login() {
         <section className="flex items-center justify-center px-5 py-10">
           <div className="w-full max-w-md">
             <div className="mb-8 text-center lg:hidden">
-              <img src="/medcare-logo.png" alt="Clinica MedCare S.A.C." className="mx-auto h-24 w-auto object-contain" />
+              <img src="/medcare-logo.png" alt="Clínica MedCare S.A.C." className="mx-auto h-24 w-auto object-contain" />
             </div>
 
             <div className="medcare-card p-6 sm:p-8">
               <div className="mb-7">
-                <p className="text-sm font-extrabold uppercase tracking-[0.18em] text-[#006b5d]">Portal Clinico</p>
-                <h1 className="mt-2 text-3xl font-extrabold tracking-tight text-[#101828]">Iniciar sesion</h1>
+                <p className="text-sm font-extrabold uppercase tracking-[0.18em] text-[#006b5d]">Portal Clínico</p>
+                <h1 className="mt-2 text-3xl font-extrabold tracking-tight text-[#101828]">Iniciar sesión</h1>
                 <p className="mt-2 text-sm text-[#52615f]">Ingresa con tus credenciales para continuar.</p>
               </div>
 
@@ -163,7 +163,7 @@ export default function Login() {
 
               <form onSubmit={handleSubmit} className="space-y-5">
                 <label className="block text-sm font-bold text-[#223330]">
-                  Correo electronico
+                  Correo electrónico
                   <input
                     className="medcare-input mt-2"
                     type="email"
@@ -175,7 +175,7 @@ export default function Login() {
                 </label>
 
                 <label className="block text-sm font-bold text-[#223330]">
-                  Contrasena
+                  Contraseña
                   <input
                     className="medcare-input mt-2"
                     type="password"
@@ -192,7 +192,7 @@ export default function Login() {
                     Recordarme
                   </label>
                   <button type="button" onClick={openRecovery} className="font-bold text-[#006b5d] hover:underline">
-                    Olvidaste tu contrasena?
+                    ¿Olvidaste tu contraseña?
                   </button>
                 </div>
 
@@ -212,14 +212,14 @@ export default function Login() {
                 <div className="mt-6 rounded-2xl border border-[#bdcbc7] bg-[#f8fbff] p-5">
                   <div className="mb-4 flex items-start justify-between gap-4">
                     <div>
-                      <h2 className="text-lg font-extrabold text-[#101828]">Recuperar contrasena</h2>
-                      <p className="mt-1 text-sm text-[#52615f]">Recibiras un codigo temporal en tu correo.</p>
+                      <h2 className="text-lg font-extrabold text-[#101828]">Recuperar contraseña</h2>
+                      <p className="mt-1 text-sm text-[#52615f]">Recibirás un código temporal en tu correo.</p>
                     </div>
                     <button
                       type="button"
                       onClick={() => setRecoveryOpen(false)}
                       className="rounded-lg p-1.5 text-[#52615f] transition hover:bg-white hover:text-[#006b5d] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#12b8a3]/20"
-                      aria-label="Cerrar recuperacion"
+                      aria-label="Cerrar recuperación"
                     >
                       <span className="material-symbols-outlined text-[20px]">close</span>
                     </button>
@@ -228,7 +228,7 @@ export default function Login() {
                   {recoveryStep === 'email' && (
                     <form onSubmit={requestRecoveryCode} className="space-y-4">
                       <label className="block text-sm font-bold text-[#223330]">
-                        Correo electronico
+                        Correo electrónico
                         <input
                           className="medcare-input mt-2"
                           type="email"
@@ -239,7 +239,7 @@ export default function Login() {
                         />
                       </label>
                       <button type="submit" disabled={recoveryLoading} className="medcare-primary-button flex w-full items-center justify-center gap-2 py-3 disabled:opacity-60">
-                        {recoveryLoading ? 'Enviando...' : 'Enviar codigo'}
+                        {recoveryLoading ? 'Enviando...' : 'Enviar código'}
                         <span className="material-symbols-outlined">mail</span>
                       </button>
                     </form>
@@ -248,7 +248,7 @@ export default function Login() {
                   {recoveryStep === 'code' && (
                     <form onSubmit={verifyRecoveryCode} className="space-y-4">
                       <label className="block text-sm font-bold text-[#223330]">
-                        Codigo recibido
+                        Código recibido
                         <input
                           className="medcare-input mt-2 text-center text-xl font-extrabold tracking-[0.35em]"
                           inputMode="numeric"
@@ -273,7 +273,7 @@ export default function Login() {
                   {recoveryStep === 'password' && (
                     <form onSubmit={resetPassword} className="space-y-4">
                       <label className="block text-sm font-bold text-[#223330]">
-                        Nueva contrasena
+                        Nueva contraseña
                         <input
                           className="medcare-input mt-2"
                           type="password"
@@ -284,7 +284,7 @@ export default function Login() {
                         />
                       </label>
                       <label className="block text-sm font-bold text-[#223330]">
-                        Confirmar contrasena
+                        Confirmar contraseña
                         <input
                           className="medcare-input mt-2"
                           type="password"
@@ -295,7 +295,7 @@ export default function Login() {
                         />
                       </label>
                       <button type="submit" disabled={recoveryLoading} className="medcare-primary-button flex w-full items-center justify-center gap-2 py-3 disabled:opacity-60">
-                        {recoveryLoading ? 'Guardando...' : 'Restablecer contrasena'}
+                        {recoveryLoading ? 'Guardando...' : 'Restablecer contraseña'}
                         <span className="material-symbols-outlined">lock_reset</span>
                       </button>
                     </form>
@@ -304,9 +304,9 @@ export default function Login() {
               )}
 
               <p className="mt-7 text-center text-sm text-[#52615f]">
-                No tienes cuenta?{' '}
+                ¿No tienes cuenta?{' '}
                 <Link to="/register" className="font-extrabold text-[#006b5d] hover:underline">
-                  Registrate como paciente
+                  Regístrate como paciente
                 </Link>
               </p>
             </div>

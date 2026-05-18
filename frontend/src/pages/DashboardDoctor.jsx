@@ -49,6 +49,18 @@ function isToday(value) {
     && date.getDate() === today.getDate()
 }
 
+function formatEstado(value) {
+  const labels = {
+    pendiente: 'Pendiente',
+    confirmada: 'Confirmada',
+    reprogramada: 'Reprogramada',
+    en_atencion: 'En atención',
+    completada: 'Completada',
+    cancelada: 'Cancelada',
+  }
+  return labels[value] || (value || 'Pendiente').replaceAll('_', ' ')
+}
+
 export default function DashboardDoctor() {
   const { user } = useAuth()
   const userId = user?.id
@@ -161,7 +173,7 @@ export default function DashboardDoctor() {
         id_cita: selected?.id_cita,
       })
       await refreshNotificaciones()
-      setMessage('Ticket de soporte medico registrado en Supabase.')
+      setMessage('Ticket de soporte médico registrado en Supabase.')
     } catch (error) {
       setMessage(error.response?.data?.detail || 'No se pudo registrar soporte.')
     } finally {
@@ -285,7 +297,7 @@ export default function DashboardDoctor() {
           <section className="space-y-6">
             <div>
               <h2 className="text-2xl font-bold text-slate-900">Agenda diaria</h2>
-              <p className="mt-1 text-sm text-slate-500">Lista cronologica de pacientes para atencion.</p>
+              <p className="mt-1 text-sm text-slate-500">Lista cronológica de pacientes para atención.</p>
             </div>
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
@@ -294,7 +306,7 @@ export default function DashboardDoctor() {
                 <p className="mt-2 text-3xl font-bold text-slate-900">{agendaDiaria.length}</p>
               </button>
               <button type="button" onClick={() => enAtencion[0] ? abrirAtencion(enAtencion[0]) : goToTab('agenda')} className="rounded-lg border border-slate-200 bg-white p-5 text-left shadow-sm transition hover:-translate-y-1 hover:border-[#12b8a3] hover:shadow-lg focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#12b8a3]/20 active:scale-[0.98]">
-                <p className="text-sm text-slate-500">En atencion</p>
+                <p className="text-sm text-slate-500">En atención</p>
                 <p className="mt-2 text-3xl font-bold text-sky-700">{enAtencion.length}</p>
               </button>
               <button type="button" onClick={() => goToTab('historial')} className="rounded-lg border border-slate-200 bg-white p-5 text-left shadow-sm transition hover:-translate-y-1 hover:border-[#12b8a3] hover:shadow-lg focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#12b8a3]/20 active:scale-[0.98]">
@@ -305,7 +317,7 @@ export default function DashboardDoctor() {
 
             <div className="rounded-lg border border-slate-200 bg-white shadow-sm">
               <div className="border-b border-slate-100 px-5 py-4">
-                <h3 className="font-semibold text-slate-900">Pacientes del dia</h3>
+                <h3 className="font-semibold text-slate-900">Pacientes del día</h3>
               </div>
               <div className="divide-y divide-slate-100">
                 {agendaDiaria.length === 0 ? (
@@ -319,7 +331,7 @@ export default function DashboardDoctor() {
                       </div>
                       <p className="text-sm text-slate-600">{formatDateTime(cita.fecha_hora)}</p>
                       <span className={`rounded-md border px-2 py-1 text-xs ${estadoClass[cita.estado] || estadoClass.pendiente}`}>
-                        {cita.estado}
+                        {formatEstado(cita.estado)}
                       </span>
                       {['confirmada', 'reprogramada', 'en_atencion'].includes(cita.estado) ? (
                         <button
@@ -379,7 +391,7 @@ export default function DashboardDoctor() {
                 </div>
 
                 <form onSubmit={guardarAtencion} className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-                  <h3 className="font-semibold text-slate-900">Registro de atencion</h3>
+                  <h3 className="font-semibold text-slate-900">Registro de atención</h3>
                   <label className="mt-4 block text-sm font-medium text-slate-700">
                     Diagnóstico
                     <textarea
@@ -409,7 +421,7 @@ export default function DashboardDoctor() {
                     />
                   </label>
                   <button type="submit" disabled={saving} className={`mt-5 ${primaryButton}`}>
-                    {saving ? 'Guardando...' : 'Guardar atencion y registrar salida'}
+                    {saving ? 'Guardando...' : 'Guardar atención y registrar salida'}
                   </button>
                 </form>
               </div>

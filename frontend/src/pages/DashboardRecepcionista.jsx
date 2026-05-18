@@ -78,6 +78,28 @@ function todayInputValue() {
   return new Date().toISOString().slice(0, 10)
 }
 
+function formatEstado(value) {
+  const labels = {
+    pendiente: 'Pendiente',
+    confirmada: 'Confirmada',
+    reprogramada: 'Reprogramada',
+    en_atencion: 'En atención',
+    cancelada: 'Cancelada',
+    completada: 'Completada',
+  }
+  return labels[value] || (value || 'Pendiente').replaceAll('_', ' ')
+}
+
+function formatTicketEstado(value) {
+  const labels = {
+    abierto: 'Abierto',
+    en_revision: 'En revisión',
+    resuelto: 'Resuelto',
+    cerrado: 'Cerrado',
+  }
+  return labels[value] || (value || 'Abierto').replaceAll('_', ' ')
+}
+
 export default function DashboardRecepcionista() {
   const { user } = useAuth()
   const [tab, setTab] = useState('dashboard')
@@ -195,7 +217,7 @@ export default function DashboardRecepcionista() {
       await enviarSoporte({
         id_usuario: user?.id,
         rol: user?.rol || 'recepcionista',
-        contexto: 'soporte recepcion',
+        contexto: 'soporte recepción',
         mensaje: 'Recepción solicita apoyo operativo desde el portal.',
       })
       await refreshSoporte()
@@ -214,7 +236,7 @@ export default function DashboardRecepcionista() {
       await actualizarSoporteTicket(ticket.id_ticket, {
         estado,
         asignado_a: user?.id,
-        respuesta: estado === 'resuelto' ? 'Ticket atendido por recepcion.' : 'Ticket en revision por recepcion.',
+        respuesta: estado === 'resuelto' ? 'Ticket atendido por recepción.' : 'Ticket en revisión por recepción.',
       })
       await refreshSoporte()
       showMessage('Ticket de soporte actualizado.')
@@ -438,7 +460,7 @@ export default function DashboardRecepcionista() {
                 ['Citas hoy', stats.citas_hoy ?? 0, () => goToTab('agenda', { fecha: todayInputValue() })],
                 ['Pendientes', stats.pendientes ?? 0, () => goToTab('gestion', { estado: 'pendiente' })],
                 ['Confirmadas hoy', stats.confirmadas_hoy ?? 0, () => goToTab('gestion', { estado: 'confirmada', fecha: todayInputValue() })],
-                ['En atencion', stats.en_atencion_hoy ?? 0, () => goToTab('gestion', { estado: 'en_atencion', fecha: todayInputValue() })],
+                ['En atención', stats.en_atencion_hoy ?? 0, () => goToTab('gestion', { estado: 'en_atencion', fecha: todayInputValue() })],
               ].map(([label, value, action]) => (
                 <button key={label} type="button" onClick={action} className="rounded-lg border border-slate-200 bg-white p-5 text-left shadow-sm transition hover:-translate-y-1 hover:border-[#12b8a3] hover:shadow-lg focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#12b8a3]/20 active:scale-[0.98]">
                   <p className="text-sm text-slate-500">{label}</p>
@@ -467,7 +489,7 @@ export default function DashboardRecepcionista() {
                       </div>
                       <p className="text-sm text-slate-600">{formatDateTime(cita.fecha_hora)}</p>
                       <span className={`rounded-md border px-2 py-1 text-xs font-medium ${estadoClass[cita.estado] || estadoClass.pendiente}`}>
-                        {cita.estado}
+                        {formatEstado(cita.estado)}
                       </span>
                     </button>
                   ))
@@ -508,7 +530,7 @@ export default function DashboardRecepcionista() {
                     <option value="pendiente">Pendiente</option>
                     <option value="confirmada">Confirmada</option>
                     <option value="reprogramada">Reprogramada</option>
-                    <option value="en_atencion">En atencion</option>
+                    <option value="en_atencion">En atención</option>
                     <option value="completada">Completada</option>
                     <option value="cancelada">Cancelada</option>
                   </select>
@@ -520,7 +542,7 @@ export default function DashboardRecepcionista() {
                       <span className="text-slate-600">Dr. {cita.doctor}</span>
                       <span className="text-slate-500">{formatDateTime(cita.fecha_hora)}</span>
                       <span className={`rounded-md border px-2 py-1 text-xs ${estadoClass[cita.estado] || estadoClass.pendiente}`}>
-                        {cita.estado}
+                        {formatEstado(cita.estado)}
                       </span>
                     </button>
                   ))}
@@ -630,7 +652,7 @@ export default function DashboardRecepcionista() {
                       <td className="px-4 py-3 text-slate-600">{formatDateTime(cita.fecha_hora)}</td>
                       <td className="px-4 py-3">
                         <span className={`rounded-md border px-2 py-1 text-xs ${estadoClass[cita.estado] || estadoClass.pendiente}`}>
-                          {cita.estado}
+                          {formatEstado(cita.estado)}
                         </span>
                       </td>
                       <td className="px-4 py-3">
@@ -682,12 +704,12 @@ export default function DashboardRecepcionista() {
                   ['nombre', 'Nombre', 'text'],
                   ['apellido', 'Apellido', 'text'],
                   ['email', 'Correo', 'email'],
-                  ['password', 'Contrasena inicial', 'password'],
+                  ['password', 'Contraseña inicial', 'password'],
                   ['dni', 'DNI', 'text'],
-                  ['telefono', 'Telefono', 'text'],
+                  ['telefono', 'Teléfono', 'text'],
                   ['fecha_nacimiento', 'Fecha de nacimiento', 'date'],
-                  ['seguro_medico', 'Seguro medico', 'text'],
-                  ['direccion', 'Direccion', 'text'],
+                  ['seguro_medico', 'Seguro médico', 'text'],
+                  ['direccion', 'Dirección', 'text'],
                 ].map(([field, label, type]) => (
                   <label key={field} className="text-sm font-medium text-slate-700">
                     {label}
@@ -701,7 +723,7 @@ export default function DashboardRecepcionista() {
                   </label>
                 ))}
                 <label className="text-sm font-medium text-slate-700">
-                  Genero
+                  Género
                   <select
                     className={`mt-1 w-full ${inputClass}`}
                     value={registro.genero}
@@ -725,7 +747,7 @@ export default function DashboardRecepcionista() {
             <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
               <div>
                 <h2 className="text-2xl font-bold text-slate-900">Tickets de soporte</h2>
-                <p className="mt-1 text-sm text-slate-500">Solicitudes de pacientes, medicos y recepcion para seguimiento operativo.</p>
+                <p className="mt-1 text-sm text-slate-500">Solicitudes de pacientes, médicos y recepción para seguimiento operativo.</p>
               </div>
               <button type="button" onClick={registrarSoporteInterno} disabled={actionLoading === 'soporte'} className={primaryButton}>
                 {actionLoading === 'soporte' ? 'Registrando...' : 'Crear ticket interno'}
@@ -735,7 +757,7 @@ export default function DashboardRecepcionista() {
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
               {[
                 ['Abiertos', soporteTickets.filter((ticket) => ticket.estado === 'abierto').length],
-                ['En revision', soporteTickets.filter((ticket) => ticket.estado === 'en_revision').length],
+                ['En revisión', soporteTickets.filter((ticket) => ticket.estado === 'en_revision').length],
                 ['Resueltos', soporteTickets.filter((ticket) => ticket.estado === 'resuelto').length],
                 ['Total', soporteTickets.length],
               ].map(([label, value]) => (
@@ -774,7 +796,7 @@ export default function DashboardRecepcionista() {
                       </td>
                       <td className="px-4 py-4">
                         <span className={`rounded-md border px-2 py-1 text-xs font-medium ${ticketEstadoClass[ticket.estado] || ticketEstadoClass.abierto}`}>
-                          {ticket.estado?.replaceAll('_', ' ')}
+                          {formatTicketEstado(ticket.estado)}
                         </span>
                       </td>
                       <td className="px-4 py-4 text-slate-600">{formatDateTime(ticket.fecha_actualizacion)}</td>
