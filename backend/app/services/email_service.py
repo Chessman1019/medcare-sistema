@@ -2,9 +2,9 @@ import os
 import smtplib
 from email.message import EmailMessage
 
-from dotenv import load_dotenv
+from app.config import load_backend_env
 
-load_dotenv()
+load_backend_env()
 
 
 def send_password_recovery_code(to_email: str, nombre: str, codigo: str) -> None:

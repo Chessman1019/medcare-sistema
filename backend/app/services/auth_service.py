@@ -3,9 +3,9 @@ from datetime import datetime, timedelta
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 from app.database import supabase
-from dotenv import load_dotenv
+from app.config import load_backend_env
 
-load_dotenv()
+load_backend_env()
 
 SECRET_KEY = os.getenv("SECRET_KEY")
 ALGORITHM = os.getenv("ALGORITHM")
