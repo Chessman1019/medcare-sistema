@@ -6,6 +6,18 @@ class UsuarioLogin(BaseModel):
     email: EmailStr
     password: str
 
+class RecuperacionContrasenaSolicitar(BaseModel):
+    email: EmailStr
+
+class RecuperacionContrasenaVerificar(BaseModel):
+    email: EmailStr
+    codigo: str
+
+class RecuperacionContrasenaRestablecer(BaseModel):
+    email: EmailStr
+    codigo: str
+    nueva_contrasena: str
+
 class UsuarioBase(BaseModel):
     nombre: str
     apellido: str

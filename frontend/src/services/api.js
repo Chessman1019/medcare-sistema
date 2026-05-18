@@ -12,6 +12,9 @@ API.interceptors.request.use((config) => {
 
 export const login = (data) => API.post('/auth/login', data)
 export const registrarPaciente = (data) => API.post('/auth/registro/paciente', data)
+export const solicitarRecuperacionContrasena = (data) => API.post('/auth/recuperar-contrasena/solicitar', data)
+export const verificarCodigoRecuperacion = (data) => API.post('/auth/recuperar-contrasena/verificar', data)
+export const restablecerContrasena = (data) => API.post('/auth/recuperar-contrasena/restablecer', data)
 
 export const getEspecialidades = () => API.get('/usuarios/especialidades')
 export const getDoctores = () => API.get('/usuarios/doctores')
