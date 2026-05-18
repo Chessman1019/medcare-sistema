@@ -1,5 +1,7 @@
 -- Seed de credenciales y datos mínimos para pruebas del sistema MedCare.
 -- Ejecutar desde Supabase SQL Editor.
+-- Si tu enum usuario.tipo_usuario aún no tiene "recepcionista",
+-- ejecuta primero: 20260518_add_rol_recepcionista.sql
 --
 -- Contraseña para todos los usuarios de prueba: MedCare123
 --
