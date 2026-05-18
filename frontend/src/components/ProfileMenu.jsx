@@ -1,5 +1,6 @@
 /* eslint-disable react-hooks/set-state-in-effect */
 import { useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useAuth } from '../context/AuthContext'
 import { actualizarPerfil, cambiarContrasenaPerfil, getPerfil } from '../services/api'
 
@@ -218,9 +219,9 @@ export default function ProfileMenu() {
         </div>
       )}
 
-      {panel && (
-        <div className="fixed inset-0 z-[70] flex items-start justify-center overflow-y-auto bg-[#08284d]/30 px-4 py-6 backdrop-blur-sm sm:py-10">
-          <div className="w-full max-w-3xl overflow-hidden rounded-2xl border border-[#bdcbc7] bg-white shadow-2xl shadow-[#08284d]/20">
+      {panel && typeof document !== 'undefined' && createPortal(
+        <div className="fixed inset-0 z-[100] flex items-start justify-center overflow-y-auto bg-[#08284d]/40 px-4 py-6 backdrop-blur-sm sm:py-10" role="dialog" aria-modal="true">
+          <div className="flex max-h-[calc(100dvh-3rem)] w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-[#bdcbc7] bg-white shadow-2xl shadow-[#08284d]/20">
             <div className="flex items-start justify-between gap-4 border-b border-[#d8e3fb] bg-[#f8fbff] px-5 py-4 sm:px-6">
               <div>
                 <p className="text-sm font-extrabold uppercase tracking-[0.14em] text-[#006b5d]">Cuenta MedCare</p>
@@ -231,7 +232,7 @@ export default function ProfileMenu() {
               </button>
             </div>
 
-            <div className="p-5 sm:p-6">
+            <div className="overflow-y-auto p-5 sm:p-6">
               {message && <div className="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-800">{message}</div>}
               {error && <div className="mb-4 rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-800">{error}</div>}
 
@@ -314,7 +315,8 @@ export default function ProfileMenu() {
               )}
             </div>
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
   )
