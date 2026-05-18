@@ -57,9 +57,9 @@ class Doctor(Usuario):
     def obtener_rol(self): return "doctor"
 
 class Administrador(Usuario):
-    def __init__(self, id_usuario, nombre, apellido, email, telefono, legajo, turno):
+    def __init__(self, id_usuario, nombre, apellido, email, telefono, codigo_empleado, turno):
         super().__init__(id_usuario, nombre, apellido, email, telefono, "administrador")
-        self.__legajo = legajo
+        self.__codigo_empleado = codigo_empleado
         self.__turno = turno
 
     def obtener_rol(self): return "administrador"

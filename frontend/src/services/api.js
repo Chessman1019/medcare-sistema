@@ -21,6 +21,8 @@ export const getDoctores = () => API.get('/usuarios/doctores')
 export const getDoctoresPorEspecialidad = (id) => API.get(`/usuarios/doctores/${id}`)
 export const getPacientes = () => API.get('/usuarios/pacientes')
 export const getListaEspera = () => API.get('/usuarios/lista-espera')
+export const getUsuarios = () => API.get('/usuarios')
+export const crearUsuario = (data) => API.post('/usuarios', data)
 
 export const getHorarios = (id_doctor) => API.get(`/horarios/${id_doctor}`)
 

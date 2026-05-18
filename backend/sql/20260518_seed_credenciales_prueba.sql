@@ -189,18 +189,18 @@ BEGIN
   INTO v_paciente_id;
 
   EXECUTE format($sql$
-    INSERT INTO public.administrador (id_usuario, legajo, turno)
+    INSERT INTO public.administrador (id_usuario, codigo_empleado, turno)
     VALUES (%s, 'ADM-TEST-001', %L)
     ON CONFLICT (id_usuario) DO UPDATE SET
-      legajo = EXCLUDED.legajo,
+      codigo_empleado = EXCLUDED.codigo_empleado,
       turno = EXCLUDED.turno
   $sql$, v_admin_id, v_turno_admin);
 
   EXECUTE format($sql$
-    INSERT INTO public.administrador (id_usuario, legajo, turno)
+    INSERT INTO public.administrador (id_usuario, codigo_empleado, turno)
     VALUES (%s, 'REC-TEST-001', %L)
     ON CONFLICT (id_usuario) DO UPDATE SET
-      legajo = EXCLUDED.legajo,
+      codigo_empleado = EXCLUDED.codigo_empleado,
       turno = EXCLUDED.turno
   $sql$, v_recepcion_id, v_turno_admin);
 

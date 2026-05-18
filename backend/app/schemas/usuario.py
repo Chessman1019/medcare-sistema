@@ -38,6 +38,19 @@ class DoctorCreate(UsuarioBase):
     id_especialidad: int
     turno: str
 
+class UsuarioAdminCreate(UsuarioBase):
+    password: str
+    tipo_usuario: str
+    dni: Optional[str] = None
+    fecha_nacimiento: Optional[date] = None
+    genero: Optional[str] = None
+    seguro_medico: Optional[str] = None
+    direccion: Optional[str] = None
+    cmp: Optional[str] = None
+    id_especialidad: Optional[int] = None
+    codigo_empleado: Optional[str] = None
+    turno: Optional[str] = None
+
 class UsuarioResponse(BaseModel):
     id_usuario: int
     nombre: str
