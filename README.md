@@ -225,10 +225,9 @@ Sistema actualiza historial, notificaciones y disponibilidad
 
 ## Seguridad
 
-- No compartas credenciales reales de Supabase ni SMTP.
-- Usa contraseñas de aplicación para Gmail u otro proveedor SMTP.
-- Mantén `backend/.env` fuera de Git.
-- Rota las claves si accidentalmente se exponen.
+Para las credenciales usamos archivos locales y no las dejamos dentro del repositorio. Por eso, cada integrante debe crear su propio `backend/.env` con sus datos de Supabase y correo.
+
+También recomendamos usar una contraseña de aplicación para Gmail o el proveedor SMTP que se configure. Si alguna clave se llega a compartir por error, lo mejor es cambiarla desde Supabase o desde el correo antes de seguir trabajando.
 
 ## Estado del proyecto
 
