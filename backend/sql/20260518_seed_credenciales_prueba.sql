@@ -6,10 +6,10 @@
 -- Contraseña para todos los usuarios de prueba: MedCare123
 --
 -- Cuentas creadas/actualizadas:
---   admin.test@medcare.local         -> administrador
---   recepcion.test@medcare.local     -> recepcionista
---   doctor.test@medcare.local        -> doctor
---   paciente.test@medcare.local      -> paciente
+--   admin.medcare@example.com         -> administrador
+--   recepcion.medcare@example.com     -> recepcionista
+--   doctor.medcare@example.com        -> doctor
+--   paciente.medcare@example.com      -> paciente
 
 DO $$
 DECLARE
@@ -104,9 +104,37 @@ BEGIN
   v_turno_doctor := COALESCE(v_turno_doctor, 'mañana');
   v_genero_paciente := COALESCE(v_genero_paciente, 'M');
 
+  UPDATE public.usuario
+  SET email = 'admin.medcare@example.com'
+  WHERE email = 'admin.test@medcare.local'
+    AND NOT EXISTS (
+      SELECT 1 FROM public.usuario WHERE email = 'admin.medcare@example.com'
+    );
+
+  UPDATE public.usuario
+  SET email = 'recepcion.medcare@example.com'
+  WHERE email = 'recepcion.test@medcare.local'
+    AND NOT EXISTS (
+      SELECT 1 FROM public.usuario WHERE email = 'recepcion.medcare@example.com'
+    );
+
+  UPDATE public.usuario
+  SET email = 'doctor.medcare@example.com'
+  WHERE email = 'doctor.test@medcare.local'
+    AND NOT EXISTS (
+      SELECT 1 FROM public.usuario WHERE email = 'doctor.medcare@example.com'
+    );
+
+  UPDATE public.usuario
+  SET email = 'paciente.medcare@example.com'
+  WHERE email = 'paciente.test@medcare.local'
+    AND NOT EXISTS (
+      SELECT 1 FROM public.usuario WHERE email = 'paciente.medcare@example.com'
+    );
+
   EXECUTE format($sql$
     INSERT INTO public.usuario (nombre, apellido, email, contrasena_hash, telefono, activo, tipo_usuario)
-    VALUES ('Admin', 'MedCare', 'admin.test@medcare.local', %L, '900000001', true, 'administrador')
+    VALUES ('Admin', 'MedCare', 'admin.medcare@example.com', %L, '900000001', true, 'administrador')
     ON CONFLICT (email) DO UPDATE SET
       nombre = EXCLUDED.nombre,
       apellido = EXCLUDED.apellido,
@@ -120,7 +148,7 @@ BEGIN
 
   EXECUTE format($sql$
     INSERT INTO public.usuario (nombre, apellido, email, contrasena_hash, telefono, activo, tipo_usuario)
-    VALUES ('Recepción', 'MedCare', 'recepcion.test@medcare.local', %L, '900000002', true, 'recepcionista')
+    VALUES ('Recepción', 'MedCare', 'recepcion.medcare@example.com', %L, '900000002', true, 'recepcionista')
     ON CONFLICT (email) DO UPDATE SET
       nombre = EXCLUDED.nombre,
       apellido = EXCLUDED.apellido,
@@ -134,7 +162,7 @@ BEGIN
 
   EXECUTE format($sql$
     INSERT INTO public.usuario (nombre, apellido, email, contrasena_hash, telefono, activo, tipo_usuario)
-    VALUES ('Valeria', 'Ramos', 'doctor.test@medcare.local', %L, '900000003', true, 'doctor')
+    VALUES ('Valeria', 'Ramos', 'doctor.medcare@example.com', %L, '900000003', true, 'doctor')
     ON CONFLICT (email) DO UPDATE SET
       nombre = EXCLUDED.nombre,
       apellido = EXCLUDED.apellido,
@@ -148,7 +176,7 @@ BEGIN
 
   EXECUTE format($sql$
     INSERT INTO public.usuario (nombre, apellido, email, contrasena_hash, telefono, activo, tipo_usuario)
-    VALUES ('Diego', 'Alvarez', 'paciente.test@medcare.local', %L, '900000004', true, 'paciente')
+    VALUES ('Diego', 'Alvarez', 'paciente.medcare@example.com', %L, '900000004', true, 'paciente')
     ON CONFLICT (email) DO UPDATE SET
       nombre = EXCLUDED.nombre,
       apellido = EXCLUDED.apellido,
@@ -309,8 +337,8 @@ BEGIN
   END IF;
 
   RAISE NOTICE 'Seed ejecutado correctamente. Contraseña para todos: MedCare123';
-  RAISE NOTICE 'Administrador: admin.test@medcare.local';
-  RAISE NOTICE 'Recepción: recepcion.test@medcare.local';
-  RAISE NOTICE 'Doctor: doctor.test@medcare.local';
-  RAISE NOTICE 'Paciente: paciente.test@medcare.local';
+  RAISE NOTICE 'Administrador: admin.medcare@example.com';
+  RAISE NOTICE 'Recepción: recepcion.medcare@example.com';
+  RAISE NOTICE 'Doctor: doctor.medcare@example.com';
+  RAISE NOTICE 'Paciente: paciente.medcare@example.com';
 END $$;
