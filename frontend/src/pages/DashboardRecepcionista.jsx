@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Layout from '../components/Layout'
 import PortalSidebar from '../components/PortalSidebar'
+import { isPasswordValid, PasswordField, PasswordStrength } from '../components/PasswordControls'
 import { useAuth } from '../context/AuthContext'
 import {
   actualizarSoporteTicket,
@@ -403,6 +404,10 @@ export default function DashboardRecepcionista() {
 
   const registrarNuevoPaciente = async (event) => {
     event.preventDefault()
+    if (!isPasswordValid(registro.password)) {
+      showMessage('La contraseña inicial debe tener mínimo 6 caracteres, letras y números.')
+      return
+    }
     setActionLoading('registro')
     try {
       await registrarPaciente(registro)
@@ -419,6 +424,10 @@ export default function DashboardRecepcionista() {
   const registrarUsuarioAdmin = async (event) => {
     event.preventDefault()
     if (!isAdmin) return
+    if (!isPasswordValid(usuarioAdmin.password)) {
+      showMessage('La contraseña temporal debe tener mínimo 6 caracteres, letras y números.')
+      return
+    }
 
     const payload = {
       ...usuarioAdmin,
@@ -931,7 +940,6 @@ export default function DashboardRecepcionista() {
                   ['nombre', 'Nombre', 'text'],
                   ['apellido', 'Apellido', 'text'],
                   ['email', 'Correo', 'email'],
-                  ['password', 'Contraseña inicial', 'password'],
                   ['dni', 'DNI', 'text'],
                   ['telefono', 'Teléfono', 'text'],
                   ['fecha_nacimiento', 'Fecha de nacimiento', 'date'],
@@ -949,6 +957,17 @@ export default function DashboardRecepcionista() {
                     />
                   </label>
                 ))}
+                <div className="md:col-span-2">
+                  <PasswordField
+                    label="Contraseña inicial"
+                    value={registro.password}
+                    onChange={(event) => setRegistro({ ...registro, password: event.target.value })}
+                    placeholder="••••••••"
+                    autoComplete="new-password"
+                    required
+                  />
+                  <PasswordStrength password={registro.password} className="mt-3" />
+                </div>
                 <label className="text-sm font-medium text-slate-700">
                   Género
                   <select
@@ -1003,10 +1022,18 @@ export default function DashboardRecepcionista() {
                   Correo
                   <input type="email" className={`mt-1 w-full ${inputClass}`} value={usuarioAdmin.email} onChange={(event) => updateUsuarioAdmin('email', event.target.value)} required />
                 </label>
-                <label className="text-sm font-medium text-slate-700">
-                  Contraseña temporal
-                  <input type="password" className={`mt-1 w-full ${inputClass}`} value={usuarioAdmin.password} onChange={(event) => updateUsuarioAdmin('password', event.target.value)} required minLength={6} />
-                </label>
+                <div className="md:col-span-2 xl:col-span-2">
+                  <PasswordField
+                    label="Contraseña temporal"
+                    value={usuarioAdmin.password}
+                    onChange={(event) => updateUsuarioAdmin('password', event.target.value)}
+                    placeholder="••••••••"
+                    autoComplete="new-password"
+                    required
+                    minLength={6}
+                  />
+                  <PasswordStrength password={usuarioAdmin.password} className="mt-3" />
+                </div>
                 <label className="text-sm font-medium text-slate-700">
                   Teléfono
                   <input className={`mt-1 w-full ${inputClass}`} value={usuarioAdmin.telefono} onChange={(event) => updateUsuarioAdmin('telefono', event.target.value)} />

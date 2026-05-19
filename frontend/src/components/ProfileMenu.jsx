@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useAuth } from '../context/AuthContext'
 import { actualizarPerfil, cambiarContrasenaPerfil, getPerfil } from '../services/api'
+import { isPasswordValid, PasswordField } from './PasswordControls'
 
 const roleLabel = {
   paciente: 'Paciente',
@@ -60,7 +61,7 @@ function DetailItem({ icon, label, value }) {
 function PasswordStrength({ password }) {
   const checks = [
     ['Mínimo 6 caracteres', password.length >= 6],
-    ['Incluye letras', /[a-zA-Z]/.test(password)],
+    ['Incluye letras', /[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ]/.test(password)],
     ['Incluye números', /\d/.test(password)],
   ]
   const strength = checks.filter(([, ok]) => ok).length
@@ -77,9 +78,9 @@ function PasswordStrength({ password }) {
       </div>
       <div className="grid gap-2 text-xs font-semibold text-slate-600 sm:grid-cols-3">
         {checks.map(([label, ok]) => (
-          <span key={label} className="flex items-center gap-1.5">
-            <span className={`material-symbols-outlined text-[17px] ${ok ? 'text-[#006b5d]' : 'text-slate-400'}`}>
-              {ok ? 'check_circle' : 'radio_button_unchecked'}
+          <span key={label} className={`flex items-center gap-2 ${ok ? 'text-[#006b5d]' : 'text-slate-500'}`}>
+            <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 transition ${ok ? 'border-[#007a68] bg-[#007a68]' : 'border-slate-400 bg-white'}`}>
+              {ok && <span className="h-2 w-2 rounded-full bg-white" />}
             </span>
             {label}
           </span>
@@ -226,6 +227,12 @@ export default function ProfileMenu() {
 
     if (passwordForm.nueva_contrasena !== passwordForm.confirmar) {
       setError('Las contraseñas no coinciden.')
+      setLoading(false)
+      return
+    }
+
+    if (!isPasswordValid(passwordForm.nueva_contrasena)) {
+      setError('La nueva contraseña debe tener mínimo 6 caracteres, letras y números.')
       setLoading(false)
       return
     }
@@ -384,19 +391,33 @@ export default function ProfileMenu() {
 
                 <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
                   <div className="space-y-4">
-                    <label className="text-sm font-medium text-slate-700">
-                      Contraseña actual
-                      <input type="password" className={inputClass} value={passwordForm.contrasena_actual} onChange={(event) => setPasswordForm({ ...passwordForm, contrasena_actual: event.target.value })} required />
-                    </label>
-                    <label className="text-sm font-medium text-slate-700">
-                      Nueva contraseña
-                      <input type="password" className={inputClass} value={passwordForm.nueva_contrasena} onChange={(event) => setPasswordForm({ ...passwordForm, nueva_contrasena: event.target.value })} minLength={6} required />
-                    </label>
+                    <PasswordField
+                      label="Contraseña actual"
+                      value={passwordForm.contrasena_actual}
+                      onChange={(event) => setPasswordForm({ ...passwordForm, contrasena_actual: event.target.value })}
+                      inputClassName="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 transition placeholder:text-slate-400 focus:border-[#007a68] focus:outline-none focus:ring-4 focus:ring-[#12b8a3]/15"
+                      autoComplete="current-password"
+                      required
+                    />
+                    <PasswordField
+                      label="Nueva contraseña"
+                      value={passwordForm.nueva_contrasena}
+                      onChange={(event) => setPasswordForm({ ...passwordForm, nueva_contrasena: event.target.value })}
+                      inputClassName="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 transition placeholder:text-slate-400 focus:border-[#007a68] focus:outline-none focus:ring-4 focus:ring-[#12b8a3]/15"
+                      autoComplete="new-password"
+                      minLength={6}
+                      required
+                    />
                     <PasswordStrength password={passwordForm.nueva_contrasena} />
-                    <label className="text-sm font-medium text-slate-700">
-                      Confirmar nueva contraseña
-                      <input type="password" className={inputClass} value={passwordForm.confirmar} onChange={(event) => setPasswordForm({ ...passwordForm, confirmar: event.target.value })} minLength={6} required />
-                    </label>
+                    <PasswordField
+                      label="Confirmar nueva contraseña"
+                      value={passwordForm.confirmar}
+                      onChange={(event) => setPasswordForm({ ...passwordForm, confirmar: event.target.value })}
+                      inputClassName="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 transition placeholder:text-slate-400 focus:border-[#007a68] focus:outline-none focus:ring-4 focus:ring-[#12b8a3]/15"
+                      autoComplete="new-password"
+                      minLength={6}
+                      required
+                    />
                   </div>
 
                   <div className="mt-5 flex flex-col gap-3 border-t border-slate-200 pt-5 sm:flex-row sm:justify-end">
