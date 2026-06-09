@@ -1,11 +1,21 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { login } from '../services/api'
+import {
+  login,
+  restablecerContrasena,
+  solicitarRecuperacionContrasena,
+  verificarCodigoRecuperacion,
+} from '../services/api'
 import { useAuth } from '../context/AuthContext'
 import Layout from '../components/Layout'
 
 export default function Login() {
   const [form, setForm] = useState({ email: '', password: '' })
+  const [recovery, setRecovery] = useState({ email: '', codigo: '', nueva_contrasena: '', confirmar: '' })
+  const [recoveryOpen, setRecoveryOpen] = useState(false)
+  const [recoveryStep, setRecoveryStep] = useState('email')
+  const [recoveryMessage, setRecoveryMessage] = useState('')
+  const [recoveryLoading, setRecoveryLoading] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const { loginUser } = useAuth()
@@ -15,6 +25,7 @@ export default function Login() {
     event.preventDefault()
     setLoading(true)
     setError('')
+    setRecoveryMessage('')
     try {
       const res = await login(form)
       const { access_token, rol, id_usuario, nombre, apellido } = res.data
@@ -27,6 +38,76 @@ export default function Login() {
       setError('Correo o contraseña incorrectos')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const openRecovery = () => {
+    setRecoveryOpen(true)
+    setRecoveryStep('email')
+    setRecoveryMessage('')
+    setError('')
+    setRecovery((current) => ({ ...current, email: form.email }))
+  }
+
+  const requestRecoveryCode = async (event) => {
+    event.preventDefault()
+    setRecoveryLoading(true)
+    setRecoveryMessage('')
+    setError('')
+    try {
+      await solicitarRecuperacionContrasena({ email: recovery.email })
+      setRecoveryStep('code')
+      setRecoveryMessage('Te enviamos un código de 6 dígitos si el correo existe en el sistema.')
+    } catch (requestError) {
+      setError(requestError.response?.data?.detail || 'No se pudo enviar el código de recuperación.')
+    } finally {
+      setRecoveryLoading(false)
+    }
+  }
+
+  const verifyRecoveryCode = async (event) => {
+    event.preventDefault()
+    setRecoveryLoading(true)
+    setRecoveryMessage('')
+    setError('')
+    try {
+      await verificarCodigoRecuperacion({ email: recovery.email, codigo: recovery.codigo })
+      setRecoveryStep('password')
+      setRecoveryMessage('Código validado. Ahora registra tu nueva contraseña.')
+    } catch (requestError) {
+      setError(requestError.response?.data?.detail || 'Código inválido o expirado.')
+    } finally {
+      setRecoveryLoading(false)
+    }
+  }
+
+  const resetPassword = async (event) => {
+    event.preventDefault()
+    setRecoveryLoading(true)
+    setRecoveryMessage('')
+    setError('')
+
+    if (recovery.nueva_contrasena !== recovery.confirmar) {
+      setError('Las contraseñas no coinciden.')
+      setRecoveryLoading(false)
+      return
+    }
+
+    try {
+      await restablecerContrasena({
+        email: recovery.email,
+        codigo: recovery.codigo,
+        nueva_contrasena: recovery.nueva_contrasena,
+      })
+      setForm((current) => ({ ...current, email: recovery.email, password: '' }))
+      setRecovery({ email: '', codigo: '', nueva_contrasena: '', confirmar: '' })
+      setRecoveryOpen(false)
+      setRecoveryStep('email')
+      setRecoveryMessage('Contraseña restablecida. Ya puedes iniciar sesión.')
+    } catch (requestError) {
+      setError(requestError.response?.data?.detail || 'No se pudo restablecer la contraseña.')
+    } finally {
+      setRecoveryLoading(false)
     }
   }
 
@@ -67,7 +148,7 @@ export default function Login() {
               <img src="/medcare-logo.png" alt="Clínica MedCare S.A.C." className="mx-auto h-24 w-auto object-contain" />
             </div>
 
-            <div className="medcare-card p-8">
+            <div className="medcare-card p-6 sm:p-8">
               <div className="mb-7">
                 <p className="text-sm font-extrabold uppercase tracking-[0.18em] text-[#006b5d]">Portal Clínico</p>
                 <h1 className="mt-2 text-3xl font-extrabold tracking-tight text-[#101828]">Iniciar sesión</h1>
@@ -98,7 +179,7 @@ export default function Login() {
                   <input
                     className="medcare-input mt-2"
                     type="password"
-                    placeholder="••••••••"
+                    placeholder="********"
                     value={form.password}
                     onChange={(event) => setForm({ ...form, password: event.target.value })}
                     required
@@ -110,7 +191,9 @@ export default function Login() {
                     <input type="checkbox" className="h-4 w-4 rounded border-[#bdcbc7] text-[#006b5d]" />
                     Recordarme
                   </label>
-                  <button type="button" className="font-bold text-[#006b5d]">¿Olvidaste tu contraseña?</button>
+                  <button type="button" onClick={openRecovery} className="font-bold text-[#006b5d] hover:underline">
+                    ¿Olvidaste tu contraseña?
+                  </button>
                 </div>
 
                 <button type="submit" disabled={loading} className="medcare-primary-button flex w-full items-center justify-center gap-2 py-4 disabled:opacity-60">
@@ -118,6 +201,107 @@ export default function Login() {
                   <span className="material-symbols-outlined">arrow_forward</span>
                 </button>
               </form>
+
+              {recoveryMessage && (
+                <div className="mt-5 rounded-xl border border-[#d8f4ee] bg-[#f4fffc] px-4 py-3 text-sm font-semibold text-[#006b5d]">
+                  {recoveryMessage}
+                </div>
+              )}
+
+              {recoveryOpen && (
+                <div className="mt-6 rounded-2xl border border-[#bdcbc7] bg-[#f8fbff] p-5">
+                  <div className="mb-4 flex items-start justify-between gap-4">
+                    <div>
+                      <h2 className="text-lg font-extrabold text-[#101828]">Recuperar contraseña</h2>
+                      <p className="mt-1 text-sm text-[#52615f]">Recibirás un código temporal en tu correo.</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setRecoveryOpen(false)}
+                      className="rounded-lg p-1.5 text-[#52615f] transition hover:bg-white hover:text-[#006b5d] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#12b8a3]/20"
+                      aria-label="Cerrar recuperación"
+                    >
+                      <span className="material-symbols-outlined text-[20px]">close</span>
+                    </button>
+                  </div>
+
+                  {recoveryStep === 'email' && (
+                    <form onSubmit={requestRecoveryCode} className="space-y-4">
+                      <label className="block text-sm font-bold text-[#223330]">
+                        Correo electrónico
+                        <input
+                          className="medcare-input mt-2"
+                          type="email"
+                          value={recovery.email}
+                          onChange={(event) => setRecovery({ ...recovery, email: event.target.value })}
+                          placeholder="correo@medcare.pe"
+                          required
+                        />
+                      </label>
+                      <button type="submit" disabled={recoveryLoading} className="medcare-primary-button flex w-full items-center justify-center gap-2 py-3 disabled:opacity-60">
+                        {recoveryLoading ? 'Enviando...' : 'Enviar código'}
+                        <span className="material-symbols-outlined">mail</span>
+                      </button>
+                    </form>
+                  )}
+
+                  {recoveryStep === 'code' && (
+                    <form onSubmit={verifyRecoveryCode} className="space-y-4">
+                      <label className="block text-sm font-bold text-[#223330]">
+                        Código recibido
+                        <input
+                          className="medcare-input mt-2 text-center text-xl font-extrabold tracking-[0.35em]"
+                          inputMode="numeric"
+                          maxLength={6}
+                          value={recovery.codigo}
+                          onChange={(event) => setRecovery({ ...recovery, codigo: event.target.value.replace(/\D/g, '').slice(0, 6) })}
+                          placeholder="000000"
+                          required
+                        />
+                      </label>
+                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                        <button type="button" onClick={requestRecoveryCode} disabled={recoveryLoading} className="medcare-secondary-button px-4 py-3">
+                          Reenviar
+                        </button>
+                        <button type="submit" disabled={recoveryLoading || recovery.codigo.length !== 6} className="medcare-primary-button px-4 py-3 disabled:opacity-60">
+                          Verificar
+                        </button>
+                      </div>
+                    </form>
+                  )}
+
+                  {recoveryStep === 'password' && (
+                    <form onSubmit={resetPassword} className="space-y-4">
+                      <label className="block text-sm font-bold text-[#223330]">
+                        Nueva contraseña
+                        <input
+                          className="medcare-input mt-2"
+                          type="password"
+                          value={recovery.nueva_contrasena}
+                          onChange={(event) => setRecovery({ ...recovery, nueva_contrasena: event.target.value })}
+                          minLength={6}
+                          required
+                        />
+                      </label>
+                      <label className="block text-sm font-bold text-[#223330]">
+                        Confirmar contraseña
+                        <input
+                          className="medcare-input mt-2"
+                          type="password"
+                          value={recovery.confirmar}
+                          onChange={(event) => setRecovery({ ...recovery, confirmar: event.target.value })}
+                          minLength={6}
+                          required
+                        />
+                      </label>
+                      <button type="submit" disabled={recoveryLoading} className="medcare-primary-button flex w-full items-center justify-center gap-2 py-3 disabled:opacity-60">
+                        {recoveryLoading ? 'Guardando...' : 'Restablecer contraseña'}
+                        <span className="material-symbols-outlined">lock_reset</span>
+                      </button>
+                    </form>
+                  )}
+                </div>
+              )}
 
               <p className="mt-7 text-center text-sm text-[#52615f]">
                 ¿No tienes cuenta?{' '}

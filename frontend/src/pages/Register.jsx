@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { registrarPaciente } from '../services/api'
 import Layout from '../components/Layout'
+import { isPasswordValid, PasswordField, PasswordStrength } from '../components/PasswordControls'
 
 const initialForm = {
   nombre: '',
@@ -25,11 +26,18 @@ export default function Register() {
     event.preventDefault()
     setLoading(true)
     setError('')
+
+    if (!isPasswordValid(form.password)) {
+      setError('La contraseña debe tener mínimo 6 caracteres, letras y números.')
+      setLoading(false)
+      return
+    }
+
     try {
       await registrarPaciente(form)
       navigate('/login')
     } catch (err) {
-      setError(err.response?.data?.detail || 'Error al registrar al paciente')
+      setError(err.response?.data?.detail || 'No se pudo registrar al paciente.')
     } finally {
       setLoading(false)
     }
@@ -94,10 +102,17 @@ export default function Register() {
                   <input className="medcare-input mt-2" type="email" placeholder="correo@ejemplo.com" {...bind('email')} required />
                 </label>
 
-                <label className="block text-sm font-bold text-[#223330]">
-                  Contraseña
-                  <input className="medcare-input mt-2" type="password" placeholder="••••••••" {...bind('password')} required />
-                </label>
+                <div>
+                  <PasswordField
+                    label="Contraseña"
+                    value={form.password}
+                    onChange={(event) => setForm({ ...form, password: event.target.value })}
+                    placeholder="••••••••"
+                    autoComplete="new-password"
+                    required
+                  />
+                  <PasswordStrength password={form.password} className="mt-3" />
+                </div>
 
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                   <label className="block text-sm font-bold text-[#223330]">

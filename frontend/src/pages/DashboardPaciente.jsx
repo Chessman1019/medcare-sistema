@@ -37,7 +37,15 @@ function formatDate(value) {
 }
 
 function formatStatus(value) {
-  return (value || 'pendiente').replaceAll('_', ' ')
+  const labels = {
+    pendiente: 'Pendiente',
+    confirmada: 'Confirmada',
+    reprogramada: 'Reprogramada',
+    cancelada: 'Cancelada',
+    completada: 'Completada',
+    en_atencion: 'En atención',
+  }
+  return labels[value] || (value || 'Pendiente').replaceAll('_', ' ')
 }
 
 function getErrorMessage(error, fallback) {
@@ -238,7 +246,7 @@ export default function DashboardPaciente() {
         id_cita: cita?.id_cita,
       })
       await refreshNotificaciones()
-      showSuccess('Solicitud registrada en Supabase. Recepcion podra verla desde soporte.')
+      showSuccess('Solicitud registrada en Supabase. Recepción podrá verla desde soporte.')
     } catch (requestError) {
       setError(getErrorMessage(requestError, 'No se pudo registrar la solicitud de soporte.'))
     } finally {

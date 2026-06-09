@@ -12,12 +12,20 @@ API.interceptors.request.use((config) => {
 
 export const login = (data) => API.post('/auth/login', data)
 export const registrarPaciente = (data) => API.post('/auth/registro/paciente', data)
+export const solicitarRecuperacionContrasena = (data) => API.post('/auth/recuperar-contrasena/solicitar', data)
+export const verificarCodigoRecuperacion = (data) => API.post('/auth/recuperar-contrasena/verificar', data)
+export const restablecerContrasena = (data) => API.post('/auth/recuperar-contrasena/restablecer', data)
+export const getPerfil = () => API.get('/auth/me')
+export const actualizarPerfil = (data) => API.put('/auth/me', data)
+export const cambiarContrasenaPerfil = (data) => API.put('/auth/me/contrasena', data)
 
 export const getEspecialidades = () => API.get('/usuarios/especialidades')
 export const getDoctores = () => API.get('/usuarios/doctores')
 export const getDoctoresPorEspecialidad = (id) => API.get(`/usuarios/doctores/${id}`)
 export const getPacientes = () => API.get('/usuarios/pacientes')
 export const getListaEspera = () => API.get('/usuarios/lista-espera')
+export const getUsuarios = () => API.get('/usuarios')
+export const crearUsuario = (data) => API.post('/usuarios', data)
 
 export const getHorarios = (id_doctor) => API.get(`/horarios/${id_doctor}`)
 
