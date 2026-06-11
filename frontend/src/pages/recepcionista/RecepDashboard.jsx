@@ -1,16 +1,15 @@
 const estadoClass = {
-  pendiente: 'bg-amber-50 text-amber-700 border-amber-200',
-  confirmada: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-  reprogramada: 'bg-violet-50 text-violet-700 border-violet-200',
-  en_atencion: 'bg-sky-50 text-sky-700 border-sky-200',
-  cancelada: 'bg-rose-50 text-rose-700 border-rose-200',
-  completada: 'bg-slate-100 text-slate-700 border-slate-200',
+  pendiente:    'bg-[#faeeda] text-[#854F0B]',
+  confirmada:   'bg-[#d8f4ee] text-[#006b5d]',
+  reprogramada: 'bg-[#e8edff] text-[#355382]',
+  en_atencion:  'bg-[#dff8fb] text-[#006b5d]',
+  cancelada:    'bg-[#ffdad6] text-[#93000a]',
+  completada:   'bg-[#f5f5f2] text-[#46514f]',
 }
 const estadoMetricColors = {
-  pendiente: '#f59e0b', confirmada: '#10b981', reprogramada: '#7c3aed',
-  en_atencion: '#0284c7', completada: '#64748b', cancelada: '#e11d48',
+  pendiente: '#f5c842', confirmada: '#12b8a3', reprogramada: '#6366f1',
+  en_atencion: '#0284c7', completada: '#52615f', cancelada: '#ba1a1a',
 }
-const secondaryButton = 'rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:-translate-y-0.5 hover:border-[#12b8a3] hover:bg-[#f4fffc] hover:text-[#006b5d] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#12b8a3]/20 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60'
 
 function formatDateTime(value) {
   if (!value) return 'Sin fecha'
@@ -45,128 +44,112 @@ export default function RecepDashboard({ stats, citas, citasHoy, doctores, pacie
     citas.reduce((acc, c) => { const k = c.especialidad || 'Sin especialidad'; acc[k] = (acc[k] || 0) + 1; return acc }, {})
   ).map(([label, value]) => ({ label, value })).sort((a, b) => b.value - a.value).slice(0, 5)
   const maxEspecialidad = Math.max(...especialidadMetricas.map(i => i.value), 1)
-  const roleLabels = { paciente: 'Paciente', doctor: 'Médico', recepcionista: 'Recepcionista', administrador: 'Administrador' }
-  const usuarioMetricas = ['paciente', 'doctor', 'recepcionista', 'administrador'].map(rol => ({
-    key: rol, label: roleLabels[rol],
-    value: (isAdmin && usuarios.length ? usuarios : [...pacientes, ...doctores]).filter(u => u.tipo_usuario === rol).length,
-  }))
-  const maxUsuarios = Math.max(...usuarioMetricas.map(i => i.value), 1)
   const todayInputValue = () => new Date().toISOString().slice(0, 10)
 
   return (
-    <section className="space-y-6">
+    <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold text-slate-900">{isAdmin ? 'Panel administrativo' : 'Recepción'}</h2>
-        <p className="mt-1 text-sm text-slate-500">Citas del día, validaciones pendientes y actividad general.</p>
+        <h2 className="text-4xl font-extrabold tracking-tight text-[#101828]">{isAdmin ? 'Panel administrativo' : 'Recepción'}</h2>
+        <p className="mt-2 text-lg text-[#52615f]">Citas del día, validaciones pendientes y actividad general.</p>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      {/* KPIs */}
+      <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
         {[
-          ['Citas hoy', stats.citas_hoy ?? 0, () => onGoToTab('agenda', { fecha: todayInputValue() })],
-          ['Pendientes', stats.pendientes ?? 0, () => onGoToTab('gestion', { estado: 'pendiente' })],
-          ['Confirmadas hoy', stats.confirmadas_hoy ?? 0, () => onGoToTab('gestion', { estado: 'confirmada', fecha: todayInputValue() })],
-          ['En atención', stats.en_atencion_hoy ?? 0, () => onGoToTab('gestion', { estado: 'en_atencion', fecha: todayInputValue() })],
-        ].map(([label, value, action]) => (
-          <button key={label} type="button" onClick={action} className="rounded-lg border border-slate-200 bg-white p-5 text-left shadow-sm transition hover:-translate-y-1 hover:border-[#12b8a3] hover:shadow-lg focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#12b8a3]/20 active:scale-[0.98]">
-            <p className="text-sm text-slate-500">{label}</p>
-            <p className="mt-2 text-3xl font-bold text-slate-900">{value}</p>
+          { label: 'Citas hoy',       value: stats.citas_hoy ?? 0,        icon: 'today',            color: 'text-[#006b5d]', bg: 'bg-[#d8f4ee]', action: () => onGoToTab('agenda', { fecha: todayInputValue() }) },
+          { label: 'Pendientes',      value: stats.pendientes ?? 0,        icon: 'pending',          color: 'text-[#854F0B]', bg: 'bg-[#faeeda]', action: () => onGoToTab('gestion', { estado: 'pendiente' }) },
+          { label: 'Confirmadas hoy', value: stats.confirmadas_hoy ?? 0,  icon: 'check_circle',     color: 'text-[#355382]', bg: 'bg-[#edf2ff]', action: () => onGoToTab('gestion', { estado: 'confirmada', fecha: todayInputValue() }) },
+          { label: 'En atención',     value: stats.en_atencion_hoy ?? 0,  icon: 'medical_services', color: 'text-[#006b5d]', bg: 'bg-[#d8f4ee]', action: () => onGoToTab('gestion', { estado: 'en_atencion' }) },
+        ].map(s => (
+          <button key={s.label} type="button" onClick={s.action}
+            className="medcare-card p-5 text-center transition hover:-translate-y-1 hover:shadow-lg">
+            <div className={`w-12 h-12 rounded-full ${s.bg} flex items-center justify-center mx-auto`}>
+              <span className={`material-symbols-outlined text-2xl ${s.color}`}>{s.icon}</span>
+            </div>
+            <p className={`text-3xl font-extrabold mt-2 ${s.color}`}>{s.value}</p>
+            <p className="text-xs text-[#52615f] mt-1 font-bold">{s.label}</p>
           </button>
         ))}
       </div>
 
-      <div className="grid grid-cols-1 gap-5 xl:grid-cols-[1fr_1.2fr] xl:gap-6">
-        <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+      <div className="grid grid-cols-1 gap-5 xl:grid-cols-[1fr_1.2fr]">
+        {/* Donut distribución */}
+        <div className="medcare-card p-6">
+          <h3 className="font-extrabold text-[#101828] mb-5">Distribución de estados</h3>
           <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
-            <div className="relative mx-auto h-44 w-44 shrink-0 rounded-full sm:mx-0" style={{ background: donutGradient }}>
+            <div className="relative mx-auto h-44 w-44 shrink-0 rounded-full" style={{ background: donutGradient }}>
               <div className="absolute inset-7 flex flex-col items-center justify-center rounded-full bg-white text-center shadow-inner">
-                <span className="text-3xl font-bold text-slate-900">{totalCitas}</span>
-                <span className="text-xs font-semibold uppercase tracking-widest text-slate-500">Citas</span>
+                <span className="text-3xl font-extrabold text-[#101828]">{totalCitas}</span>
+                <span className="text-xs font-extrabold uppercase tracking-widest text-[#52615f]">Citas</span>
               </div>
             </div>
-            <div className="flex-1">
-              <h3 className="font-semibold text-slate-900">Distribución de estados</h3>
-              <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
-                {estadoMetricas.map(item => (
-                  <button key={item.key} type="button" onClick={() => onGoToTab('gestion', { estado: item.key })}
-                    className="flex items-center justify-between rounded-lg border border-slate-100 px-3 py-2 text-left text-sm transition hover:border-[#12b8a3] hover:bg-[#f4fffc] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#12b8a3]/15">
-                    <span className="flex items-center gap-2 text-slate-600">
-                      <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: item.color }} />
-                      {item.label}
-                    </span>
-                    <span className="font-bold text-slate-900">{item.value}</span>
-                  </button>
-                ))}
-              </div>
+            <div className="flex-1 grid grid-cols-1 gap-2 sm:grid-cols-2">
+              {estadoMetricas.map(item => (
+                <button key={item.key} type="button" onClick={() => onGoToTab('gestion', { estado: item.key })}
+                  className="flex items-center justify-between rounded-xl border border-[#edf2ff] px-3 py-2 text-left transition hover:border-[#12b8a3] hover:bg-[#f4fffc]">
+                  <span className="flex items-center gap-2 text-sm text-[#52615f]">
+                    <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: item.color }} />
+                    {item.label}
+                  </span>
+                  <span className="font-extrabold text-[#101828]">{item.value}</span>
+                </button>
+              ))}
             </div>
           </div>
-        </section>
+        </div>
 
-        <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-          <h3 className="font-semibold text-slate-900">Demanda por especialidad</h3>
-          <div className="mt-5 space-y-4">
+        {/* Especialidades */}
+        <div className="medcare-card p-6">
+          <h3 className="font-extrabold text-[#101828] mb-5">Demanda por especialidad</h3>
+          <div className="space-y-4">
             {especialidadMetricas.length === 0 ? (
-              <p className="rounded-lg bg-slate-50 px-4 py-5 text-sm text-slate-500">Sin datos suficientes.</p>
+              <p className="rounded-xl bg-[#edf2ff] p-4 text-sm text-[#52615f]">Sin datos suficientes.</p>
             ) : especialidadMetricas.map(item => (
               <div key={item.label}>
                 <div className="mb-1 flex items-center justify-between text-sm">
-                  <span className="font-medium text-slate-700">{item.label}</span>
-                  <span className="font-bold text-slate-900">{item.value}</span>
+                  <span className="font-bold text-[#223330]">{item.label}</span>
+                  <span className="font-extrabold text-[#101828]">{item.value}</span>
                 </div>
-                <div className="h-3 overflow-hidden rounded-full bg-slate-100">
-                  <div className="h-full rounded-full bg-[#007a68]" style={{ width: `${Math.max(8, percentage(item.value, maxEspecialidad))}%` }} />
+                <div className="h-3 overflow-hidden rounded-full bg-[#edf2ff]">
+                  <div className="h-full rounded-full bg-[#12b8a3]" style={{ width: `${Math.max(8, percentage(item.value, maxEspecialidad))}%` }} />
                 </div>
               </div>
             ))}
           </div>
-        </section>
+        </div>
       </div>
 
-      {isAdmin && (
-        <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="flex items-center justify-between mb-5">
-            <h3 className="font-semibold text-slate-900">Cuentas por rol</h3>
-            <button type="button" onClick={() => onGoToTab('usuarios')} className={secondaryButton}>Gestionar usuarios</button>
-          </div>
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
-            {usuarioMetricas.map(item => (
-              <div key={item.key} className="rounded-lg bg-slate-50 p-4">
-                <p className="text-sm font-medium text-slate-600">{item.label}</p>
-                <p className="mt-2 text-3xl font-bold text-slate-900">{item.value}</p>
-                <div className="mt-3 h-2 overflow-hidden rounded-full bg-white">
-                  <div className="h-full rounded-full bg-[#12b8a3]" style={{ width: `${Math.max(8, percentage(item.value, maxUsuarios))}%` }} />
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
-
-      <div className="rounded-lg border border-slate-200 bg-white shadow-sm">
-        <div className="border-b border-slate-100 px-5 py-4">
-          <h3 className="font-semibold text-slate-900">Citas programadas para hoy</h3>
+      {/* Citas hoy */}
+      <div className="medcare-card overflow-hidden">
+        <div className="border-b border-[#bdcbc7] bg-[#f8fbff] px-6 py-4">
+          <h3 className="font-extrabold text-[#101828]">Citas programadas para hoy</h3>
         </div>
-        <div className="divide-y divide-slate-100">
+        <div className="divide-y divide-[#bdcbc7]">
           {citasHoy.length === 0 ? (
-            <p className="px-5 py-8 text-sm text-slate-500">No hay citas registradas para hoy.</p>
+            <div className="p-10 text-center">
+              <span className="material-symbols-outlined text-5xl text-[#bdcbc7]">event_busy</span>
+              <p className="mt-3 font-bold text-[#52615f]">No hay citas para hoy.</p>
+            </div>
           ) : citasHoy.map(cita => (
-            <button key={cita.id_cita} type="button" onClick={() => onGoToTab('gestion', { doctor: cita.doctor || '', fecha: cita.fecha_hora?.slice(0, 10) || '' })}
-              className="grid w-full grid-cols-1 items-start gap-3 px-5 py-4 text-left transition hover:bg-[#f8fbff] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#12b8a3]/15 md:grid-cols-[1.4fr_1.4fr_1fr_auto] md:items-center md:gap-4">
+            <button key={cita.id_cita} type="button"
+              onClick={() => onGoToTab('gestion', { doctor: cita.doctor || '', fecha: cita.fecha_hora?.slice(0, 10) || '' })}
+              className="grid w-full grid-cols-1 items-start gap-3 bg-white px-6 py-4 text-left transition hover:bg-[#f8fbff] md:grid-cols-[1.4fr_1.4fr_1fr_auto] md:items-center">
               <div>
-                <p className="font-medium text-slate-900">{cita.paciente}</p>
-                <p className="text-xs text-slate-500">DNI {cita.dni || 'sin registrar'}</p>
+                <p className="font-extrabold text-[#101828]">{cita.paciente}</p>
+                <p className="text-xs text-[#52615f]">DNI {cita.dni || 'sin registrar'}</p>
               </div>
               <div>
-                <p className="text-sm text-slate-700">Dr. {cita.doctor}</p>
-                <p className="text-xs text-slate-500">{cita.especialidad}</p>
+                <p className="text-sm font-bold text-[#223330]">Dr. {cita.doctor}</p>
+                <p className="text-xs text-[#52615f]">{cita.especialidad}</p>
               </div>
-              <p className="text-sm text-slate-600">{formatDateTime(cita.fecha_hora)}</p>
-              <span className={`rounded-md border px-2 py-1 text-xs font-medium ${estadoClass[cita.estado] || estadoClass.pendiente}`}>
+              <p className="text-sm text-[#52615f]">{formatDateTime(cita.fecha_hora)}</p>
+              <span className={`rounded-full px-3 py-1 text-xs font-extrabold ${estadoClass[cita.estado] || estadoClass.pendiente}`}>
                 {formatEstado(cita.estado)}
               </span>
             </button>
           ))}
         </div>
       </div>
-    </section>
+    </div>
   )
 }

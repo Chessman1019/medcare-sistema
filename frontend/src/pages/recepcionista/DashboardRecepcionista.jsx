@@ -51,6 +51,8 @@ export default function DashboardRecepcionista() {
   const [actionLoading, setActionLoading] = useState('')
   const [focusVersion, setFocusVersion] = useState(0)
   const contentRef = useRef(null)
+  const [showSoporteForm, setShowSoporteForm] = useState(false)
+  const [mensajeSoporteInterno, setMensajeSoporteInterno] = useState('')
 
   const requestFocus = () => setFocusVersion(c => c + 1)
 
@@ -203,12 +205,12 @@ export default function DashboardRecepcionista() {
   ]
 
   const sidebarItems = [
-    { path: 'dashboard', icon: 'dashboard',             label: 'Panel' },
-    { path: 'agenda',    icon: 'calendar_month',         label: 'Agenda global' },
-    { path: 'gestion',   icon: 'event_note',             label: 'Gestión de citas' },
+    { path: 'dashboard', icon: 'dashboard', label: 'Panel' },
+    { path: 'agenda', icon: 'calendar_month', label: 'Agenda global' },
+    { path: 'gestion', icon: 'event_note', label: 'Gestión de citas' },
     ...(!isAdmin ? [{ path: 'registro', icon: 'person_add', label: 'Registro paciente' }] : []),
-    ...(isAdmin  ? [{ path: 'usuarios', icon: 'admin_panel_settings', label: 'Usuarios' }] : []),
-    { path: 'soporte',   icon: 'support_agent',          label: 'Soporte' },
+    ...(isAdmin ? [{ path: 'usuarios', icon: 'admin_panel_settings', label: 'Usuarios' }] : []),
+
   ]
 
   const sidebar = (
@@ -227,14 +229,88 @@ export default function DashboardRecepcionista() {
       searchValue={searchTerm} searchPlaceholder="Buscar pacientes, doctores o citas..."
       onSearchChange={setSearchTerm} notificationItems={notificationItems} helpItems={helpItems} appItems={appItems}>
       <div ref={contentRef} tabIndex={-1} className="mx-auto w-full max-w-[1440px] space-y-6 p-4 focus:outline-none sm:p-6 lg:p-8">
-        {message && <div className="rounded-lg border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-800">{message}</div>}
 
-        {tab === 'dashboard' && <RecepDashboard stats={stats} citas={citas} citasHoy={citasHoy} doctores={doctores} pacientes={pacientes} usuarios={usuarios} especialidades={especialidades} isAdmin={isAdmin} onGoToTab={goToTab} />}
-        {tab === 'agenda' && <RecepAgenda citasFiltradas={citasFiltradas} filtros={filtros} setFiltros={setFiltros} doctores={doctores} horariosAgenda={horariosAgenda} agendaDoctor={agendaDoctor} onCargarDisponibilidad={cargarDisponibilidad} onGoToTab={goToTab} onShowMessage={showMessage} />}
-        {tab === 'gestion' && <RecepGestion citasFiltradas={citasFiltradas} doctores={doctores} reprogramacion={reprogramacion} setReprogramacion={setReprogramacion} actionLoading={actionLoading} onCambiarEstado={cambiarEstado} onAbrirReprogramacion={abrirReprogramacion} onGuardarReprogramacion={guardarReprogramacion} onCambiarDoctorReprogramacion={cambiarDoctorReprogramacion} />}
-        {tab === 'registro' && !isAdmin && <RecepRegistro registro={registro} setRegistro={setRegistro} pacientes={pacientes} especialidades={especialidades} actionLoading={actionLoading} onRegistrar={registrarNuevoPaciente} onShowMessage={showMessage} />}
-        {tab === 'usuarios' && isAdmin && <RecepUsuarios usuarios={usuarios} usuarioAdmin={usuarioAdmin} setUsuarioAdmin={setUsuarioAdmin} especialidades={especialidades} actionLoading={actionLoading} onCrearUsuario={registrarUsuarioAdmin} onShowMessage={showMessage} />}
-        {tab === 'soporte' && <RecepSoporte soporteTickets={soporteTickets} actionLoading={actionLoading} onActualizarTicket={actualizarTicket} onCrearTicketInterno={registrarSoporteInterno} />}
+        {message && (
+          <div className="rounded-xl border border-[#b7e8df] bg-[#e5fbf7] px-4 py-3 text-sm font-bold text-[#006b5d]">
+            {message}
+          </div>
+        )}
+
+        {tab === 'dashboard' && (
+          <RecepDashboard stats={stats} citas={citas} citasHoy={citasHoy} doctores={doctores}
+            pacientes={pacientes} usuarios={usuarios} especialidades={especialidades}
+            isAdmin={isAdmin} onGoToTab={goToTab} />
+        )}
+        {tab === 'agenda' && (
+          <RecepAgenda citasFiltradas={citasFiltradas} filtros={filtros} setFiltros={setFiltros}
+            doctores={doctores} horariosAgenda={horariosAgenda} agendaDoctor={agendaDoctor}
+            onCargarDisponibilidad={cargarDisponibilidad} onGoToTab={goToTab} onShowMessage={showMessage} />
+        )}
+        {tab === 'gestion' && (
+          <RecepGestion citasFiltradas={citasFiltradas} doctores={doctores}
+            reprogramacion={reprogramacion} setReprogramacion={setReprogramacion}
+            actionLoading={actionLoading} onCambiarEstado={cambiarEstado}
+            onAbrirReprogramacion={abrirReprogramacion} onGuardarReprogramacion={guardarReprogramacion}
+            onCambiarDoctorReprogramacion={cambiarDoctorReprogramacion} />
+        )}
+        {tab === 'registro' && !isAdmin && (
+          <RecepRegistro registro={registro} setRegistro={setRegistro} pacientes={pacientes}
+            especialidades={especialidades} actionLoading={actionLoading}
+            onRegistrar={registrarNuevoPaciente} onShowMessage={showMessage} />
+        )}
+        {tab === 'usuarios' && isAdmin && (
+          <RecepUsuarios usuarios={usuarios} usuarioAdmin={usuarioAdmin}
+            setUsuarioAdmin={setUsuarioAdmin} especialidades={especialidades}
+            actionLoading={actionLoading} onCrearUsuario={registrarUsuarioAdmin}
+            onShowMessage={showMessage} />
+        )}
+        {tab === 'soporte' && (
+          <>
+            {showSoporteForm && (
+              <div className="medcare-card p-6 space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <span className="flex h-10 w-10 items-center justify-center rounded-full bg-[#d8f4ee] text-[#006b5d]">
+                      <span className="material-symbols-outlined">support_agent</span>
+                    </span>
+                    <div>
+                      <h3 className="font-extrabold text-[#101828]">Nuevo ticket interno</h3>
+                      <p className="text-sm text-[#52615f]">El admin recibirá tu solicitud.</p>
+                    </div>
+                  </div>
+                  <button type="button" onClick={() => setShowSoporteForm(false)}
+                    className="rounded-full p-1.5 text-[#52615f] hover:bg-[#f8fbff]">
+                    <span className="material-symbols-outlined text-[20px]">close</span>
+                  </button>
+                </div>
+                <textarea
+                  className="w-full rounded-xl border border-[#bdcbc7] px-3 py-2.5 text-sm focus:border-[#007a68] focus:outline-none focus:ring-4 focus:ring-[#12b8a3]/15 min-h-24"
+                  value={mensajeSoporteInterno}
+                  onChange={e => setMensajeSoporteInterno(e.target.value)}
+                  placeholder="Describe qué necesitas..."
+                  autoFocus
+                />
+                <div className="flex gap-3">
+                  <button type="button" onClick={registrarSoporteInterno}
+                    disabled={actionLoading === 'soporte' || !mensajeSoporteInterno.trim()}
+                    className="medcare-primary-button px-6 py-2.5 disabled:opacity-60">
+                    {actionLoading === 'soporte' ? 'Enviando...' : 'Enviar ticket'}
+                  </button>
+                  <button type="button" onClick={() => setShowSoporteForm(false)}
+                    className="rounded-xl border border-[#bdcbc7] bg-white px-5 py-2.5 text-sm font-extrabold text-[#223330] hover:bg-[#f8fbff]">
+                    Cancelar
+                  </button>
+                </div>
+              </div>
+            )}
+            <RecepSoporte
+              soporteTickets={soporteTickets}
+              actionLoading={actionLoading}
+              onActualizarTicket={actualizarTicket}
+              onCrearTicketInterno={() => setShowSoporteForm(true)}
+            />
+          </>
+        )}
       </div>
     </Layout>
   )
