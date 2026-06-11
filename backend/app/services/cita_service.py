@@ -1,12 +1,8 @@
-from app.database import supabase
+from app.database import supabase, supabase_admin
 
 ESTADOS_CITA = {
-    "pendiente",
-    "confirmada",
-    "reprogramada",
-    "cancelada",
-    "en_atencion",
-    "completada",
+    "pendiente", "confirmada", "reprogramada",
+    "cancelada", "en_atencion", "completada",
 }
 
 def get_horarios_libres(id_doctor: int):
@@ -18,10 +14,10 @@ def get_horarios_libres(id_doctor: int):
     return res.data
 
 def crear_cita(data: dict):
-    res = supabase.table("cita").insert(data).execute()
+    res = supabase_admin.table("cita").insert(data).execute()
     cita = res.data[0] if res.data else None
     if cita and data.get("id_horario"):
-        supabase.table("horario_disponible")\
+        supabase_admin.table("horario_disponible")\
             .update({"ocupado": True})\
             .eq("id_horario", data["id_horario"])\
             .execute()
@@ -45,7 +41,7 @@ def get_citas_doctor(id_doctor: int):
 
 def cancelar_cita(id_cita: int):
     cita = get_cita(id_cita)
-    res = supabase.table("cita")\
+    res = supabase_admin.table("cita")\
         .update({"estado": "cancelada"})\
         .eq("id_cita", id_cita)\
         .execute()
@@ -63,20 +59,20 @@ def get_cita(id_cita: int):
 def cambiar_estado_cita(id_cita: int, estado: str):
     if estado not in ESTADOS_CITA:
         raise ValueError("Estado de cita no permitido")
-    res = supabase.table("cita")\
+    res = supabase_admin.table("cita")\
         .update({"estado": estado})\
         .eq("id_cita", id_cita)\
         .execute()
     return res.data
 
 def liberar_horario(id_horario: int):
-    return supabase.table("horario_disponible")\
+    return supabase_admin.table("horario_disponible")\
         .update({"ocupado": False})\
         .eq("id_horario", id_horario)\
         .execute()
 
 def ocupar_horario(id_horario: int):
-    return supabase.table("horario_disponible")\
+    return supabase_admin.table("horario_disponible")\
         .update({"ocupado": True})\
         .eq("id_horario", id_horario)\
         .execute()
@@ -87,9 +83,8 @@ def reprogramar_cita(id_cita: int, id_horario: int, fecha_hora: str):
         return None
     if cita.get("estado") in ("cancelada", "completada"):
         raise ValueError("No se puede reprogramar una cita cancelada o completada")
-
     horario_anterior = cita.get("id_horario")
-    res = supabase.table("cita")\
+    res = supabase_admin.table("cita")\
         .update({
             "id_horario": id_horario,
             "fecha_hora": fecha_hora,
@@ -97,7 +92,6 @@ def reprogramar_cita(id_cita: int, id_horario: int, fecha_hora: str):
         })\
         .eq("id_cita", id_cita)\
         .execute()
-
     if horario_anterior and horario_anterior != id_horario:
         liberar_horario(horario_anterior)
     ocupar_horario(id_horario)
@@ -107,7 +101,6 @@ def registrar_atencion(id_cita: int, data: dict):
     cita = get_cita(id_cita)
     if not cita:
         return None
-
     fecha_atencion = str(cita["fecha_hora"]).split("T")[0]
     payload = {
         "id_cita": id_cita,
@@ -117,7 +110,6 @@ def registrar_atencion(id_cita: int, data: dict):
         "observaciones": data.get("observaciones"),
         "tratamiento": data.get("tratamiento"),
     }
-
-    res = supabase.table("historial_clinico").insert(payload).execute()
+    res = supabase_admin.table("historial_clinico").insert(payload).execute()
     cambiar_estado_cita(id_cita, "completada")
     return res.data

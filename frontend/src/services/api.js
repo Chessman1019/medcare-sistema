@@ -21,7 +21,7 @@ export const cambiarContrasenaPerfil = (data) => API.put('/auth/me/contrasena', 
 
 export const getEspecialidades = () => API.get('/usuarios/especialidades')
 export const getDoctores = () => API.get('/usuarios/doctores')
-export const getDoctoresPorEspecialidad = (id) => API.get(`/usuarios/doctores/${id}`)
+export const getDoctoresPorEspecialidad = (id) => API.get(`/usuarios/doctores/especialidad/${id}`)
 export const getPacientes = () => API.get('/usuarios/pacientes')
 export const getListaEspera = () => API.get('/usuarios/lista-espera')
 export const getUsuarios = () => API.get('/usuarios')
@@ -52,3 +52,8 @@ export const marcarNotificacionEnviada = (id) => API.put(`/notificaciones/${id}/
 export const getSoporteTickets = (params = {}) => API.get('/soporte/tickets', { params })
 export const enviarSoporte = (data) => API.post('/soporte/tickets', data)
 export const actualizarSoporteTicket = (id, data) => API.put(`/soporte/tickets/${id}/estado`, data)
+export const getConfiguracion = () => API.get('/usuarios/configuracion')
+export const actualizarConfiguracion = (data) => API.put('/usuarios/configuracion', data)
+// Doctores
+export const actualizarDoctor = (id, data) => API.put(`/usuarios/doctores/${id}`, data)
+export const toggleDisponibleDoctor = (id, disponible) => API.patch(`/usuarios/doctores/${id}/disponible`, { disponible })

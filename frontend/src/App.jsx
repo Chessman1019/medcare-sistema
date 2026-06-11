@@ -1,10 +1,10 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
 import Login from './pages/Login'
 import Register from './pages/Register'
-import DashboardPaciente from './pages/DashboardPaciente'
-import DashboardDoctor from './pages/DashboardDoctor'
-import DashboardRecepcionista from './pages/DashboardRecepcionista'
-import DashboardAdmin from './pages/DashboardAdmin'
+import DashboardAdmin from './pages/admin/DashboardAdmin'
+import DashboardDoctor from './pages/doctor/DashboardDoctor'
+import DashboardRecepcionista from './pages/recepcionista/DashboardRecepcionista'
+import DashboardPaciente from './pages/paciente/DashboardPaciente'
 import ProtectedRoute from './components/ProtectedRoute'
 
 export default function App() {

@@ -1,5 +1,10 @@
 import secrets
 from datetime import datetime, timedelta, timezone
+from fastapi import Request
+from slowapi import Limiter
+from slowapi.util import get_remote_address
+from app.database import supabase, supabase_admin
+limiter = Limiter(key_func=get_remote_address)
 
 from fastapi import APIRouter, Depends, Header, HTTPException
 from app.schemas.usuario import (
@@ -62,7 +67,8 @@ def _get_current_user(authorization: str | None = Header(default=None)):
     return res.data[0]
 
 @router.post("/login")
-def login(data: UsuarioLogin):
+@limiter.limit("5/minute")
+def login(request: Request, data: UsuarioLogin):
     user = get_user_by_email(data.email)
     if not user or not verify_password(data.password, user["contrasena_hash"]):
         raise HTTPException(status_code=401, detail="Credenciales incorrectas")
@@ -146,7 +152,8 @@ def cambiar_contrasena(data: UsuarioCambiarContrasena, usuario: dict = Depends(_
 
 
 @router.post("/recuperar-contrasena/solicitar")
-def solicitar_recuperacion_contrasena(data: RecuperacionContrasenaSolicitar):
+@limiter.limit("3/minute")
+def solicitar_recuperacion_contrasena(request: Request, data: RecuperacionContrasenaSolicitar):
     user = get_user_by_email(data.email)
     if not user:
         return {"mensaje": "Si el correo existe, enviaremos un codigo de recuperacion."}
@@ -221,7 +228,7 @@ def restablecer_contrasena(data: RecuperacionContrasenaRestablecer):
 def registro_paciente(data: PacienteCreate):
     if get_user_by_email(data.email):
         raise HTTPException(status_code=400, detail="Email ya registrado")
-    user = supabase.table("usuario").insert({
+    user = supabase_admin.table("usuario").insert({
         "nombre": data.nombre,
         "apellido": data.apellido,
         "email": data.email,
@@ -230,7 +237,7 @@ def registro_paciente(data: PacienteCreate):
         "tipo_usuario": "paciente"
     }).execute()
     id_usuario = user.data[0]["id_usuario"]
-    supabase.table("paciente").insert({
+    supabase_admin.table("paciente").insert({
         "id_usuario": id_usuario,
         "dni": data.dni,
         "fecha_nacimiento": str(data.fecha_nacimiento),

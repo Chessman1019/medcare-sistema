@@ -1,8 +1,6 @@
 from datetime import datetime, timezone
-
 from fastapi import APIRouter, HTTPException
-
-from app.database import supabase
+from app.database import supabase, supabase_admin
 from app.schemas.notificacion import SoporteCreate
 
 router = APIRouter()
@@ -33,14 +31,12 @@ def notificaciones_admin():
 
 @router.put("/{id_notif}/marcar-enviada")
 def marcar_notificacion_enviada(id_notif: int):
-    res = supabase.table("notificacion").update({
+    res = supabase_admin.table("notificacion").update({
         "enviada": True,
         "enviado_en": datetime.now(timezone.utc).isoformat(),
     }).eq("id_notif", id_notif).execute()
-
     if not res.data:
         raise HTTPException(status_code=404, detail="Notificacion no encontrada")
-
     return res.data[0]
 
 
@@ -49,7 +45,6 @@ def crear_solicitud_soporte(data: SoporteCreate):
     mensaje = data.mensaje.strip()
     if not mensaje:
         raise HTTPException(status_code=400, detail="El mensaje de soporte no puede estar vacio")
-
     payload = {
         "id_usuario": data.id_usuario,
         "rol": data.rol,
@@ -59,11 +54,9 @@ def crear_solicitud_soporte(data: SoporteCreate):
         "prioridad": "normal",
         "estado": "abierto",
     }
-
-    res = supabase.table("soporte_ticket").insert(payload).execute()
+    res = supabase_admin.table("soporte_ticket").insert(payload).execute()
     if not res.data:
         raise HTTPException(status_code=400, detail="No se pudo registrar la solicitud de soporte")
-
     return {
         "mensaje": "Solicitud de soporte registrada correctamente",
         "ticket": res.data[0],

@@ -1,9 +1,7 @@
 from datetime import datetime, timezone
 from typing import Optional
-
 from fastapi import APIRouter, HTTPException, Query
-
-from app.database import supabase
+from app.database import supabase, supabase_admin
 from app.schemas.soporte import SoporteTicketCreate, SoporteTicketUpdate
 
 router = APIRouter()
@@ -44,14 +42,12 @@ def listar_tickets_soporte(
     limit: int = Query(default=50, ge=1, le=100),
 ):
     query = supabase.table("v_soporte_ticket_detalle").select("*")
-
     if rol:
         query = query.eq("rol", _normalizar_rol(rol))
     if id_usuario is not None:
         query = query.eq("id_usuario", id_usuario)
     if estado:
         query = query.eq("estado", _normalizar_estado(estado))
-
     res = query.order("fecha_actualizacion", desc=True).limit(limit).execute()
     return res.data or []
 
@@ -61,7 +57,6 @@ def crear_ticket_soporte(data: SoporteTicketCreate):
     mensaje = data.mensaje.strip()
     if not mensaje:
         raise HTTPException(status_code=400, detail="El mensaje de soporte no puede estar vacio")
-
     payload = {
         "id_usuario": data.id_usuario,
         "rol": _normalizar_rol(data.rol),
@@ -71,11 +66,9 @@ def crear_ticket_soporte(data: SoporteTicketCreate):
         "prioridad": _normalizar_prioridad(data.prioridad),
         "estado": "abierto",
     }
-
-    res = supabase.table("soporte_ticket").insert(payload).execute()
+    res = supabase_admin.table("soporte_ticket").insert(payload).execute()
     if not res.data:
         raise HTTPException(status_code=400, detail="No se pudo registrar el ticket de soporte")
-
     return {
         "mensaje": "Ticket de soporte registrado correctamente",
         "ticket": res.data[0],
@@ -90,7 +83,6 @@ def actualizar_estado_ticket(id_ticket: int, data: SoporteTicketUpdate):
         "estado": estado,
         "fecha_actualizacion": now,
     }
-
     if data.respuesta is not None:
         payload["respuesta"] = data.respuesta.strip() or None
     if data.asignado_a is not None:
@@ -99,9 +91,7 @@ def actualizar_estado_ticket(id_ticket: int, data: SoporteTicketUpdate):
         payload["cerrado_en"] = now
     else:
         payload["cerrado_en"] = None
-
-    res = supabase.table("soporte_ticket").update(payload).eq("id_ticket", id_ticket).execute()
+    res = supabase_admin.table("soporte_ticket").update(payload).eq("id_ticket", id_ticket).execute()
     if not res.data:
         raise HTTPException(status_code=404, detail="Ticket de soporte no encontrado")
-
     return res.data[0]
