@@ -164,3 +164,25 @@ def actualizar_configuracion(data: dict, _: dict = Depends(require_admin)):
     data["updated_at"] = "now()"
     supabase_admin.table("configuracion_clinica").update(data).eq("id", 1).execute()
     return {"mensaje": "Configuración actualizada correctamente"}
+
+@router.post("/especialidades")
+def crear_especialidad(data: dict = Body(...), _: dict = Depends(require_admin)):
+    res = supabase_admin.table("especialidad").insert({
+        "nombre": data["nombre"],
+        "descripcion": data.get("descripcion", ""),
+    }).execute()
+    return res.data[0]
+
+@router.put("/especialidades/{id_especialidad}")
+def actualizar_especialidad(id_especialidad: int, data: dict = Body(...), _: dict = Depends(require_admin)):
+    res = supabase_admin.table("especialidad").update({
+        "nombre": data["nombre"],
+        "descripcion": data.get("descripcion", ""),
+    }).eq("id_especialidad", id_especialidad).execute()
+    return res.data[0]
+@router.patch("/lista-espera/{id_espera}")
+def actualizar_lista_espera(id_espera: int, data: dict = Body(...), _: dict = Depends(require_admin)):
+    supabase_admin.table("lista_espera").update({
+        "estado": data["estado"]
+    }).eq("id_espera", id_espera).execute()
+    return {"mensaje": "Lista de espera actualizada"}
