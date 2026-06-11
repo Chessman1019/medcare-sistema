@@ -11,16 +11,12 @@ function HeaderDropdown({ title, icon, items = [], emptyText, onClose }) {
           </span>
           <p className="font-extrabold text-[#101828]">{title}</p>
         </div>
-        <button
-          type="button"
-          onClick={onClose}
+        <button type="button" onClick={onClose}
           className="rounded-lg p-1.5 text-[#52615f] transition hover:bg-white hover:text-[#006b5d] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#12b8a3]/20 active:scale-95"
-          aria-label="Cerrar menú"
-        >
+          aria-label="Cerrar menú">
           <span className="material-symbols-outlined text-[20px]">close</span>
         </button>
       </div>
-
       <div className="max-h-[min(420px,calc(100vh-7rem))] overflow-y-auto p-3">
         {items.length === 0 ? (
           <p className="rounded-xl bg-[#edf2ff] p-4 text-sm text-[#52615f]">{emptyText}</p>
@@ -37,29 +33,56 @@ function HeaderDropdown({ title, icon, items = [], emptyText, onClose }) {
                   {item.actionLabel && <p className="mt-3 text-sm font-extrabold text-[#006b5d]">{item.actionLabel}</p>}
                 </>
               )
-
               if (item.onClick) {
                 return (
-                  <button
-                    key={item.title}
-                    type="button"
-                    onClick={() => {
-                      item.onClick()
-                      onClose()
-                    }}
-                    className="w-full rounded-xl border border-transparent p-4 text-left transition hover:-translate-y-0.5 hover:border-[#12b8a3]/35 hover:bg-[#f4fffc] hover:shadow-sm focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#12b8a3]/20 active:scale-[0.98]"
-                  >
+                  <button key={item.title} type="button"
+                    onClick={() => { item.onClick(); onClose() }}
+                    className="w-full rounded-xl border border-transparent p-4 text-left transition hover:-translate-y-0.5 hover:border-[#12b8a3]/35 hover:bg-[#f4fffc] hover:shadow-sm focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#12b8a3]/20 active:scale-[0.98]">
                     {body}
                   </button>
                 )
               }
-
               return (
-                <div key={item.title} className="rounded-xl border border-[#edf2ff] bg-white p-4">
-                  {body}
-                </div>
+                <div key={item.title} className="rounded-xl border border-[#edf2ff] bg-white p-4">{body}</div>
               )
             })}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function SearchDropdown({ value, items, onClose }) {
+  if (!value.trim()) return null
+  return (
+    <div className="absolute left-0 right-0 top-full mt-2 z-50 overflow-hidden rounded-2xl border border-[#bdcbc7] bg-white shadow-2xl shadow-[#08284d]/12">
+      <div className="flex items-center justify-between border-b border-[#d8e3fb] bg-[#f8fbff] px-5 py-3">
+        <div className="flex items-center gap-2">
+          <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#d8f4ee] text-[#006b5d]">
+            <span className="material-symbols-outlined text-[18px]">search</span>
+          </span>
+          <p className="font-extrabold text-[#101828] text-sm">Resultados para "{value}"</p>
+        </div>
+        <button type="button" onClick={onClose}
+          className="rounded-lg p-1 text-[#52615f] hover:bg-white hover:text-[#006b5d]">
+          <span className="material-symbols-outlined text-[18px]">close</span>
+        </button>
+      </div>
+      <div className="max-h-80 overflow-y-auto p-2">
+        {items.length === 0 ? (
+          <p className="rounded-xl bg-[#edf2ff] p-4 text-sm text-[#52615f]">No se encontraron resultados.</p>
+        ) : (
+          <div className="space-y-1">
+            {items.map((item, i) => (
+              <button key={i} type="button"
+                onClick={() => { item.onClick?.(); onClose() }}
+                className="w-full rounded-xl px-4 py-3 text-left transition hover:bg-[#f4fffc]">
+                <p className="font-extrabold text-sm text-[#101828]">{item.title}</p>
+                {item.description && <p className="text-xs text-[#52615f] mt-0.5">{item.description}</p>}
+                {item.actionLabel && <p className="text-xs font-extrabold text-[#006b5d] mt-1">{item.actionLabel}</p>}
+              </button>
+            ))}
           </div>
         )}
       </div>
@@ -99,18 +122,37 @@ export default function Layout({
           <h1 className="min-w-0 truncate text-xl font-extrabold tracking-tight text-[#101828] sm:text-2xl">
             {title || 'Portal MedCare'}
           </h1>
-          <div className="order-3 flex w-full basis-full items-center gap-3 rounded-full bg-[#edf2ff] px-4 py-2.5 text-[#52615f] transition focus-within:ring-4 focus-within:ring-[#12b8a3]/15 sm:basis-auto lg:order-none lg:max-w-xl lg:px-5 lg:py-3">
-            <span className="material-symbols-outlined text-[22px]">search</span>
-            {onSearchChange ? (
-              <input
-                type="search"
+
+          {/* ── Buscador ── */}
+          <div className="relative order-3 w-full basis-full sm:basis-auto lg:order-none lg:max-w-xl">
+            <div className="flex items-center gap-3 rounded-full bg-[#edf2ff] px-4 py-2.5 text-[#52615f] transition focus-within:ring-4 focus-within:ring-[#12b8a3]/15 lg:px-5 lg:py-3">
+              <span className="material-symbols-outlined text-[22px]">search</span>
+              {onSearchChange ? (
+                <>
+                  <input
+                    type="search"
+                    value={searchValue}
+                    onChange={(event) => onSearchChange(event.target.value)}
+                    placeholder={searchPlaceholder}
+                    className="w-full bg-transparent text-sm text-[#101828] outline-none placeholder:text-[#52615f]"
+                  />
+                  {searchValue?.trim() && (
+                    <button type="button" onClick={() => onSearchChange('')}
+                      className="shrink-0 text-[#52615f] hover:text-[#101828]">
+                      <span className="material-symbols-outlined text-[18px]">close</span>
+                    </button>
+                  )}
+                </>
+              ) : (
+                <span className="text-sm">{searchPlaceholder}</span>
+              )}
+            </div>
+            {onSearchChange && searchValue?.trim() && (
+              <SearchDropdown
                 value={searchValue}
-                onChange={(event) => onSearchChange(event.target.value)}
-                placeholder={searchPlaceholder}
-                className="w-full bg-transparent text-sm text-[#101828] outline-none placeholder:text-[#52615f]"
+                items={notificationItems}
+                onClose={() => onSearchChange('')}
               />
-            ) : (
-              <span className="text-sm">{searchPlaceholder}</span>
             )}
           </div>
         </div>
@@ -119,13 +161,15 @@ export default function Layout({
           <div className="relative">
             <button type="button" onClick={() => toggleMenu('notifications')} className={`relative ${topButtonClass}`} aria-label="Notificaciones" aria-expanded={openMenu === 'notifications'}>
               <span className="material-symbols-outlined">notifications</span>
-              {notificationItems.length > 0 && <span className="absolute right-1.5 top-1 h-2.5 w-2.5 rounded-full bg-[#ba1a1a]" />}
+              {notificationItems.length > 0 && !searchValue?.trim() && (
+                <span className="absolute right-1.5 top-1 h-2.5 w-2.5 rounded-full bg-[#ba1a1a]" />
+              )}
             </button>
             {openMenu === 'notifications' && (
               <HeaderDropdown
                 title="Notificaciones"
                 icon="notifications"
-                items={notificationItems}
+                items={searchValue?.trim() ? [] : notificationItems}
                 emptyText="No tienes notificaciones nuevas por ahora."
                 onClose={() => setOpenMenu(null)}
               />
