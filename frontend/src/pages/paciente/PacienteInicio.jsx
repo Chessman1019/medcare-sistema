@@ -15,14 +15,20 @@ function formatStatus(value) {
 }
 function isManageable(cita) { return cita && !['cancelada', 'completada'].includes(cita.estado) }
 
-export default function PacienteInicio({ user, proximaCita, filteredCitas, historial, notificaciones, quickPanel, setQuickPanel, activeAppointments, supportMessage, setSupportMessage, supportLoading, searchTerm, cancelingId, quickPanelRef, onAgendar, onCancelar, onReprogramar, onEnviarSoporte, onSelectTab, quickActions }) {
+export default function PacienteInicio({
+  user, proximaCita, filteredCitas, historial, notificaciones,
+  quickPanel, setQuickPanel, activeAppointments, supportMessage,
+  setSupportMessage, supportLoading, searchTerm, cancelingId,
+  quickPanelRef, onAgendar, onCancelar, onReprogramar, onEnviarSoporte,
+  onSelectTab, quickActions, soporteTickets = [],
+}) {
   const renderQuickPanel = () => {
     if (!quickPanel) return null
     const panelHeader = {
-      recetas: ['clinical_notes', 'Recetas médicas', 'Indicaciones y documentos emitidos después de tus atenciones.'],
-      resultados: ['biotech', 'Resultados de laboratorio', 'Consulta los resultados asociados a tus citas y exámenes.'],
-      pagos: ['payments', 'Pagos y comprobantes', 'Resumen visual de importes pendientes y constancias.'],
-      soporte: ['support_agent', 'Soporte del paciente', 'Solicita ayuda de coordinación sin salir del portal.'],
+      recetas:    ['clinical_notes', 'Recetas médicas',           'Indicaciones y documentos emitidos después de tus atenciones.'],
+      resultados: ['biotech',        'Resultados de laboratorio', 'Consulta los resultados asociados a tus citas y exámenes.'],
+      pagos:      ['payments',       'Pagos y comprobantes',      'Resumen visual de importes pendientes y constancias.'],
+      soporte:    ['support_agent',  'Soporte del paciente',      'Solicita ayuda de coordinación sin salir del portal.'],
     }[quickPanel]
     if (!panelHeader) return null
     const [icon, title, description] = panelHeader
@@ -84,14 +90,54 @@ export default function PacienteInicio({ user, proximaCita, filteredCitas, histo
             </div>
           )}
           {quickPanel === 'soporte' && (
-            <div className="grid gap-4 md:grid-cols-[1fr_auto] md:items-center">
-              <div className="rounded-2xl bg-[#edf2ff] p-5 text-[#52615f]">
-                Un coordinador puede ayudarte con horarios, cancelaciones o información de tu atención.
-                <textarea className="medcare-input mt-4 min-h-24" value={supportMessage} onChange={e => setSupportMessage(e.target.value)} placeholder="Describe qué necesitas..." />
+            <div className="space-y-5">
+              {/* Formulario nuevo ticket */}
+              <div className="grid gap-4 md:grid-cols-[1fr_auto] md:items-end">
+                <div className="rounded-2xl bg-[#edf2ff] p-5 text-[#52615f]">
+                  <p className="text-sm font-bold mb-3">Un coordinador puede ayudarte con horarios, cancelaciones o información de tu atención.</p>
+                  <textarea
+                    className="medcare-input mt-2 min-h-24"
+                    value={supportMessage}
+                    onChange={e => setSupportMessage(e.target.value)}
+                    placeholder="Describe qué necesitas..."
+                  />
+                </div>
+                <button type="button" onClick={() => onEnviarSoporte('soporte paciente')} disabled={supportLoading}
+                  className="medcare-primary-button px-6 py-4 disabled:opacity-60">
+                  {supportLoading ? 'Enviando...' : 'Solicitar apoyo'}
+                </button>
               </div>
-              <button type="button" onClick={() => onEnviarSoporte('soporte paciente')} disabled={supportLoading} className="medcare-primary-button px-6 py-4 disabled:opacity-60">
-                {supportLoading ? 'Enviando...' : 'Solicitar apoyo'}
-              </button>
+
+              {/* Tickets anteriores */}
+              {soporteTickets.length > 0 && (
+                <div className="space-y-3">
+                  <p className="text-sm font-extrabold text-[#223330] uppercase tracking-wide">Mis solicitudes anteriores</p>
+                  {soporteTickets.map(t => (
+                    <div key={t.id_ticket} className="rounded-2xl border border-[#bdcbc7] bg-white p-5">
+                      <div className="flex items-start justify-between gap-3 mb-2">
+                        <p className="font-extrabold text-[#101828] text-sm flex-1 min-w-0">{t.mensaje}</p>
+                        <span className={`text-xs px-2 py-0.5 rounded-full font-extrabold shrink-0 ${
+                          t.estado === 'resuelto'    ? 'bg-[#d8f4ee] text-[#006b5d]' :
+                          t.estado === 'en_revision' ? 'bg-[#edf2ff] text-[#355382]' :
+                          t.estado === 'cerrado'     ? 'bg-[#f5f5f2] text-[#46514f]' :
+                                                       'bg-[#faeeda] text-[#854F0B]'
+                        }`}>{t.estado?.replace('_', ' ')}</span>
+                      </div>
+                      {t.respuesta ? (
+                        <div className="mt-3 rounded-xl bg-[#d8f4ee] p-3">
+                          <p className="text-xs font-extrabold text-[#006b5d] mb-1">Respuesta del coordinador:</p>
+                          <p className="text-sm text-[#101828]">{t.respuesta}</p>
+                        </div>
+                      ) : (
+                        <p className="text-xs text-[#52615f] mt-2 italic">Sin respuesta aún — en revisión por el equipo.</p>
+                      )}
+                      <p className="text-xs text-[#52615f] mt-2">
+                        {new Date(t.fecha_creacion).toLocaleDateString('es-PE', { day: '2-digit', month: 'short', year: 'numeric' })}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </div>

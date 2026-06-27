@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import AdminSoporte from './AdminSoporte'
 import Layout from '../../components/Layout'
 import PortalSidebar from '../../components/PortalSidebar'
 import {
@@ -177,6 +178,7 @@ export default function DashboardAdmin() {
         { path: 'especialidades', icon: 'local_hospital',  label: 'Especialidades' },
         { path: 'espera',         icon: 'hourglass_empty', label: 'Lista de Espera' },
         { path: 'reportes',       icon: 'bar_chart',       label: 'Reportes' },
+        { path: 'soporte', icon: 'support_agent', label: 'Soporte' },
         { path: 'configuracion',  icon: 'settings',        label: 'Configuración' },
     ]
 
@@ -239,6 +241,7 @@ export default function DashboardAdmin() {
                         }
                     />
                 )}
+                {tab === 'soporte' && <AdminSoporte />}
                 {tab === 'pacientes' && (
                     <AdminPacientes
                         pacientes={pacientes}

@@ -1,4 +1,5 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
+import Welcome from './pages/Welcome'
 import Login from './pages/Login'
 import Register from './pages/Register'
 import DashboardAdmin from './pages/admin/DashboardAdmin'
@@ -10,7 +11,7 @@ import ProtectedRoute from './components/ProtectedRoute'
 export default function App() {
   return (
     <Routes>
-      <Route path="/" element={<Navigate to="/login" />} />
+      <Route path="/" element={<Welcome />} />
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
       <Route path="/dashboard/paciente" element={
@@ -25,6 +26,7 @@ export default function App() {
       <Route path="/dashboard/admin" element={
         <ProtectedRoute rol="administrador"><DashboardAdmin /></ProtectedRoute>
       } />
+      <Route path="*" element={<Navigate to="/" />} />
     </Routes>
   )
 }
