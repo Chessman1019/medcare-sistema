@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from 'react'
-import { getConfiguracion, actualizarConfiguracion, getEspecialidades, crearUsuario, getUsuarios } from '../../services/api'
+import { getConfiguracion, actualizarConfiguracion, getEspecialidades, crearUsuario, getUsuarios, getCodigosSugeridos } from '../../services/api'
 import { PasswordField, PasswordStrength, isPasswordValid } from '../../components/PasswordControls'
 import SeguroMedicoField from '../../components/SeguroMedicoField'
+import CodigoSugeridoField from '../../components/CodigoSugeridoField'
 
 const inputClass = 'rounded-lg border border-[#bdcbc7] px-3 py-2 text-sm transition focus:border-[#007a68] focus:outline-none focus:ring-4 focus:ring-[#12b8a3]/15 disabled:cursor-not-allowed disabled:bg-slate-50 w-full mt-1'
 const primaryButton = 'medcare-primary-button px-6 py-3 disabled:opacity-60'
@@ -25,6 +26,7 @@ export default function AdminConfiguracion() {
   const [usuarioLoading, setUsuarioLoading] = useState(false)
   const [usuarioMsg, setUsuarioMsg] = useState('')
   const [usuarioError, setUsuarioError] = useState('')
+  const [codigosSugeridos, setCodigosSugeridos] = useState({ cmp: '', codigo_empleado: '' })
 
   const fetchConfig = useCallback(async () => {
     try {
@@ -35,9 +37,18 @@ export default function AdminConfiguracion() {
 
   const fetchUsuarios = useCallback(async () => {
     try {
-      const [usuariosRes, espRes] = await Promise.all([getUsuarios(), getEspecialidades()])
+      const [usuariosRes, espRes, codigosRes] = await Promise.all([getUsuarios(), getEspecialidades(), getCodigosSugeridos()])
+      const nextCodes = codigosRes.data || { cmp: '', codigo_empleado: '' }
       setUsuarios(usuariosRes.data || [])
       setEspecialidades(espRes.data || [])
+      setCodigosSugeridos(nextCodes)
+      setNuevoUsuario(current => {
+        if (current.tipo_usuario === 'doctor' && !current.cmp && nextCodes.cmp) return { ...current, cmp: nextCodes.cmp }
+        if (['recepcionista', 'administrador'].includes(current.tipo_usuario) && !current.codigo_empleado && nextCodes.codigo_empleado) {
+          return { ...current, codigo_empleado: nextCodes.codigo_empleado }
+        }
+        return current
+      })
     } catch (e) { console.error(e) }
   }, [])
 
@@ -57,6 +68,14 @@ export default function AdminConfiguracion() {
   }
 
   const update = (field, value) => setNuevoUsuario(c => ({ ...c, [field]: value }))
+  const updateRole = (rol) => setNuevoUsuario(current => ({
+    ...current,
+    tipo_usuario: rol,
+    cmp: rol === 'doctor' && !current.cmp ? codigosSugeridos.cmp : current.cmp,
+    codigo_empleado: ['recepcionista', 'administrador'].includes(rol) && !current.codigo_empleado
+      ? codigosSugeridos.codigo_empleado
+      : current.codigo_empleado,
+  }))
 
   const crearNuevoUsuario = async (e) => {
     e.preventDefault()
@@ -180,10 +199,11 @@ export default function AdminConfiguracion() {
             <form onSubmit={crearNuevoUsuario} autoComplete="off">
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
                 <label className="text-sm font-bold text-[#223330]">Rol
-                  <select className={inputClass} value={nuevoUsuario.tipo_usuario} onChange={e => update('tipo_usuario', e.target.value)}>
+                  <select className={inputClass} value={nuevoUsuario.tipo_usuario} onChange={e => updateRole(e.target.value)}>
                     <option value="paciente">Paciente</option>
                     <option value="doctor">Médico</option>
                     <option value="recepcionista">Recepcionista</option>
+                    <option value="administrador">Administrador</option>
                   </select>
                 </label>
 
@@ -206,9 +226,13 @@ export default function AdminConfiguracion() {
                 </div>
 
                 {nuevoUsuario.tipo_usuario === 'doctor' && (<>
-                  <label className="text-sm font-bold text-[#223330]">CMP
-                    <input className={inputClass} autoComplete="off" value={nuevoUsuario.cmp} onChange={e => update('cmp', e.target.value)} required />
-                  </label>
+                  <CodigoSugeridoField
+                    label="CMP"
+                    value={nuevoUsuario.cmp}
+                    onChange={(value) => update('cmp', value)}
+                    suggested={codigosSugeridos.cmp}
+                    inputClassName={inputClass}
+                  />
                   <label className="text-sm font-bold text-[#223330]">Especialidad
                     <select className={inputClass} value={nuevoUsuario.id_especialidad} onChange={e => update('id_especialidad', e.target.value)} required>
                       <option value="">Selecciona especialidad</option>
@@ -223,9 +247,13 @@ export default function AdminConfiguracion() {
                 </>)}
 
                 {['recepcionista', 'administrador'].includes(nuevoUsuario.tipo_usuario) && (<>
-                  <label className="text-sm font-bold text-[#223330]">Código de empleado
-                    <input className={inputClass} autoComplete="off" value={nuevoUsuario.codigo_empleado} onChange={e => update('codigo_empleado', e.target.value)} required />
-                  </label>
+                  <CodigoSugeridoField
+                    label="Código de empleado"
+                    value={nuevoUsuario.codigo_empleado}
+                    onChange={(value) => update('codigo_empleado', value)}
+                    suggested={codigosSugeridos.codigo_empleado}
+                    inputClassName={inputClass}
+                  />
                   <label className="text-sm font-bold text-[#223330]">Turno
                     <select className={inputClass} value={nuevoUsuario.turno} onChange={e => update('turno', e.target.value)} required>
                       <option value="mañana">Mañana</option><option value="tarde">Tarde</option><option value="noche">Noche</option>

@@ -1,11 +1,20 @@
 import { PasswordField, PasswordStrength, isPasswordValid } from '../../components/PasswordControls'
 import SeguroMedicoField from '../../components/SeguroMedicoField'
+import CodigoSugeridoField from '../../components/CodigoSugeridoField'
 
 const inputClass = 'rounded-xl border border-[#bdcbc7] px-3 py-2.5 text-sm transition focus:border-[#007a68] focus:outline-none focus:ring-4 focus:ring-[#12b8a3]/15 w-full mt-1 disabled:cursor-not-allowed disabled:bg-[#f8fbff]'
 const roleLabels = { paciente: 'Paciente', doctor: 'Médico', recepcionista: 'Recepcionista', administrador: 'Administrador' }
 
-export default function RecepUsuarios({ usuarios, usuarioAdmin, setUsuarioAdmin, especialidades, actionLoading, onCrearUsuario, onShowMessage }) {
+export default function RecepUsuarios({ usuarios, usuarioAdmin, setUsuarioAdmin, especialidades, codigosSugeridos = {}, actionLoading, onCrearUsuario, onShowMessage }) {
   const updateField = (field, value) => setUsuarioAdmin(c => ({ ...c, [field]: value }))
+  const updateRole = (rol) => setUsuarioAdmin(current => ({
+    ...current,
+    tipo_usuario: rol,
+    cmp: rol === 'doctor' && !current.cmp ? codigosSugeridos.cmp || '' : current.cmp,
+    codigo_empleado: ['recepcionista', 'administrador'].includes(rol) && !current.codigo_empleado
+      ? codigosSugeridos.codigo_empleado || ''
+      : current.codigo_empleado,
+  }))
 
   const handleSubmit = (event) => {
     event.preventDefault()
@@ -28,7 +37,7 @@ export default function RecepUsuarios({ usuarios, usuarioAdmin, setUsuarioAdmin,
           <label className="block text-sm font-bold text-[#223330]">
             Rol
             <select className={inputClass} value={usuarioAdmin.tipo_usuario}
-              onChange={e => updateField('tipo_usuario', e.target.value)}>
+              onChange={e => updateRole(e.target.value)}>
               <option value="doctor">Médico</option>
               <option value="recepcionista">Recepcionista</option>
               <option value="administrador">Administrador</option>
@@ -48,7 +57,13 @@ export default function RecepUsuarios({ usuarios, usuarioAdmin, setUsuarioAdmin,
           <label className="block text-sm font-bold text-[#223330]">Teléfono<input className={inputClass} value={usuarioAdmin.telefono} onChange={e => updateField('telefono', e.target.value)} /></label>
 
           {usuarioAdmin.tipo_usuario === 'doctor' && (<>
-            <label className="block text-sm font-bold text-[#223330]">CMP<input className={inputClass} value={usuarioAdmin.cmp} onChange={e => updateField('cmp', e.target.value)} required /></label>
+            <CodigoSugeridoField
+              label="CMP"
+              value={usuarioAdmin.cmp}
+              onChange={(value) => updateField('cmp', value)}
+              suggested={codigosSugeridos.cmp}
+              inputClassName={inputClass}
+            />
             <label className="block text-sm font-bold text-[#223330]">Especialidad
               <select className={inputClass} value={usuarioAdmin.id_especialidad} onChange={e => updateField('id_especialidad', e.target.value)} required>
                 <option value="">Selecciona especialidad</option>
@@ -63,7 +78,13 @@ export default function RecepUsuarios({ usuarios, usuarioAdmin, setUsuarioAdmin,
           </>)}
 
           {['recepcionista', 'administrador'].includes(usuarioAdmin.tipo_usuario) && (<>
-            <label className="block text-sm font-bold text-[#223330]">Código empleado<input className={inputClass} value={usuarioAdmin.codigo_empleado} onChange={e => updateField('codigo_empleado', e.target.value)} required /></label>
+            <CodigoSugeridoField
+              label="Código de empleado"
+              value={usuarioAdmin.codigo_empleado}
+              onChange={(value) => updateField('codigo_empleado', value)}
+              suggested={codigosSugeridos.codigo_empleado}
+              inputClassName={inputClass}
+            />
             <label className="block text-sm font-bold text-[#223330]">Turno
               <select className={inputClass} value={usuarioAdmin.turno} onChange={e => updateField('turno', e.target.value)} required>
                 <option value="mañana">Mañana</option><option value="tarde">Tarde</option><option value="noche">Noche</option>

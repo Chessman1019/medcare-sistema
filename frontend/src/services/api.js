@@ -21,6 +21,7 @@ export const cambiarContrasenaPerfil = (data) => API.put('/auth/me/contrasena', 
 
 export const getEspecialidades = () => API.get('/usuarios/especialidades')
 export const getSegurosMedicos = () => API.get('/usuarios/seguros-medicos')
+export const getCodigosSugeridos = () => API.get('/usuarios/codigos-sugeridos')
 export const getDoctores = () => API.get('/usuarios/doctores')
 export const getDoctoresPorEspecialidad = (id) => API.get(`/usuarios/doctores/especialidad/${id}`)
 export const getPacientes = () => API.get('/usuarios/pacientes')
