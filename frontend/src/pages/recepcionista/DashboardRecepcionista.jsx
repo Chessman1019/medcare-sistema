@@ -15,6 +15,7 @@ import RecepGestion from './RecepGestion'
 import RecepRegistro from './RecepRegistro'
 import RecepUsuarios from './RecepUsuarios'
 import RecepSoporte from './RecepSoporte'
+import { getCodigosSugeridosFromUsuarios } from '../../utils/codigosUsuarios'
 
 const emptyRegistro = { nombre: '', apellido: '', email: '', password: '', telefono: '', dni: '', fecha_nacimiento: '', genero: 'M', seguro_medico: '', direccion: '' }
 const emptyUsuarioAdmin = { tipo_usuario: 'doctor', nombre: '', apellido: '', email: '', password: '', telefono: '', dni: '', fecha_nacimiento: '', genero: 'M', seguro_medico: '', direccion: '', cmp: '', id_especialidad: '', codigo_empleado: '', turno: 'mañana' }
@@ -69,9 +70,18 @@ export default function DashboardRecepcionista() {
       setDoctores(doctoresR.data); setPacientes(pacientesR.data); setEspecialidades(especialidadesR.data)
       setNotificaciones(notificacionesR.data || []); setSoporteTickets(soporteR.data || [])
       if (isAdmin) {
-        const [usuariosR, codigosR] = await Promise.all([getUsuarios(), getCodigosSugeridos()])
-        const nextCodes = codigosR.data || { cmp: '', codigo_empleado: '' }
-        setUsuarios(usuariosR.data || [])
+        const usuariosR = await getUsuarios()
+        const usuariosData = usuariosR.data || []
+        let nextCodes = getCodigosSugeridosFromUsuarios(usuariosData)
+
+        try {
+          const codigosR = await getCodigosSugeridos()
+          nextCodes = { ...nextCodes, ...(codigosR.data || {}) }
+        } catch (error) {
+          console.warn('codigos sugeridos:', error.message)
+        }
+
+        setUsuarios(usuariosData)
         setCodigosSugeridos(nextCodes)
         setUsuarioAdmin(current => {
           if (current.tipo_usuario === 'doctor' && !current.cmp && nextCodes.cmp) return { ...current, cmp: nextCodes.cmp }

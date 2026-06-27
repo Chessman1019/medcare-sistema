@@ -3,6 +3,7 @@ import { getConfiguracion, actualizarConfiguracion, getEspecialidades, crearUsua
 import { PasswordField, PasswordStrength, isPasswordValid } from '../../components/PasswordControls'
 import SeguroMedicoField from '../../components/SeguroMedicoField'
 import CodigoSugeridoField from '../../components/CodigoSugeridoField'
+import { getCodigosSugeridosFromUsuarios } from '../../utils/codigosUsuarios'
 
 const inputClass = 'rounded-lg border border-[#bdcbc7] px-3 py-2 text-sm transition focus:border-[#007a68] focus:outline-none focus:ring-4 focus:ring-[#12b8a3]/15 disabled:cursor-not-allowed disabled:bg-slate-50 w-full mt-1'
 const primaryButton = 'medcare-primary-button px-6 py-3 disabled:opacity-60'
@@ -37,9 +38,18 @@ export default function AdminConfiguracion() {
 
   const fetchUsuarios = useCallback(async () => {
     try {
-      const [usuariosRes, espRes, codigosRes] = await Promise.all([getUsuarios(), getEspecialidades(), getCodigosSugeridos()])
-      const nextCodes = codigosRes.data || { cmp: '', codigo_empleado: '' }
-      setUsuarios(usuariosRes.data || [])
+      const [usuariosRes, espRes] = await Promise.all([getUsuarios(), getEspecialidades()])
+      const usuariosData = usuariosRes.data || []
+      let nextCodes = getCodigosSugeridosFromUsuarios(usuariosData)
+
+      try {
+        const codigosRes = await getCodigosSugeridos()
+        nextCodes = { ...nextCodes, ...(codigosRes.data || {}) }
+      } catch (error) {
+        console.warn('codigos sugeridos:', error.message)
+      }
+
+      setUsuarios(usuariosData)
       setEspecialidades(espRes.data || [])
       setCodigosSugeridos(nextCodes)
       setNuevoUsuario(current => {

@@ -1,3 +1,5 @@
+import { useEffect } from 'react'
+
 function normalizeCode(value = '') {
   return String(value).normalize('NFKC').trim().replace(/\s+/g, ' ').toUpperCase()
 }
@@ -15,6 +17,11 @@ export default function CodigoSugeridoField({
   const normalizedSuggested = normalizeCode(suggested)
   const normalizedValue = normalizeCode(value)
   const showUseSuggested = Boolean(normalizedSuggested) && normalizedValue !== normalizedSuggested
+  const helperText = normalizedSuggested ? `Siguiente: ${normalizedSuggested}` : 'Se asigna automáticamente al guardar'
+
+  useEffect(() => {
+    if (!value && normalizedSuggested) onChange?.(normalizedSuggested)
+  }, [normalizedSuggested, onChange, value])
 
   const handleBlur = () => {
     const normalized = normalizeCode(value)
@@ -24,7 +31,12 @@ export default function CodigoSugeridoField({
   return (
     <div className={className}>
       <label className="block text-sm font-bold text-[#223330]">
-        {label}
+        <span className="mb-1 flex flex-wrap items-center justify-between gap-2">
+          <span>{label}</span>
+          <span className="rounded-full bg-[#e5fbf7] px-2.5 py-1 text-[11px] font-extrabold uppercase tracking-wide text-[#006b5d]">
+            {helperText}
+          </span>
+        </span>
         <div className="relative">
           <input
             className={`${inputClassName} pr-11`}
@@ -43,7 +55,7 @@ export default function CodigoSugeridoField({
       </label>
 
       <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-xs font-semibold text-[#52615f]">
-        <span>{normalizedSuggested ? `Sugerido: ${normalizedSuggested}` : 'Calculando código sugerido...'}</span>
+        <span>Puedes modificarlo si necesitas usar un código específico.</span>
         {showUseSuggested && (
           <button
             type="button"
