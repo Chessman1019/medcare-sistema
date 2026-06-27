@@ -1,22 +1,32 @@
 /* eslint-disable react-refresh/only-export-components */
 import { useState } from 'react'
 
+const MIN_PASSWORD_LENGTH = 6
+const LETTER_PATTERN = /\p{L}/u
+const DIGIT_PATTERN = /\p{Decimal_Number}/u
+
+function normalizePassword(password = '') {
+  return String(password).normalize('NFKC')
+}
+
 export function getPasswordChecks(password = '') {
+  const value = normalizePassword(password)
+
   return [
     {
       key: 'length',
       label: 'Mínimo 6 caracteres',
-      valid: password.length >= 6,
+      valid: Array.from(value).length >= MIN_PASSWORD_LENGTH,
     },
     {
       key: 'letters',
       label: 'Incluye letras',
-      valid: /[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ]/.test(password),
+      valid: LETTER_PATTERN.test(value),
     },
     {
       key: 'numbers',
       label: 'Incluye números',
-      valid: /\d/.test(password),
+      valid: DIGIT_PATTERN.test(value),
     },
   ]
 }
@@ -27,15 +37,14 @@ export function isPasswordValid(password = '') {
 
 export function PasswordStrength({ password = '', className = '' }) {
   const checks = getPasswordChecks(password)
-  const strength = checks.filter((item) => item.valid).length
 
   return (
     <div className={`rounded-lg bg-slate-50 p-4 ${className}`}>
       <div className="mb-3 flex gap-2" aria-hidden="true">
-        {checks.map((item, index) => (
+        {checks.map((item) => (
           <div
             key={item.key}
-            className={`h-2 flex-1 rounded-full transition ${index < strength ? 'bg-[#12b8a3]' : 'bg-slate-200'}`}
+            className={`h-2 flex-1 rounded-full transition ${item.valid ? 'bg-[#12b8a3]' : 'bg-slate-200'}`}
           />
         ))}
       </div>
@@ -48,7 +57,11 @@ export function PasswordStrength({ password = '', className = '' }) {
               }`}
               aria-label={item.valid ? 'Requisito cumplido' : 'Requisito pendiente'}
             >
-              {item.valid && <span className="h-2 w-2 rounded-full bg-white" />}
+              {item.valid ? (
+                <span className="material-symbols-outlined text-[14px] text-white">check</span>
+              ) : (
+                <span className="h-2 w-2 rounded-full bg-slate-400" />
+              )}
             </span>
             {item.label}
           </span>

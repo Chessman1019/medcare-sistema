@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useAuth } from '../context/AuthContext'
 import { actualizarPerfil, cambiarContrasenaPerfil, getPerfil } from '../services/api'
-import { isPasswordValid, PasswordField } from './PasswordControls'
+import { isPasswordValid, PasswordField, PasswordStrength } from './PasswordControls'
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY
@@ -69,34 +69,6 @@ function DetailItem({ icon, label, value }) {
       <div className="min-w-0">
         <p className="text-xs font-bold uppercase tracking-wider text-slate-500">{label}</p>
         <p className="mt-0.5 break-words text-sm font-semibold text-slate-800">{value}</p>
-      </div>
-    </div>
-  )
-}
-
-function PasswordStrength({ password }) {
-  const checks = [
-    ['Mínimo 6 caracteres', password.length >= 6],
-    ['Incluye letras', /[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ]/.test(password)],
-    ['Incluye números', /\d/.test(password)],
-  ]
-  const strength = checks.filter(([, ok]) => ok).length
-  return (
-    <div className="rounded-lg bg-slate-50 p-4">
-      <div className="mb-3 flex gap-2">
-        {[0, 1, 2].map((i) => (
-          <div key={i} className={`h-2 flex-1 rounded-full transition ${i < strength ? 'bg-[#12b8a3]' : 'bg-slate-200'}`} />
-        ))}
-      </div>
-      <div className="grid gap-2 text-xs font-semibold text-slate-600 sm:grid-cols-3">
-        {checks.map(([label, ok]) => (
-          <span key={label} className={`flex items-center gap-2 ${ok ? 'text-[#006b5d]' : 'text-slate-500'}`}>
-            <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 transition ${ok ? 'border-[#007a68] bg-[#007a68]' : 'border-slate-400 bg-white'}`}>
-              {ok && <span className="h-2 w-2 rounded-full bg-white" />}
-            </span>
-            {label}
-          </span>
-        ))}
       </div>
     </div>
   )
