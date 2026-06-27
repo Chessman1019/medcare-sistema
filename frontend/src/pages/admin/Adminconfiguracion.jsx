@@ -213,7 +213,6 @@ export default function AdminConfiguracion() {
                     <option value="paciente">Paciente</option>
                     <option value="doctor">Médico</option>
                     <option value="recepcionista">Recepcionista</option>
-                    <option value="administrador">Administrador</option>
                   </select>
                 </label>
 

@@ -29,7 +29,7 @@ export default function RecepUsuarios({ usuarios, usuarioAdmin, setUsuarioAdmin,
     <div className="space-y-6">
       <div>
         <h2 className="text-4xl font-extrabold tracking-tight text-[#101828]">Gestión de usuarios</h2>
-        <p className="mt-2 text-lg text-[#52615f]">Alta de administradores, recepcionistas, médicos y pacientes.</p>
+        <p className="mt-2 text-lg text-[#52615f]">Alta de recepcionistas, médicos y pacientes.</p>
       </div>
 
       <form onSubmit={handleSubmit} className="medcare-card p-6 space-y-5">
@@ -40,7 +40,6 @@ export default function RecepUsuarios({ usuarios, usuarioAdmin, setUsuarioAdmin,
               onChange={e => updateRole(e.target.value)}>
               <option value="doctor">Médico</option>
               <option value="recepcionista">Recepcionista</option>
-              <option value="administrador">Administrador</option>
               <option value="paciente">Paciente</option>
             </select>
           </label>
