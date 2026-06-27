@@ -7,6 +7,7 @@ import {
   verificarCodigoRecuperacion,
 } from '../services/api'
 import { useAuth } from '../context/AuthContext'
+import { PasswordField } from '../components/PasswordControls'
 
 // ── Imágenes del carrusel (6 fotos médicas profesionales de Unsplash) ──────────
 const CAROUSEL = [
@@ -304,17 +305,14 @@ export default function Login() {
                 />
               </label>
 
-              <label className="block text-sm font-bold text-[#223330]">
-                Contraseña
-                <input
-                  className="medcare-input mt-2"
-                  type="password"
-                  placeholder="••••••••"
-                  value={form.password}
-                  onChange={(e) => setForm({ ...form, password: e.target.value })}
-                  required
-                />
-              </label>
+              <PasswordField
+                label="Contraseña"
+                value={form.password}
+                onChange={(e) => setForm({ ...form, password: e.target.value })}
+                placeholder="••••••••"
+                autoComplete="current-password"
+                required
+              />
 
               <div className="flex items-center justify-between text-sm">
                 <label className="flex items-center gap-2 text-[#52615f]">
