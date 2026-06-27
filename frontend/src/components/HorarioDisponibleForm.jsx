@@ -3,11 +3,22 @@ import { getLimaDateInputValue, getLimaTimeInputValue, isPastLimaSlot, normalize
 
 const inputClass = 'rounded-lg border border-slate-200 px-3 py-2 text-sm transition focus:border-[#007a68] focus:outline-none focus:ring-4 focus:ring-[#12b8a3]/15 disabled:cursor-not-allowed disabled:bg-slate-50'
 const primaryButton = 'rounded-lg bg-[#007a68] px-4 py-2 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:brightness-105 hover:shadow-lg focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#12b8a3]/20 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60'
+const DEFAULT_DURATION_MINUTES = 90
 
 function doctorLabel(doctor) {
   if (!doctor) return 'Doctor'
   const source = doctor.usuario || doctor
   return [source.nombre, source.apellido].filter(Boolean).join(' ') || 'Doctor'
+}
+
+function addMinutesToTime(value, minutesToAdd = DEFAULT_DURATION_MINUTES) {
+  if (!value) return ''
+  const [hours, minutes] = value.split(':').map(Number)
+  if (!Number.isFinite(hours) || !Number.isFinite(minutes)) return ''
+  const totalMinutes = (hours * 60 + minutes + minutesToAdd) % (24 * 60)
+  const nextHours = Math.floor(totalMinutes / 60)
+  const nextMinutes = totalMinutes % 60
+  return `${String(nextHours).padStart(2, '0')}:${String(nextMinutes).padStart(2, '0')}`
 }
 
 function getErrorMessage(error, fallback) {
@@ -30,6 +41,14 @@ export default function HorarioDisponibleForm({ doctores = [], initialDoctorId =
 
   const today = useMemo(() => getLimaDateInputValue(), [])
   const minTime = form.fecha === today ? getLimaTimeInputValue() : undefined
+
+  const updateHoraInicio = (horaInicio) => {
+    setForm(current => ({
+      ...current,
+      hora_inicio: horaInicio,
+      hora_fin: addMinutesToTime(horaInicio),
+    }))
+  }
 
   const validate = () => {
     if (!form.id_doctor || !form.fecha || !form.hora_inicio || !form.hora_fin) {
@@ -110,7 +129,7 @@ export default function HorarioDisponibleForm({ doctores = [], initialDoctorId =
         </label>
         <label className="grid gap-1 text-xs font-semibold text-slate-600">
           Hora inicio
-          <input type="time" className={inputClass} min={minTime} value={form.hora_inicio} onChange={event => setForm(current => ({ ...current, hora_inicio: event.target.value }))} required />
+          <input type="time" className={inputClass} min={minTime} value={form.hora_inicio} onChange={event => updateHoraInicio(event.target.value)} required />
         </label>
         <label className="grid gap-1 text-xs font-semibold text-slate-600">
           Hora fin
