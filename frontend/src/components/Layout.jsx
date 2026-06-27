@@ -3,7 +3,7 @@ import ProfileMenu from './ProfileMenu'
 
 function HeaderDropdown({ title, icon, items = [], emptyText, onClose }) {
   return (
-    <div className="fixed right-3 top-20 z-50 w-[calc(100vw-1.5rem)] overflow-hidden rounded-2xl border border-[#bdcbc7] bg-white shadow-2xl shadow-[#08284d]/12 sm:absolute sm:right-0 sm:top-12 sm:w-[22rem] sm:max-w-[calc(100vw-2rem)]">
+    <div className="fixed right-3 top-32 z-50 w-[calc(100vw-1.5rem)] overflow-hidden rounded-2xl border border-[#bdcbc7] bg-white shadow-2xl shadow-[#08284d]/12 sm:absolute sm:right-0 sm:top-12 sm:w-[22rem] sm:max-w-[calc(100vw-2rem)]">
       <div className="flex items-center justify-between border-b border-[#d8e3fb] bg-[#f8fbff] px-5 py-4">
         <div className="flex items-center gap-3">
           <span className="flex h-10 w-10 items-center justify-center rounded-full bg-[#d8f4ee] text-[#006b5d]">
@@ -117,47 +117,14 @@ export default function Layout({
   return (
     <div className="medcare-shell min-h-screen">
       {sidebar}
-      <header className="fixed left-0 right-0 top-0 z-40 flex min-h-20 flex-wrap items-center justify-between gap-3 border-b border-[#bdcbc7] bg-white/95 px-4 py-3 backdrop-blur lg:left-72 lg:h-20 lg:flex-nowrap lg:px-8 lg:py-0">
-        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-3 lg:flex-nowrap lg:gap-5">
-          <h1 className="min-w-0 truncate text-xl font-extrabold tracking-tight text-[#101828] sm:text-2xl">
+      <header className="fixed left-0 right-0 top-0 z-40 grid min-h-20 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b border-[#bdcbc7] bg-white/95 px-4 py-3 backdrop-blur lg:left-72 lg:flex lg:h-20 lg:flex-nowrap lg:px-8 lg:py-0">
+        <div className="min-w-0 lg:flex-1">
+          <h1 className="min-w-0 truncate text-lg font-extrabold tracking-tight text-[#101828] min-[380px]:text-xl sm:text-2xl">
             {title || 'Portal MedCare'}
           </h1>
-
-          {/* ── Buscador ── */}
-          <div className="relative order-3 w-full basis-full sm:basis-auto lg:order-none lg:max-w-xl">
-            <div className="flex items-center gap-3 rounded-full bg-[#edf2ff] px-4 py-2.5 text-[#52615f] transition focus-within:ring-4 focus-within:ring-[#12b8a3]/15 lg:px-5 lg:py-3">
-              <span className="material-symbols-outlined text-[22px]">search</span>
-              {onSearchChange ? (
-                <>
-                  <input
-                    type="search"
-                    value={searchValue}
-                    onChange={(event) => onSearchChange(event.target.value)}
-                    placeholder={searchPlaceholder}
-                    className="w-full bg-transparent text-sm text-[#101828] outline-none placeholder:text-[#52615f]"
-                  />
-                  {searchValue?.trim() && (
-                    <button type="button" onClick={() => onSearchChange('')}
-                      className="shrink-0 text-[#52615f] hover:text-[#101828]">
-                      <span className="material-symbols-outlined text-[18px]">close</span>
-                    </button>
-                  )}
-                </>
-              ) : (
-                <span className="text-sm">{searchPlaceholder}</span>
-              )}
-            </div>
-            {onSearchChange && searchValue?.trim() && (
-              <SearchDropdown
-                value={searchValue}
-                items={notificationItems}
-                onClose={() => onSearchChange('')}
-              />
-            )}
-          </div>
         </div>
 
-        <div className="flex shrink-0 items-center gap-1.5 sm:gap-3 lg:gap-6">
+        <div className="flex shrink-0 items-center gap-1.5 sm:gap-3 lg:order-3 lg:gap-6">
           <div className="relative">
             <button type="button" onClick={() => toggleMenu('notifications')} className={`relative ${topButtonClass}`} aria-label="Notificaciones" aria-expanded={openMenu === 'notifications'}>
               <span className="material-symbols-outlined">notifications</span>
@@ -209,8 +176,40 @@ export default function Layout({
           <div className="hidden h-10 w-px bg-[#bdcbc7] md:block" />
           <ProfileMenu />
         </div>
+
+        <div className="relative col-span-2 w-full min-w-0 lg:order-2 lg:col-span-1 lg:max-w-xl">
+          <div className="flex items-center gap-2 rounded-full bg-[#edf2ff] px-3 py-2.5 text-[#52615f] transition focus-within:ring-4 focus-within:ring-[#12b8a3]/15 sm:gap-3 sm:px-4 lg:px-5 lg:py-3">
+            <span className="material-symbols-outlined shrink-0 text-[22px]">search</span>
+            {onSearchChange ? (
+              <>
+                <input
+                  type="search"
+                  value={searchValue}
+                  onChange={(event) => onSearchChange(event.target.value)}
+                  placeholder={searchPlaceholder}
+                  className="min-w-0 flex-1 bg-transparent text-sm text-[#101828] outline-none placeholder:text-[#52615f]"
+                />
+                {searchValue?.trim() && (
+                  <button type="button" onClick={() => onSearchChange('')}
+                    className="shrink-0 text-[#52615f] hover:text-[#101828]">
+                    <span className="material-symbols-outlined text-[18px]">close</span>
+                  </button>
+                )}
+              </>
+            ) : (
+              <span className="min-w-0 truncate text-sm">{searchPlaceholder}</span>
+            )}
+          </div>
+          {onSearchChange && searchValue?.trim() && (
+            <SearchDropdown
+              value={searchValue}
+              items={notificationItems}
+              onClose={() => onSearchChange('')}
+            />
+          )}
+        </div>
       </header>
-      <main className="min-h-screen pb-28 pt-32 sm:pt-28 lg:ml-72 lg:pb-0 lg:pt-20">
+      <main className="min-h-screen min-w-0 overflow-x-hidden pb-32 pt-36 sm:pt-32 lg:ml-72 lg:pb-0 lg:pt-20">
         {children}
       </main>
     </div>

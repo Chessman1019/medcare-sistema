@@ -391,7 +391,7 @@ export default function ProfileMenu() {
       </button>
 
       {open && (
-        <div className="fixed right-3 top-20 z-50 w-[calc(100vw-1.5rem)] overflow-hidden rounded-2xl border border-[#bdcbc7] bg-white shadow-2xl shadow-[#08284d]/12 sm:absolute sm:right-0 sm:top-14 sm:w-72">
+        <div className="fixed right-3 top-32 z-50 w-[calc(100vw-1.5rem)] overflow-hidden rounded-2xl border border-[#bdcbc7] bg-white shadow-2xl shadow-[#08284d]/12 sm:absolute sm:right-0 sm:top-14 sm:w-72">
           <div className="bg-[linear-gradient(135deg,#f8fbff_0%,#eef8f6_100%)] px-4 py-4">
             <div className="flex items-center gap-3">
               <Avatar src={avatarUrl} initial={getInitial(user, profile)} size="md" />

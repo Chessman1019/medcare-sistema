@@ -111,8 +111,8 @@ export default function PortalSidebar({
         </div>
       </aside>
 
-      <nav className="fixed inset-x-3 bottom-3 z-50 rounded-2xl border border-[#bdcbc7] bg-white/95 px-2 py-2 shadow-2xl shadow-[#08284d]/15 backdrop-blur lg:hidden" aria-label="Navegación principal">
-        <div className="flex gap-1 overflow-x-auto pb-1">
+      <nav className="medcare-mobile-nav fixed inset-x-3 z-50 rounded-2xl border border-[#bdcbc7] bg-white/95 px-2 py-2 shadow-2xl shadow-[#08284d]/15 backdrop-blur lg:hidden" aria-label="Navegación principal">
+        <div className="medcare-mobile-nav-scroll flex gap-1 overflow-x-auto pb-1">
           {mobileItems.map((item) => (
             <button
               key={item.key}

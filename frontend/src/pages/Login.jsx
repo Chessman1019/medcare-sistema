@@ -314,7 +314,7 @@ export default function Login() {
                 required
               />
 
-              <div className="flex items-center justify-between text-sm">
+              <div className="flex flex-col gap-3 text-sm min-[420px]:flex-row min-[420px]:items-center min-[420px]:justify-between">
                 <label className="flex items-center gap-2 text-[#52615f]">
                   <input type="checkbox" className="h-4 w-4 rounded border-[#bdcbc7] text-[#006b5d]" />
                   Recordarme

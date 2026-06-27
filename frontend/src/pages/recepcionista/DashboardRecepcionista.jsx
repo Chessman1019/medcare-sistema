@@ -304,7 +304,7 @@ export default function DashboardRecepcionista() {
                   placeholder="Describe qué necesitas..."
                   autoFocus
                 />
-                <div className="flex gap-3">
+                <div className="flex flex-col gap-3 sm:flex-row">
                   <button type="button" onClick={registrarSoporteInterno}
                     disabled={actionLoading === 'soporte' || !mensajeSoporteInterno.trim()}
                     className="medcare-primary-button px-6 py-2.5 disabled:opacity-60">
