@@ -1,3 +1,4 @@
+import { useMemo, useState } from 'react'
 import { PasswordField, PasswordStrength, isPasswordValid } from '../../components/PasswordControls'
 import SeguroMedicoField from '../../components/SeguroMedicoField'
 import CodigoSugeridoField from '../../components/CodigoSugeridoField'
@@ -6,6 +7,7 @@ const inputClass = 'rounded-xl border border-[#bdcbc7] px-3 py-2.5 text-sm trans
 const roleLabels = { paciente: 'Paciente', doctor: 'Médico', recepcionista: 'Recepcionista', administrador: 'Administrador' }
 
 export default function RecepUsuarios({ usuarios, usuarioAdmin, setUsuarioAdmin, especialidades, codigosSugeridos = {}, actionLoading, onCrearUsuario, onShowMessage }) {
+  const [filtros, setFiltros] = useState({ busqueda: '', rol: '', estado: '' })
   const updateField = (field, value) => setUsuarioAdmin(c => ({ ...c, [field]: value }))
   const updateRole = (rol) => setUsuarioAdmin(current => ({
     ...current,
@@ -25,11 +27,33 @@ export default function RecepUsuarios({ usuarios, usuarioAdmin, setUsuarioAdmin,
     onCrearUsuario(event)
   }
 
+  const rolesFiltro = useMemo(() => {
+    const unique = new Set(usuarios.map(item => item.tipo_usuario).filter(Boolean))
+    return [...unique].sort((a, b) => (roleLabels[a] || a).localeCompare(roleLabels[b] || b, 'es-PE'))
+  }, [usuarios])
+
+  const usuariosFiltrados = useMemo(() => usuarios.filter(item => {
+    const term = filtros.busqueda.trim().toLowerCase()
+    const detalle = item.tipo_usuario === 'doctor'
+      ? [item.doctor?.especialidad?.nombre, item.doctor?.cmp, item.doctor?.turno]
+      : item.tipo_usuario === 'paciente'
+        ? [item.paciente?.dni, item.paciente?.seguro_medico, item.paciente?.genero]
+        : [item.administrador?.codigo_empleado, item.administrador?.turno]
+    const coincideBusqueda = !term || [
+      item.nombre, item.apellido, item.email, item.telefono, item.tipo_usuario, ...detalle,
+    ].some(value => String(value || '').toLowerCase().includes(term))
+    const coincideRol = !filtros.rol || item.tipo_usuario === filtros.rol
+    const coincideEstado = !filtros.estado || (filtros.estado === 'activo' ? item.activo : !item.activo)
+    return coincideBusqueda && coincideRol && coincideEstado
+  }), [filtros, usuarios])
+
+  const limpiarFiltros = () => setFiltros({ busqueda: '', rol: '', estado: '' })
+
   return (
     <div className="space-y-6">
       <div>
         <h2 className="text-4xl font-extrabold tracking-tight text-[#101828]">Gestión de usuarios</h2>
-        <p className="mt-2 text-lg text-[#52615f]">Alta de recepcionistas, médicos y pacientes.</p>
+        <p className="mt-2 text-lg text-[#52615f]">{usuariosFiltrados.length} de {usuarios.length} usuarios registrados.</p>
       </div>
 
       <form onSubmit={handleSubmit} className="medcare-card p-6 space-y-5">
@@ -113,6 +137,38 @@ export default function RecepUsuarios({ usuarios, usuarioAdmin, setUsuarioAdmin,
         </button>
       </form>
 
+      <div className="medcare-card p-5">
+        <h3 className="mb-4 text-sm font-extrabold uppercase tracking-widest text-[#006b5d]">Filtros</h3>
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+          <div>
+            <label className="mb-1 block text-xs font-bold text-[#223330]">Búsqueda</label>
+            <div className="relative">
+              <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[#52615f] text-[18px]">search</span>
+              <input className="medcare-input pl-9" placeholder="Nombre, correo, DNI, CMP..."
+                value={filtros.busqueda} onChange={e => setFiltros({ ...filtros, busqueda: e.target.value })} />
+            </div>
+          </div>
+          <div>
+            <label className="mb-1 block text-xs font-bold text-[#223330]">Rol</label>
+            <select className="medcare-input" value={filtros.rol} onChange={e => setFiltros({ ...filtros, rol: e.target.value })}>
+              <option value="">Todos</option>
+              {rolesFiltro.map(rol => <option key={rol} value={rol}>{roleLabels[rol] || rol}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="mb-1 block text-xs font-bold text-[#223330]">Estado</label>
+            <select className="medcare-input" value={filtros.estado} onChange={e => setFiltros({ ...filtros, estado: e.target.value })}>
+              <option value="">Todos</option>
+              <option value="activo">Activo</option>
+              <option value="inactivo">Inactivo</option>
+            </select>
+          </div>
+        </div>
+        <button type="button" onClick={limpiarFiltros} className="mt-3 text-xs font-bold text-[#006b5d] hover:underline">
+          Limpiar filtros
+        </button>
+      </div>
+
       {/* Tabla usuarios */}
       <div className="medcare-card overflow-hidden">
         <div className="overflow-x-auto">
@@ -125,9 +181,9 @@ export default function RecepUsuarios({ usuarios, usuarioAdmin, setUsuarioAdmin,
               </tr>
             </thead>
             <tbody className="divide-y divide-[#bdcbc7]">
-              {usuarios.length === 0 ? (
+              {usuariosFiltrados.length === 0 ? (
                 <tr><td colSpan="5" className="px-5 py-10 text-center text-[#52615f]">No hay usuarios para mostrar.</td></tr>
-              ) : usuarios.map(item => (
+              ) : usuariosFiltrados.map(item => (
                 <tr key={item.id_usuario} className="bg-white transition hover:bg-[#f8fbff]">
                   <td className="px-5 py-4">
                     <p className="font-extrabold text-[#101828]">{item.nombre} {item.apellido}</p>

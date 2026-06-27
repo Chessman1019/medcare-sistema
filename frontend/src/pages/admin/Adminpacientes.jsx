@@ -1,17 +1,36 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 
 export default function AdminPacientes({ pacientes, onRefresh }) {
-  const [search, setSearch] = useState('')
+  const [filtros, setFiltros] = useState({ busqueda: '', genero: '', seguro: '', estado: '' })
   const [selectedId, setSelectedId] = useState(null)
 
   const selected = pacientes.find(p => p.id_usuario === selectedId) || null
 
-  const filtered = pacientes.filter(p => {
-    const term = search.trim().toLowerCase()
-    if (!term) return true
-    return [p.nombre, p.apellido, p.email, p.paciente?.dni, p.telefono]
+  const generos = useMemo(() => {
+    const unique = new Set(pacientes.map(p => p.paciente?.genero).filter(Boolean))
+    return [...unique].sort((a, b) => a.localeCompare(b, 'es-PE'))
+  }, [pacientes])
+
+  const seguros = useMemo(() => {
+    const unique = new Map()
+    pacientes.forEach(p => {
+      const seguro = String(p.paciente?.seguro_medico || '').trim()
+      if (seguro) unique.set(seguro.toLocaleLowerCase('es-PE'), seguro)
+    })
+    return [...unique.values()].sort((a, b) => a.localeCompare(b, 'es-PE'))
+  }, [pacientes])
+
+  const filtered = useMemo(() => pacientes.filter(p => {
+    const term = filtros.busqueda.trim().toLowerCase()
+    const coincideBusqueda = !term || [p.nombre, p.apellido, p.email, p.paciente?.dni, p.telefono]
       .some(f => String(f || '').toLowerCase().includes(term))
-  })
+    const coincideGenero = !filtros.genero || p.paciente?.genero === filtros.genero
+    const coincideSeguro = !filtros.seguro || String(p.paciente?.seguro_medico || '').toLocaleLowerCase('es-PE') === filtros.seguro
+    const coincideEstado = !filtros.estado || (filtros.estado === 'activo' ? p.activo : !p.activo)
+    return coincideBusqueda && coincideGenero && coincideSeguro && coincideEstado
+  }), [pacientes, filtros])
+
+  const limpiarFiltros = () => setFiltros({ busqueda: '', genero: '', seguro: '', estado: '' })
 
   const calcEdad = (fecha) => {
     if (!fecha) return '—'
@@ -23,14 +42,47 @@ export default function AdminPacientes({ pacientes, onRefresh }) {
       <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div>
           <h2 className="text-4xl font-extrabold tracking-tight text-[#101828]">Pacientes</h2>
-          <p className="mt-2 text-lg text-[#52615f]">{pacientes.length} pacientes registrados</p>
+          <p className="mt-2 text-lg text-[#52615f]">{filtered.length} de {pacientes.length} pacientes registrados</p>
         </div>
-        <div className="relative max-w-sm w-full">
-          <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[#52615f] text-[18px]">search</span>
-          <input className="w-full rounded-xl border border-[#bdcbc7] bg-white py-2.5 pl-9 pr-4 text-sm focus:border-[#007a68] focus:outline-none focus:ring-4 focus:ring-[#12b8a3]/15"
-            placeholder="Buscar por nombre, DNI, email..."
-            value={search} onChange={e => setSearch(e.target.value)} />
+      </div>
+
+      <div className="medcare-card p-5">
+        <h3 className="mb-4 text-sm font-extrabold uppercase tracking-widest text-[#006b5d]">Filtros</h3>
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <div>
+            <label className="mb-1 block text-xs font-bold text-[#223330]">Búsqueda</label>
+            <div className="relative">
+              <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[#52615f] text-[18px]">search</span>
+              <input className="medcare-input pl-9" placeholder="Nombre, DNI, email..."
+                value={filtros.busqueda} onChange={e => setFiltros({ ...filtros, busqueda: e.target.value })} />
+            </div>
+          </div>
+          <div>
+            <label className="mb-1 block text-xs font-bold text-[#223330]">Género</label>
+            <select className="medcare-input" value={filtros.genero} onChange={e => setFiltros({ ...filtros, genero: e.target.value })}>
+              <option value="">Todos</option>
+              {generos.map(genero => <option key={genero} value={genero}>{genero}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="mb-1 block text-xs font-bold text-[#223330]">Seguro</label>
+            <select className="medcare-input" value={filtros.seguro} onChange={e => setFiltros({ ...filtros, seguro: e.target.value })}>
+              <option value="">Todos</option>
+              {seguros.map(seguro => <option key={seguro} value={seguro.toLocaleLowerCase('es-PE')}>{seguro}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="mb-1 block text-xs font-bold text-[#223330]">Estado</label>
+            <select className="medcare-input" value={filtros.estado} onChange={e => setFiltros({ ...filtros, estado: e.target.value })}>
+              <option value="">Todos</option>
+              <option value="activo">Activo</option>
+              <option value="inactivo">Inactivo</option>
+            </select>
+          </div>
         </div>
+        <button type="button" onClick={limpiarFiltros} className="mt-3 text-xs font-bold text-[#006b5d] hover:underline">
+          Limpiar filtros
+        </button>
       </div>
 
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-[1fr_380px] xl:gap-6">
