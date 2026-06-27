@@ -4,6 +4,7 @@ import { createPortal } from 'react-dom'
 import { useAuth } from '../context/AuthContext'
 import { actualizarPerfil, cambiarContrasenaPerfil, getPerfil } from '../services/api'
 import { isPasswordValid, PasswordField, PasswordStrength } from './PasswordControls'
+import SeguroMedicoField from './SeguroMedicoField'
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY
@@ -287,7 +288,11 @@ export default function ProfileMenu() {
                       <label className="text-sm font-medium text-slate-700">Teléfono<input className={inputClass} value={form.telefono} onChange={(e) => setForm({ ...form, telefono: e.target.value })} placeholder="Ej. 987654321" /></label>
                       <label className="text-sm font-medium text-slate-700">Correo<input className={inputClass} value={profile?.email || user?.email || ''} disabled /></label>
                       {profile?.tipo_usuario === 'paciente' && (<>
-                        <label className="text-sm font-medium text-slate-700">Seguro médico<input className={inputClass} value={form.seguro_medico} onChange={(e) => setForm({ ...form, seguro_medico: e.target.value })} /></label>
+                        <SeguroMedicoField
+                          value={form.seguro_medico}
+                          onChange={(value) => setForm({ ...form, seguro_medico: value })}
+                          inputClassName={inputClass}
+                        />
                         <label className="text-sm font-medium text-slate-700">Dirección<input className={inputClass} value={form.direccion} onChange={(e) => setForm({ ...form, direccion: e.target.value })} /></label>
                       </>)}
                     </div>

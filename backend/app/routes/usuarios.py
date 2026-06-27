@@ -11,6 +11,12 @@ router = APIRouter()
 
 ROLES_ADMIN_CREABLES = {"paciente", "doctor", "recepcionista", "administrador"}
 
+def _normalize_optional_text(value):
+    if value is None:
+        return None
+    normalized = " ".join(str(value).strip().split())
+    return normalized or None
+
 def require_admin(authorization: str | None = Header(default=None)):
     if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Token requerido")
@@ -35,7 +41,8 @@ def _insert_role_profile(id_usuario: int, data: UsuarioAdminCreate):
         supabase_admin.table("paciente").insert({
             "id_usuario": id_usuario, "dni": data.dni,
             "fecha_nacimiento": str(data.fecha_nacimiento), "genero": data.genero,
-            "seguro_medico": data.seguro_medico, "direccion": data.direccion,
+            "seguro_medico": _normalize_optional_text(data.seguro_medico),
+            "direccion": _normalize_optional_text(data.direccion),
         }).execute()
         return
     if rol == "doctor":
@@ -63,6 +70,16 @@ def _insert_role_profile(id_usuario: int, data: UsuarioAdminCreate):
 def get_especialidades():
     res = supabase.table("especialidad").select("*").execute()
     return res.data
+
+@router.get("/seguros-medicos")
+def get_seguros_medicos():
+    res = supabase_admin.table("paciente").select("seguro_medico").execute()
+    seguros = {}
+    for item in res.data or []:
+        nombre = _normalize_optional_text(item.get("seguro_medico"))
+        if nombre:
+            seguros.setdefault(nombre.casefold(), nombre)
+    return sorted(seguros.values(), key=lambda seguro: seguro.casefold())
 
 
 # ── Usuarios ────────────────────────────────────────────────

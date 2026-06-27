@@ -1,4 +1,5 @@
 import { PasswordField, PasswordStrength, isPasswordValid } from '../../components/PasswordControls'
+import SeguroMedicoField from '../../components/SeguroMedicoField'
 
 const inputClass = 'rounded-xl border border-[#bdcbc7] px-3 py-2.5 text-sm transition focus:border-[#007a68] focus:outline-none focus:ring-4 focus:ring-[#12b8a3]/15 w-full mt-1 disabled:cursor-not-allowed disabled:bg-[#f8fbff]'
 const roleLabels = { paciente: 'Paciente', doctor: 'Médico', recepcionista: 'Recepcionista', administrador: 'Administrador' }
@@ -78,7 +79,11 @@ export default function RecepUsuarios({ usuarios, usuarioAdmin, setUsuarioAdmin,
                 <option value="M">Masculino</option><option value="F">Femenino</option><option value="Otro">Otro</option>
               </select>
             </label>
-            <label className="block text-sm font-bold text-[#223330]">Seguro médico<input className={inputClass} value={usuarioAdmin.seguro_medico} onChange={e => updateField('seguro_medico', e.target.value)} /></label>
+            <SeguroMedicoField
+              value={usuarioAdmin.seguro_medico}
+              onChange={(value) => updateField('seguro_medico', value)}
+              inputClassName={inputClass}
+            />
             <label className="block text-sm font-bold text-[#223330] md:col-span-2">Dirección<input className={inputClass} value={usuarioAdmin.direccion} onChange={e => updateField('direccion', e.target.value)} /></label>
           </>)}
         </div>

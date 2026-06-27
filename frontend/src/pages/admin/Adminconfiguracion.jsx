@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { getConfiguracion, actualizarConfiguracion, getEspecialidades, crearUsuario, getUsuarios } from '../../services/api'
 import { PasswordField, PasswordStrength, isPasswordValid } from '../../components/PasswordControls'
+import SeguroMedicoField from '../../components/SeguroMedicoField'
 
 const inputClass = 'rounded-lg border border-[#bdcbc7] px-3 py-2 text-sm transition focus:border-[#007a68] focus:outline-none focus:ring-4 focus:ring-[#12b8a3]/15 disabled:cursor-not-allowed disabled:bg-slate-50 w-full mt-1'
 const primaryButton = 'medcare-primary-button px-6 py-3 disabled:opacity-60'
@@ -244,9 +245,11 @@ export default function AdminConfiguracion() {
                       <option value="M">Masculino</option><option value="F">Femenino</option><option value="Otro">Otro</option>
                     </select>
                   </label>
-                  <label className="text-sm font-bold text-[#223330]">Seguro médico
-                    <input className={inputClass} autoComplete="off" value={nuevoUsuario.seguro_medico} onChange={e => update('seguro_medico', e.target.value)} />
-                  </label>
+                  <SeguroMedicoField
+                    value={nuevoUsuario.seguro_medico}
+                    onChange={(value) => update('seguro_medico', value)}
+                    inputClassName={inputClass}
+                  />
                   <label className="text-sm font-bold text-[#223330] md:col-span-2">Dirección
                     <input className={inputClass} autoComplete="off" value={nuevoUsuario.direccion} onChange={e => update('direccion', e.target.value)} />
                   </label>

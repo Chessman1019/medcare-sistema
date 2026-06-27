@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { registrarPaciente } from '../services/api'
 import Layout from '../components/Layout'
 import { isPasswordValid, PasswordField, PasswordStrength } from '../components/PasswordControls'
+import SeguroMedicoField from '../components/SeguroMedicoField'
 
 const initialForm = {
   nombre: '',
@@ -140,10 +141,10 @@ export default function Register() {
                   </label>
                 </div>
 
-                <label className="block text-sm font-bold text-[#223330]">
-                  Seguro médico
-                  <input className="medcare-input mt-2" placeholder="SIS, EsSalud, EPS..." {...bind('seguro_medico')} />
-                </label>
+                <SeguroMedicoField
+                  value={form.seguro_medico}
+                  onChange={(value) => setForm({ ...form, seguro_medico: value })}
+                />
 
                 <button type="submit" disabled={loading} className="medcare-primary-button flex w-full items-center justify-center gap-2 py-4 disabled:opacity-60">
                   {loading ? 'Registrando...' : 'Crear cuenta'}
