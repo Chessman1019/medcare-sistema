@@ -4,6 +4,7 @@ import PortalSidebar from '../../components/PortalSidebar'
 import { useAuth } from '../../context/AuthContext'
 import {
   actualizarSoporteTicket, cancelarCita, confirmarCita, crearUsuario, enviarSoporte,
+  crearHorarioDisponible,
   getCitasHoy, getDoctores, getEspecialidades, getHorarios, getNotificacionesAdmin,
   getPacientes, getSoporteTickets, getStatsCitas, getTodasCitas, getUsuarios,
   marcarNotificacionEnviada, registrarAsistencia, registrarPaciente, registrarSalida, reprogramarCita,
@@ -160,6 +161,18 @@ export default function DashboardRecepcionista() {
     catch { setHorariosAgenda([]) }
   }
 
+  const registrarHorarioDisponible = async (payload) => {
+    const res = await crearHorarioDisponible(payload)
+    const statsR = await getStatsCitas()
+    setStats(statsR.data)
+    if (String(agendaDoctor || payload.id_doctor) === String(payload.id_doctor)) {
+      setAgendaDoctor(String(payload.id_doctor))
+      const horariosR = await getHorarios(payload.id_doctor)
+      setHorariosAgenda(horariosR.data || [])
+    }
+    return res.data
+  }
+
   const registrarNuevoPaciente = async (event) => {
     event.preventDefault()
     setActionLoading('registro')
@@ -230,7 +243,7 @@ export default function DashboardRecepcionista() {
         {message && <div className="rounded-lg border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-800">{message}</div>}
 
         {tab === 'dashboard' && <RecepDashboard stats={stats} citas={citas} citasHoy={citasHoy} doctores={doctores} pacientes={pacientes} usuarios={usuarios} especialidades={especialidades} isAdmin={isAdmin} onGoToTab={goToTab} />}
-        {tab === 'agenda' && <RecepAgenda citasFiltradas={citasFiltradas} filtros={filtros} setFiltros={setFiltros} doctores={doctores} horariosAgenda={horariosAgenda} agendaDoctor={agendaDoctor} onCargarDisponibilidad={cargarDisponibilidad} onGoToTab={goToTab} onShowMessage={showMessage} />}
+        {tab === 'agenda' && <RecepAgenda citasFiltradas={citasFiltradas} filtros={filtros} setFiltros={setFiltros} doctores={doctores} horariosAgenda={horariosAgenda} agendaDoctor={agendaDoctor} onCargarDisponibilidad={cargarDisponibilidad} onCrearHorario={registrarHorarioDisponible} onGoToTab={goToTab} onShowMessage={showMessage} />}
         {tab === 'gestion' && <RecepGestion citasFiltradas={citasFiltradas} doctores={doctores} reprogramacion={reprogramacion} setReprogramacion={setReprogramacion} actionLoading={actionLoading} onCambiarEstado={cambiarEstado} onAbrirReprogramacion={abrirReprogramacion} onGuardarReprogramacion={guardarReprogramacion} onCambiarDoctorReprogramacion={cambiarDoctorReprogramacion} />}
         {tab === 'registro' && !isAdmin && <RecepRegistro registro={registro} setRegistro={setRegistro} pacientes={pacientes} especialidades={especialidades} actionLoading={actionLoading} onRegistrar={registrarNuevoPaciente} onShowMessage={showMessage} />}
         {tab === 'usuarios' && isAdmin && <RecepUsuarios usuarios={usuarios} usuarioAdmin={usuarioAdmin} setUsuarioAdmin={setUsuarioAdmin} especialidades={especialidades} actionLoading={actionLoading} onCrearUsuario={registrarUsuarioAdmin} onShowMessage={showMessage} />}

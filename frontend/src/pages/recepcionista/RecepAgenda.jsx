@@ -1,3 +1,6 @@
+import { useState } from 'react'
+import HorarioDisponibleForm from '../../components/HorarioDisponibleForm'
+
 const estadoClass = {
   pendiente: 'bg-amber-50 text-amber-700 border-amber-200',
   confirmada: 'bg-emerald-50 text-emerald-700 border-emerald-200',
@@ -19,7 +22,9 @@ function formatEstado(value) {
   return labels[value] || (value || 'Pendiente').replaceAll('_', ' ')
 }
 
-export default function RecepAgenda({ citasFiltradas, filtros, setFiltros, doctores, horariosAgenda, agendaDoctor, onCargarDisponibilidad, onGoToTab, onShowMessage }) {
+export default function RecepAgenda({ citasFiltradas, filtros, setFiltros, doctores, horariosAgenda, agendaDoctor, onCargarDisponibilidad, onCrearHorario, onGoToTab, onShowMessage }) {
+  const [mostrarHorarioForm, setMostrarHorarioForm] = useState(false)
+
   function doctorLabel(doctor) {
     if (!doctor) return 'Doctor no asignado'
     const source = doctor.usuario || doctor
@@ -61,23 +66,41 @@ export default function RecepAgenda({ citasFiltradas, filtros, setFiltros, docto
           </div>
         </div>
 
-        <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-          <h3 className="font-semibold text-slate-900">Disponibilidad</h3>
-          <select className={`mt-4 w-full ${inputClass}`} value={agendaDoctor} onChange={e => onCargarDisponibilidad(e.target.value)}>
-            <option value="">Selecciona doctor</option>
-            {doctores.map(doctor => (
-              <option key={doctor.id_usuario} value={doctor.id_usuario}>Dr. {doctorLabel(doctor)}</option>
-            ))}
-          </select>
-          <div className="mt-4 space-y-2">
-            {horariosAgenda.length === 0 ? (
-              <p className="text-sm text-slate-500">Sin horarios libres seleccionados.</p>
-            ) : horariosAgenda.slice(0, 8).map(horario => (
-              <button key={horario.id_horario} type="button" onClick={() => onShowMessage(`Horario libre: ${horario.fecha} ${horario.hora_inicio}`)}
-                className="w-full rounded-lg bg-slate-50 px-3 py-2 text-left text-sm text-slate-700 transition hover:bg-[#e5fbf7] hover:text-[#006b5d] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#12b8a3]/15">
-                {horario.fecha} - {horario.hora_inicio} a {horario.hora_fin}
+        <div className="space-y-4">
+          {mostrarHorarioForm && (
+            <HorarioDisponibleForm
+              key={agendaDoctor || 'nuevo-horario'}
+              doctores={doctores}
+              initialDoctorId={agendaDoctor}
+              onSubmit={onCrearHorario}
+              onCancel={() => setMostrarHorarioForm(false)}
+            />
+          )}
+
+          <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+            <div className="flex items-center justify-between gap-3">
+              <h3 className="font-semibold text-slate-900">Disponibilidad</h3>
+              <button type="button" onClick={() => setMostrarHorarioForm(value => !value)}
+                className="rounded-lg bg-[#007a68] px-3 py-2 text-xs font-semibold text-white transition hover:brightness-105 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#12b8a3]/20">
+                Agregar más fechas y horas disponibles
               </button>
-            ))}
+            </div>
+            <select className={`mt-4 w-full ${inputClass}`} value={agendaDoctor} onChange={e => onCargarDisponibilidad(e.target.value)}>
+              <option value="">Selecciona doctor</option>
+              {doctores.map(doctor => (
+                <option key={doctor.id_usuario} value={doctor.id_usuario}>Dr. {doctorLabel(doctor)}</option>
+              ))}
+            </select>
+            <div className="mt-4 space-y-2">
+              {horariosAgenda.length === 0 ? (
+                <p className="text-sm text-slate-500">Sin horarios libres seleccionados.</p>
+              ) : horariosAgenda.slice(0, 8).map(horario => (
+                <button key={horario.id_horario} type="button" onClick={() => onShowMessage(`Horario libre: ${horario.fecha} ${horario.hora_inicio}`)}
+                  className="w-full rounded-lg bg-slate-50 px-3 py-2 text-left text-sm text-slate-700 transition hover:bg-[#e5fbf7] hover:text-[#006b5d] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#12b8a3]/15">
+                  {horario.fecha} - {horario.hora_inicio} a {horario.hora_fin}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
       </div>

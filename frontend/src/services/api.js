@@ -28,6 +28,7 @@ export const getUsuarios = () => API.get('/usuarios')
 export const crearUsuario = (data) => API.post('/usuarios', data)
 
 export const getHorarios = (id_doctor) => API.get(`/horarios/${id_doctor}`)
+export const crearHorarioDisponible = (data) => API.post('/horarios/', data)
 
 export const crearCita = (data, id_paciente) => API.post(`/citas/?id_paciente=${id_paciente}`, data)
 export const getTodasCitas = () => API.get('/citas/todas')
