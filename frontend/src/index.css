@@ -102,6 +102,10 @@ canvas {
   box-shadow: 0 0 0 4px rgba(18, 184, 163, 0.14);
 }
 
+.medcare-input-with-icon {
+  padding-left: 2.75rem;
+}
+
 .medcare-primary-button {
   border-radius: 12px;
   background: var(--medcare-primary);

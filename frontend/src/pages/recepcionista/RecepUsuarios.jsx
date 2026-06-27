@@ -144,7 +144,7 @@ export default function RecepUsuarios({ usuarios, usuarioAdmin, setUsuarioAdmin,
             <label className="mb-1 block text-xs font-bold text-[#223330]">Búsqueda</label>
             <div className="relative">
               <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[#52615f] text-[18px]">search</span>
-              <input className="medcare-input pl-9" placeholder="Nombre, correo, DNI, CMP..."
+              <input className="medcare-input medcare-input-with-icon" placeholder="Nombre, correo, DNI, CMP..."
                 value={filtros.busqueda} onChange={e => setFiltros({ ...filtros, busqueda: e.target.value })} />
             </div>
           </div>

@@ -118,8 +118,8 @@ export default function Layout({
     <div className="medcare-shell min-h-screen">
       {sidebar}
       <header className="fixed left-0 right-0 top-0 z-40 grid min-h-20 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b border-[#bdcbc7] bg-white/95 px-4 py-3 backdrop-blur lg:left-72 lg:flex lg:h-20 lg:flex-nowrap lg:px-8 lg:py-0">
-        <div className="min-w-0 lg:flex-1">
-          <h1 className="min-w-0 truncate text-lg font-extrabold tracking-tight text-[#101828] min-[380px]:text-xl sm:text-2xl">
+        <div className="min-w-0 lg:flex-none">
+          <h1 className="min-w-0 truncate text-lg font-extrabold tracking-tight text-[#101828] min-[380px]:text-xl sm:text-2xl lg:overflow-visible lg:text-clip lg:whitespace-nowrap">
             {title || 'Portal MedCare'}
           </h1>
         </div>

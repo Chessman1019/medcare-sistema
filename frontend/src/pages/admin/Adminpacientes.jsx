@@ -53,7 +53,7 @@ export default function AdminPacientes({ pacientes, onRefresh }) {
             <label className="mb-1 block text-xs font-bold text-[#223330]">Búsqueda</label>
             <div className="relative">
               <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[#52615f] text-[18px]">search</span>
-              <input className="medcare-input pl-9" placeholder="Nombre, DNI, email..."
+              <input className="medcare-input medcare-input-with-icon" placeholder="Nombre, DNI, email..."
                 value={filtros.busqueda} onChange={e => setFiltros({ ...filtros, busqueda: e.target.value })} />
             </div>
           </div>
@@ -85,43 +85,52 @@ export default function AdminPacientes({ pacientes, onRefresh }) {
         </button>
       </div>
 
-      <div className="grid grid-cols-1 gap-5 xl:grid-cols-[1fr_380px] xl:gap-6">
+      <div className="grid min-w-0 grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_380px] xl:gap-6">
         {/* Lista */}
-        <div className="medcare-card overflow-hidden">
+        <div className="medcare-card min-w-0 overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[600px] text-left">
+            <table className="w-full min-w-[860px] table-fixed text-left">
+              <colgroup>
+                <col className="w-[30%]" />
+                <col className="w-[12%]" />
+                <col className="w-[9%]" />
+                <col className="w-[9%]" />
+                <col className="w-[13%]" />
+                <col className="w-[13%]" />
+                <col className="w-[14%]" />
+              </colgroup>
               <thead className="bg-[#f8fbff] text-xs uppercase text-[#223330]">
                 <tr>
                   {['Paciente', 'DNI', 'Edad', 'Género', 'Seguro', 'Teléfono', 'Estado'].map(h => (
-                    <th key={h} className="px-5 py-4 font-extrabold">{h}</th>
+                    <th key={h} className="px-4 py-4 font-extrabold">{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#bdcbc7]">
                 {filtered.length === 0 ? (
-                  <tr><td colSpan="7" className="px-5 py-10 text-center text-[#52615f]">No se encontraron pacientes.</td></tr>
+                  <tr><td colSpan="7" className="px-4 py-10 text-center text-[#52615f]">No se encontraron pacientes.</td></tr>
                 ) : filtered.map(p => (
                   <tr key={p.id_usuario}
                     onClick={() => setSelectedId(p.id_usuario)}
                     className={`cursor-pointer transition ${selectedId === p.id_usuario ? 'bg-[#f4fffc]' : 'bg-white hover:bg-[#f8fbff]'}`}>
-                    <td className="px-5 py-4">
+                    <td className="px-4 py-4">
                       <div className="flex items-center gap-3">
                         <div className="w-8 h-8 rounded-full bg-[#edf2ff] flex items-center justify-center text-[#355382] text-xs font-extrabold">
                           {p.nombre?.charAt(0)}
                         </div>
-                        <div>
-                          <p className="text-sm font-bold text-[#101828]">{p.nombre} {p.apellido}</p>
-                          <p className="text-xs text-[#52615f]">{p.email}</p>
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-bold text-[#101828]">{p.nombre} {p.apellido}</p>
+                          <p className="truncate text-xs text-[#52615f]">{p.email}</p>
                         </div>
                       </div>
                     </td>
-                    <td className="px-5 py-4 text-sm text-[#52615f]">{p.paciente?.dni || '—'}</td>
-                    <td className="px-5 py-4 text-sm text-[#52615f]">{calcEdad(p.paciente?.fecha_nacimiento)} {p.paciente?.fecha_nacimiento ? 'años' : ''}</td>
-                    <td className="px-5 py-4 text-sm text-[#52615f]">{p.paciente?.genero || '—'}</td>
-                    <td className="px-5 py-4 text-sm text-[#52615f]">{p.paciente?.seguro_medico || '—'}</td>
-                    <td className="px-5 py-4 text-sm text-[#52615f]">{p.telefono || '—'}</td>
-                    <td className="px-5 py-4">
-                      <span className={`text-xs px-3 py-1 rounded-full font-extrabold ${p.activo ? 'bg-[#d8f4ee] text-[#006b5d]' : 'bg-[#ffdad6] text-[#93000a]'}`}>
+                    <td className="px-4 py-4 text-sm text-[#52615f]">{p.paciente?.dni || '—'}</td>
+                    <td className="px-4 py-4 text-sm text-[#52615f]">{calcEdad(p.paciente?.fecha_nacimiento)} {p.paciente?.fecha_nacimiento ? 'años' : ''}</td>
+                    <td className="px-4 py-4 text-sm text-[#52615f]">{p.paciente?.genero || '—'}</td>
+                    <td className="truncate px-4 py-4 text-sm text-[#52615f]">{p.paciente?.seguro_medico || '—'}</td>
+                    <td className="px-4 py-4 text-sm text-[#52615f]">{p.telefono || '—'}</td>
+                    <td className="px-4 py-4">
+                      <span className={`whitespace-nowrap text-xs px-3 py-1 rounded-full font-extrabold ${p.activo ? 'bg-[#d8f4ee] text-[#006b5d]' : 'bg-[#ffdad6] text-[#93000a]'}`}>
                         {p.activo ? 'Activo' : 'Inactivo'}
                       </span>
                     </td>
