@@ -4,6 +4,7 @@ import { PasswordField, PasswordStrength, isPasswordValid } from '../../componen
 import SeguroMedicoField from '../../components/SeguroMedicoField'
 import CodigoSugeridoField from '../../components/CodigoSugeridoField'
 import { getCodigosSugeridosFromUsuarios } from '../../utils/codigosUsuarios'
+import { dniInputProps, formatDniInput, formatPhoneInput, phoneInputProps } from '../../utils/numericFields'
 
 const inputClass = 'rounded-lg border border-[#bdcbc7] px-3 py-2 text-sm transition focus:border-[#007a68] focus:outline-none focus:ring-4 focus:ring-[#12b8a3]/15 disabled:cursor-not-allowed disabled:bg-slate-50 w-full mt-1'
 const primaryButton = 'medcare-primary-button px-6 py-3 disabled:opacity-60'
@@ -226,7 +227,8 @@ export default function AdminConfiguracion() {
                   <input type="email" className={inputClass} autoComplete="new-email" value={nuevoUsuario.email} onChange={e => update('email', e.target.value)} required />
                 </label>
                 <label className="text-sm font-bold text-[#223330]">Teléfono
-                  <input className={inputClass} autoComplete="off" value={nuevoUsuario.telefono} onChange={e => update('telefono', e.target.value)} />
+                  <input className={inputClass} autoComplete="off" {...phoneInputProps}
+                    value={nuevoUsuario.telefono} onChange={e => update('telefono', formatPhoneInput(e.target.value))} />
                 </label>
 
                 <div className="md:col-span-2">
@@ -272,7 +274,8 @@ export default function AdminConfiguracion() {
 
                 {nuevoUsuario.tipo_usuario === 'paciente' && (<>
                   <label className="text-sm font-bold text-[#223330]">DNI
-                    <input className={inputClass} autoComplete="off" value={nuevoUsuario.dni} onChange={e => update('dni', e.target.value)} required />
+                    <input className={inputClass} autoComplete="off" {...dniInputProps}
+                      value={nuevoUsuario.dni} onChange={e => update('dni', formatDniInput(e.target.value))} required />
                   </label>
                   <label className="text-sm font-bold text-[#223330]">Fecha de nacimiento
                     <input type="date" className={inputClass} autoComplete="off" value={nuevoUsuario.fecha_nacimiento} onChange={e => update('fecha_nacimiento', e.target.value)} required />

@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext'
 import { actualizarPerfil, cambiarContrasenaPerfil, getPerfil } from '../services/api'
 import { isPasswordValid, PasswordField, PasswordStrength } from './PasswordControls'
 import SeguroMedicoField from './SeguroMedicoField'
+import { formatPhoneInput, phoneInputProps } from '../utils/numericFields'
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY
@@ -285,7 +286,8 @@ export default function ProfileMenu() {
                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                       <label className="text-sm font-medium text-slate-700">Nombre<input className={inputClass} value={form.nombre} onChange={(e) => setForm({ ...form, nombre: e.target.value })} required /></label>
                       <label className="text-sm font-medium text-slate-700">Apellido<input className={inputClass} value={form.apellido} onChange={(e) => setForm({ ...form, apellido: e.target.value })} required /></label>
-                      <label className="text-sm font-medium text-slate-700">Teléfono<input className={inputClass} value={form.telefono} onChange={(e) => setForm({ ...form, telefono: e.target.value })} placeholder="Ej. 987654321" /></label>
+                      <label className="text-sm font-medium text-slate-700">Teléfono<input className={inputClass} {...phoneInputProps}
+                        value={form.telefono} onChange={(e) => setForm({ ...form, telefono: formatPhoneInput(e.target.value) })} placeholder="Ej. 987654321" /></label>
                       <label className="text-sm font-medium text-slate-700">Correo<input className={inputClass} value={profile?.email || user?.email || ''} disabled /></label>
                       {profile?.tipo_usuario === 'paciente' && (<>
                         <SeguroMedicoField

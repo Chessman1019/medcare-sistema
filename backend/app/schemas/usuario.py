@@ -1,6 +1,11 @@
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, field_validator
 from typing import Optional
 from datetime import date
+from app.services.input_validation import (
+    normalize_optional_dni,
+    normalize_optional_phone,
+    normalize_required_dni,
+)
 
 class UsuarioLogin(BaseModel):
     email: EmailStr
@@ -24,6 +29,11 @@ class UsuarioBase(BaseModel):
     email: EmailStr
     telefono: Optional[str] = None
 
+    @field_validator("telefono")
+    @classmethod
+    def validar_telefono(cls, value):
+        return normalize_optional_phone(value)
+
 class PacienteCreate(UsuarioBase):
     password: str
     dni: str
@@ -31,6 +41,11 @@ class PacienteCreate(UsuarioBase):
     genero: str
     seguro_medico: Optional[str] = None
     direccion: Optional[str] = None
+
+    @field_validator("dni")
+    @classmethod
+    def validar_dni(cls, value):
+        return normalize_required_dni(value)
 
 class DoctorCreate(UsuarioBase):
     password: str
@@ -51,12 +66,22 @@ class UsuarioAdminCreate(UsuarioBase):
     codigo_empleado: Optional[str] = None
     turno: Optional[str] = None
 
+    @field_validator("dni")
+    @classmethod
+    def validar_dni(cls, value):
+        return normalize_optional_dni(value)
+
 class UsuarioPerfilUpdate(BaseModel):
     nombre: Optional[str] = None
     apellido: Optional[str] = None
     telefono: Optional[str] = None
     direccion: Optional[str] = None
     seguro_medico: Optional[str] = None
+
+    @field_validator("telefono")
+    @classmethod
+    def validar_telefono(cls, value):
+        return normalize_optional_phone(value)
 
 class UsuarioCambiarContrasena(BaseModel):
     contrasena_actual: str

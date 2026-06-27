@@ -1,6 +1,7 @@
 
 import { useMemo, useState } from 'react'
 import { actualizarDoctor, toggleDisponibleDoctor } from '../../services/api'
+import { formatPhoneInput, phoneInputProps } from '../../utils/numericFields'
 
 const inputClass = 'rounded-lg border border-[#bdcbc7] px-3 py-2 text-sm transition focus:border-[#007a68] focus:outline-none focus:ring-4 focus:ring-[#12b8a3]/15 w-full mt-1'
 const primaryButton = 'medcare-primary-button px-5 py-2.5 disabled:opacity-60'
@@ -273,7 +274,8 @@ export default function AdminDoctores({ doctores, especialidades = [], onRefresh
                     <label key={field} className="block text-sm font-bold text-[#223330]">
                       {label}
                       <input type={type} className={inputClass} value={form[field] || ''}
-                        onChange={e => setForm(f => ({ ...f, [field]: e.target.value }))} />
+                        {...(field === 'telefono' ? phoneInputProps : {})}
+                        onChange={e => setForm(f => ({ ...f, [field]: field === 'telefono' ? formatPhoneInput(e.target.value) : e.target.value }))} />
                     </label>
                   ))}
                   <label className="block text-sm font-bold text-[#223330]">

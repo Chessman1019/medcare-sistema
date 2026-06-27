@@ -4,11 +4,33 @@ const API = axios.create({
   baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8000/api'
 })
 
+function normalizeApiDetail(detail) {
+  if (Array.isArray(detail)) {
+    return detail
+      .map((item) => item?.msg || item?.message || (typeof item === 'string' ? item : ''))
+      .filter(Boolean)
+      .join(' ')
+  }
+  if (detail && typeof detail === 'object') {
+    return detail.msg || detail.message || JSON.stringify(detail)
+  }
+  return detail
+}
+
 API.interceptors.request.use((config) => {
   const token = localStorage.getItem('token')
   if (token) config.headers.Authorization = `Bearer ${token}`
   return config
 })
+
+API.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    const data = error.response?.data
+    if (data && 'detail' in data) data.detail = normalizeApiDetail(data.detail)
+    return Promise.reject(error)
+  }
+)
 
 export const login = (data) => API.post('/auth/login', data)
 export const registrarPaciente = (data) => API.post('/auth/registro/paciente', data)

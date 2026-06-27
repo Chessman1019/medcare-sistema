@@ -5,6 +5,7 @@ logger = logging.getLogger(__name__)
 from postgrest.exceptions import APIError
 from app.schemas.usuario import UsuarioAdminCreate
 from app.services.auth_service import decode_token, hash_password
+from app.services.input_validation import normalize_optional_phone
 from fastapi import APIRouter, Body, Depends, Header, HTTPException
 from app.database import supabase, supabase_admin
 
@@ -169,6 +170,8 @@ def get_doctores_por_especialidad(id_especialidad: int):
 def actualizar_doctor(id_usuario: int, data: dict = Body(...), _: dict = Depends(require_admin)):
     try:
         usuario_data = {k: v for k, v in data.items() if k in ["nombre", "apellido", "email", "telefono"]}
+        if "telefono" in usuario_data:
+            usuario_data["telefono"] = normalize_optional_phone(usuario_data["telefono"])
         if usuario_data:
             supabase_admin.table("usuario").update(usuario_data).eq("id_usuario", id_usuario).execute()
         doctor_data = {k: v for k, v in data.items() if k in ["cmp", "turno", "id_especialidad"]}
@@ -177,6 +180,8 @@ def actualizar_doctor(id_usuario: int, data: dict = Body(...), _: dict = Depends
                 doctor_data["id_especialidad"] = int(doctor_data["id_especialidad"])
             supabase_admin.table("doctor").update(doctor_data).eq("id_usuario", id_usuario).execute()
         return {"mensaje": "Doctor actualizado correctamente"}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

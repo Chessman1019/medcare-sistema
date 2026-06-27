@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { PasswordField, PasswordStrength, isPasswordValid } from '../../components/PasswordControls'
 import SeguroMedicoField from '../../components/SeguroMedicoField'
 import CodigoSugeridoField from '../../components/CodigoSugeridoField'
+import { dniInputProps, formatDniInput, formatPhoneInput, phoneInputProps } from '../../utils/numericFields'
 
 const inputClass = 'rounded-xl border border-[#bdcbc7] px-3 py-2.5 text-sm transition focus:border-[#007a68] focus:outline-none focus:ring-4 focus:ring-[#12b8a3]/15 w-full mt-1 disabled:cursor-not-allowed disabled:bg-[#f8fbff]'
 const roleLabels = { paciente: 'Paciente', doctor: 'Médico', recepcionista: 'Recepcionista', administrador: 'Administrador' }
@@ -77,7 +78,8 @@ export default function RecepUsuarios({ usuarios, usuarioAdmin, setUsuarioAdmin,
               placeholder="••••••••" autoComplete="new-password" required minLength={6} />
             <PasswordStrength password={usuarioAdmin.password} className="mt-3" />
           </div>
-          <label className="block text-sm font-bold text-[#223330]">Teléfono<input className={inputClass} value={usuarioAdmin.telefono} onChange={e => updateField('telefono', e.target.value)} /></label>
+          <label className="block text-sm font-bold text-[#223330]">Teléfono<input className={inputClass} {...phoneInputProps}
+            value={usuarioAdmin.telefono} onChange={e => updateField('telefono', formatPhoneInput(e.target.value))} /></label>
 
           {usuarioAdmin.tipo_usuario === 'doctor' && (<>
             <CodigoSugeridoField
@@ -116,7 +118,8 @@ export default function RecepUsuarios({ usuarios, usuarioAdmin, setUsuarioAdmin,
           </>)}
 
           {usuarioAdmin.tipo_usuario === 'paciente' && (<>
-            <label className="block text-sm font-bold text-[#223330]">DNI<input className={inputClass} value={usuarioAdmin.dni} onChange={e => updateField('dni', e.target.value)} required /></label>
+            <label className="block text-sm font-bold text-[#223330]">DNI<input className={inputClass} {...dniInputProps}
+              value={usuarioAdmin.dni} onChange={e => updateField('dni', formatDniInput(e.target.value))} required /></label>
             <label className="block text-sm font-bold text-[#223330]">Fecha nacimiento<input type="date" className={inputClass} value={usuarioAdmin.fecha_nacimiento} onChange={e => updateField('fecha_nacimiento', e.target.value)} required /></label>
             <label className="block text-sm font-bold text-[#223330]">Género
               <select className={inputClass} value={usuarioAdmin.genero} onChange={e => updateField('genero', e.target.value)} required>
