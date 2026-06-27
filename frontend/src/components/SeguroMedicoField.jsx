@@ -2,6 +2,8 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { getSegurosMedicos } from '../services/api'
 
 const NEW_VALUE = '__nuevo_seguro_medico__'
+const selectAdornmentClass = 'pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[#52615f]'
+const helperButtonClass = 'inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-extrabold text-[#006b5d] transition hover:bg-[#e5fbf7] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#12b8a3]/20'
 
 function normalizeSeguro(value = '') {
   return String(value).normalize('NFKC').trim().replace(/\s+/g, ' ')
@@ -82,24 +84,44 @@ export default function SeguroMedicoField({
     if (normalized !== value) onChange?.(normalized)
   }
 
+  const openCustomMode = () => {
+    setCustomMode(true)
+    if (!hasCustomValue) onChange?.('')
+  }
+
   return (
     <div className={className}>
       <label className="block text-sm font-bold text-[#223330]">
         {label}
-        <select
-          className={inputClassName}
-          value={selectValue}
-          onChange={handleSelect}
-          required={required && !showCustomInput}
-          disabled={disabled || loading}
-        >
-          <option value="">{loading ? 'Cargando seguros...' : 'Sin seguro / particular'}</option>
-          {seguros.map((seguro) => (
-            <option key={seguro} value={seguro}>{seguro}</option>
-          ))}
-          <option value={NEW_VALUE}>Agregar nuevo seguro médico</option>
-        </select>
+        <div className="relative">
+          <select
+            className={`${inputClassName} appearance-none pr-11`}
+            value={selectValue}
+            onChange={handleSelect}
+            required={required && !showCustomInput}
+            disabled={disabled || loading}
+          >
+            <option value="">{loading ? 'Cargando seguros...' : 'Sin seguro / particular'}</option>
+            {seguros.map((seguro) => (
+              <option key={seguro} value={seguro}>{seguro}</option>
+            ))}
+            <option value={NEW_VALUE}>Agregar nuevo seguro médico</option>
+          </select>
+          <span className={selectAdornmentClass}>
+            <span className="material-symbols-outlined text-[22px]">expand_more</span>
+          </span>
+        </div>
       </label>
+
+      {!showCustomInput && (
+        <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-xs font-semibold text-[#52615f]">
+          <span>Elige uno registrado para evitar duplicados.</span>
+          <button type="button" onClick={openCustomMode} className={helperButtonClass} disabled={disabled}>
+            <span className="material-symbols-outlined text-[16px]">add</span>
+            Nuevo seguro
+          </button>
+        </div>
+      )}
 
       {showCustomInput && (
         <label className="mt-3 block text-sm font-bold text-[#223330]">
