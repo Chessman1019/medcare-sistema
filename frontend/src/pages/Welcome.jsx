@@ -81,7 +81,7 @@ export default function Welcome() {
 
   return (
     <div
-      className="relative flex min-h-screen w-full flex-col items-center justify-center overflow-hidden"
+      className="relative flex min-h-[100svh] w-full flex-col items-center justify-center gap-6 overflow-x-hidden px-4 py-6 sm:gap-8 lg:py-8"
       style={{ opacity: visible ? 1 : 0, transition: 'opacity .6s ease' }}
     >
       {/* ── Slides de fondo ── */}
@@ -111,7 +111,7 @@ export default function Welcome() {
       />
 
       {/* ── Contenido central ── */}
-      <div className="relative z-10 flex flex-col items-center gap-6 px-6 text-center sm:gap-8 sm:px-10">
+      <div className="relative z-10 flex w-full max-w-4xl flex-col items-center gap-5 text-center sm:gap-6">
         {/* Logo */}
         <img
           src="/medcare-logo.png"
@@ -183,7 +183,7 @@ export default function Welcome() {
       </div>
 
       {/* ── Tarjetas info (parte inferior) ── */}
-      <div className="absolute bottom-8 left-1/2 z-10 hidden w-full max-w-3xl -translate-x-1/2 grid-cols-3 gap-4 px-6 lg:grid">
+      <div className="relative z-10 hidden w-full max-w-4xl grid-cols-3 gap-4 lg:grid">
         {[
           { icon: 'calendar_month', label: 'Citas', desc: 'Agendamiento claro y rápido' },
           { icon: 'medical_services', label: 'Atención', desc: 'Flujo clínico completo' },
@@ -195,10 +195,12 @@ export default function Welcome() {
             style={{ background: 'rgba(255,255,255,0.10)', backdropFilter: 'blur(12px)', border: '1px solid rgba(255,255,255,0.18)' }}
           >
             <span
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full material-symbols-outlined text-[22px]"
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full"
               style={{ background: 'rgba(18,184,163,0.25)', color: '#7fffd4' }}
             >
-              {icon}
+              <span className="material-symbols-outlined block text-[22px] leading-none">
+                {icon}
+              </span>
             </span>
             <div>
               <p className="font-extrabold text-white">{label}</p>
