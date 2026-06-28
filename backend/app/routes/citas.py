@@ -2,6 +2,7 @@ from fastapi import APIRouter, HTTPException
 from app.schemas.cita import AtencionCreate, CitaCreate, CitaReprogramar
 from app.services.cita_service import (
     cancelar_cita,
+    cancelar_citas_vencidas,
     cambiar_estado_cita,
     contar_horarios_libres_futuros,
     crear_cita,
@@ -14,6 +15,11 @@ from app.services.cita_service import (
 from app.database import supabase
 
 router = APIRouter()
+
+def _cita_error(error: ValueError):
+    detail = str(error)
+    status_code = 404 if "no encontrada" in detail.lower() else 400
+    raise HTTPException(status_code=status_code, detail=detail)
 
 @router.post("/")
 def nueva_cita(data: CitaCreate, id_paciente: int):
@@ -36,17 +42,20 @@ def nueva_cita(data: CitaCreate, id_paciente: int):
 
 @router.get("/todas")
 def todas_las_citas():
+    cancelar_citas_vencidas()
     res = supabase.table("v_citas_detalle").select("*").order("fecha_hora", desc=True).execute()
     return res.data
 
 @router.get("/hoy")
 def citas_hoy():
+    cancelar_citas_vencidas()
     inicio, fin = get_lima_day_bounds()
     res = supabase.table("v_citas_detalle").select("*").gte("fecha_hora", inicio).lte("fecha_hora", fin).execute()
     return res.data
 
 @router.get("/stats")
 def estadisticas():
+    cancelar_citas_vencidas()
     citas = supabase.table("cita").select("estado").execute().data
     pacientes = supabase.table("paciente").select("id_usuario").execute().data
     doctores = supabase.table("doctor").select("id_usuario, disponible").execute().data
@@ -80,15 +89,24 @@ def citas_doctor(id_doctor: int):
 
 @router.put("/{id_cita}/cancelar")
 def cancelar(id_cita: int):
-    return cancelar_cita(id_cita)
+    try:
+        return cancelar_cita(id_cita)
+    except ValueError as error:
+        _cita_error(error)
 
 @router.put("/{id_cita}/confirmar")
 def confirmar(id_cita: int):
-    return cambiar_estado_cita(id_cita, "confirmada")
+    try:
+        return cambiar_estado_cita(id_cita, "confirmada")
+    except ValueError as error:
+        _cita_error(error)
 
 @router.put("/{id_cita}/asistencia")
 def registrar_asistencia(id_cita: int):
-    return cambiar_estado_cita(id_cita, "en_atencion")
+    try:
+        return cambiar_estado_cita(id_cita, "en_atencion")
+    except ValueError as error:
+        _cita_error(error)
 
 @router.put("/{id_cita}/reprogramar")
 def reprogramar(id_cita: int, data: CitaReprogramar):
@@ -112,8 +130,14 @@ def atender(id_cita: int, data: AtencionCreate):
 
 @router.put("/{id_cita}/completar")
 def completar(id_cita: int):
-    return cambiar_estado_cita(id_cita, "completada")
+    try:
+        return cambiar_estado_cita(id_cita, "completada")
+    except ValueError as error:
+        _cita_error(error)
 
 @router.put("/{id_cita}/salida")
 def registrar_salida(id_cita: int):
-    return cambiar_estado_cita(id_cita, "completada")
+    try:
+        return cambiar_estado_cita(id_cita, "completada")
+    except ValueError as error:
+        _cita_error(error)

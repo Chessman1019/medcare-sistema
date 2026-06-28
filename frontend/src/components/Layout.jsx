@@ -2,6 +2,8 @@ import { useState } from 'react'
 import ProfileMenu from './ProfileMenu'
 
 function HeaderDropdown({ title, icon, items = [], emptyText, onClose }) {
+  const [deleteItem, setDeleteItem] = useState(null)
+
   return (
     <div className="fixed right-3 top-32 z-50 w-[calc(100vw-1.5rem)] overflow-hidden rounded-2xl border border-[#bdcbc7] bg-white shadow-2xl shadow-[#08284d]/12 sm:absolute sm:right-0 sm:top-12 sm:w-[22rem] sm:max-w-[calc(100vw-2rem)]">
       <div className="flex items-center justify-between border-b border-[#d8e3fb] bg-[#f8fbff] px-5 py-4">
@@ -23,6 +25,9 @@ function HeaderDropdown({ title, icon, items = [], emptyText, onClose }) {
         ) : (
           <div className="space-y-2">
             {items.map((item) => {
+              const itemClass = item.read
+                ? 'border-[#edf2ff] bg-white opacity-75'
+                : 'border-[#12b8a3]/30 bg-[#f4fffc]'
               const body = (
                 <>
                   <div className="flex items-start justify-between gap-4">
@@ -33,22 +38,71 @@ function HeaderDropdown({ title, icon, items = [], emptyText, onClose }) {
                   {item.actionLabel && <p className="mt-3 text-sm font-extrabold text-[#006b5d]">{item.actionLabel}</p>}
                 </>
               )
-              if (item.onClick) {
-                return (
-                  <button key={item.title} type="button"
-                    onClick={() => { item.onClick(); onClose() }}
-                    className="w-full rounded-xl border border-transparent p-4 text-left transition hover:-translate-y-0.5 hover:border-[#12b8a3]/35 hover:bg-[#f4fffc] hover:shadow-sm focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#12b8a3]/20 active:scale-[0.98]">
+              return (
+                <div key={item.key || item.title} className={`rounded-xl border p-3 transition hover:-translate-y-0.5 hover:border-[#12b8a3]/35 hover:shadow-sm ${itemClass}`}>
+                  <button type="button"
+                    onClick={() => { item.onClick?.(); onClose() }}
+                    className="w-full min-w-0 p-1 text-left focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#12b8a3]/20">
                     {body}
                   </button>
-                )
-              }
-              return (
-                <div key={item.title} className="rounded-xl border border-[#edf2ff] bg-white p-4">{body}</div>
+                  {(item.onMarkRead || item.onDelete) && (
+                    <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-[#d8e3fb] pt-3">
+                      {item.onMarkRead && !item.read && (
+                        <button type="button"
+                          onClick={(event) => {
+                            event.stopPropagation()
+                            item.onMarkRead?.()
+                          }}
+                          className="inline-flex items-center gap-1.5 rounded-lg border border-[#b7e8df] bg-white px-3 py-1.5 text-xs font-extrabold text-[#006b5d] transition hover:bg-[#e5fbf7] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#12b8a3]/20"
+                          aria-label="Marcar notificación como vista">
+                          <span className="material-symbols-outlined text-[16px]">done</span>
+                          Marcar como visto
+                        </button>
+                      )}
+                      {item.read && (
+                        <span className="inline-flex items-center gap-1.5 rounded-lg bg-[#edf2ff] px-3 py-1.5 text-xs font-extrabold text-[#52615f]">
+                          <span className="material-symbols-outlined text-[16px]">done_all</span>
+                          Vista
+                        </span>
+                      )}
+                      {item.onDelete && (
+                        <button type="button"
+                          onClick={(event) => {
+                            event.stopPropagation()
+                            setDeleteItem(item)
+                          }}
+                          className="inline-flex items-center gap-1.5 rounded-lg border border-[#ffdad6] bg-white px-3 py-1.5 text-xs font-extrabold text-[#93000a] transition hover:bg-[#fff0ef] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#ba1a1a]/15"
+                          aria-label="Eliminar notificación">
+                          <span className="material-symbols-outlined text-[16px]">delete</span>
+                          Eliminar
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
               )
             })}
           </div>
         )}
       </div>
+      {deleteItem && (
+        <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/85 p-5 backdrop-blur-sm">
+          <div className="w-full rounded-2xl border border-[#bdcbc7] bg-white p-5 shadow-2xl shadow-[#08284d]/12">
+            <p className="font-extrabold text-[#101828]">¿Estás seguro de eliminar esta notificación?</p>
+            <p className="mt-2 text-sm text-[#52615f]">Esta acción la ocultará de tu bandeja de notificaciones.</p>
+            <div className="mt-5 flex justify-end gap-3">
+              <button type="button" onClick={() => setDeleteItem(null)}
+                className="rounded-xl border border-[#bdcbc7] bg-white px-4 py-2 text-sm font-extrabold text-[#223330] transition hover:bg-[#f8fbff]">
+                Cancelar
+              </button>
+              <button type="button" onClick={() => { deleteItem.onDelete?.(); setDeleteItem(null) }}
+                className="rounded-xl bg-[#ba1a1a] px-4 py-2 text-sm font-extrabold text-white transition hover:bg-[#93000a]">
+                Eliminar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -98,6 +152,7 @@ export default function Layout({
   searchPlaceholder = 'Buscar pacientes, citas o historiales...',
   onSearchChange,
   notificationItems = [],
+  notificationCount,
   helpItems = [],
   appItems = [],
 }) {
@@ -113,6 +168,7 @@ export default function Layout({
 
   const topButtonClass = 'rounded-xl p-2 text-[#223330] transition hover:-translate-y-0.5 hover:bg-[#edf2ff] hover:text-[#006b5d] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#12b8a3]/20 active:scale-[0.95]'
   const toggleMenu = (menu) => setOpenMenu((current) => (current === menu ? null : menu))
+  const visibleNotificationCount = searchValue?.trim() ? 0 : (notificationCount ?? notificationItems.length)
 
   return (
     <div className="medcare-shell min-h-screen">
@@ -124,12 +180,14 @@ export default function Layout({
           </h1>
         </div>
 
-        <div className="flex shrink-0 items-center gap-1.5 sm:gap-3 lg:order-3 lg:gap-6">
+        <div className="flex shrink-0 items-center gap-1.5 sm:gap-3 lg:order-3 lg:ml-auto lg:gap-6">
           <div className="relative">
             <button type="button" onClick={() => toggleMenu('notifications')} className={`relative ${topButtonClass}`} aria-label="Notificaciones" aria-expanded={openMenu === 'notifications'}>
               <span className="material-symbols-outlined">notifications</span>
-              {notificationItems.length > 0 && !searchValue?.trim() && (
-                <span className="absolute right-1.5 top-1 h-2.5 w-2.5 rounded-full bg-[#ba1a1a]" />
+              {visibleNotificationCount > 0 && (
+                <span className="absolute -right-1 top-0 flex h-5 min-w-5 items-center justify-center rounded-full bg-[#ba1a1a] px-1 text-[10px] font-extrabold leading-none text-white ring-2 ring-white">
+                  {visibleNotificationCount > 9 ? '9+' : visibleNotificationCount}
+                </span>
               )}
             </button>
             {openMenu === 'notifications' && (
