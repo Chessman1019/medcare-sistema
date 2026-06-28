@@ -18,7 +18,13 @@ import AdminEspera from './AdminEspera'
 import AdminReportes from './AdminReportes'
 import AdminConfiguracion from './AdminConfiguracion'
 
-const NOTIFICATION_REFRESH_MS = 5 * 60 * 1000
+const NOTIFICATION_REFRESH_MS = 60 * 1000
+
+function getNotificationTitle(tipo) {
+    if (tipo === 'cita_finalizada_pendiente_gestion') return 'Cita finalizada pendiente de gestionar'
+    if (tipo === 'recordatorio_cita_pendiente') return 'Recordatorio de cita pendiente'
+    return 'Tienes una cita pendiente por aprobar'
+}
 
 export default function DashboardAdmin() {
     const [tab, setTab] = useState('inicio')
@@ -120,11 +126,12 @@ export default function DashboardAdmin() {
 
     const abrirNotificacionCita = useCallback(async (notificacion) => {
         if (!notificacion.leida) await marcarNotificacionLeida(notificacion.id_notif)
+        const estadoObjetivo = notificacion.tipo === 'cita_finalizada_pendiente_gestion' ? 'confirmada' : 'pendiente'
         setTab('citas')
         setSearch('')
         setCitaNotificada({
             id_cita: notificacion.id_cita,
-            estado: 'pendiente',
+            estado: estadoObjetivo,
             doctor: notificacion.doctor || notificacion.nombre_doctor || '',
             fecha: notificacion.fecha_hora?.slice(0, 10) || notificacion.fecha_programada?.slice(0, 10) || '',
         })
@@ -202,7 +209,7 @@ export default function DashboardAdmin() {
     const notificationItems = useMemo(() => {
         return citasPendientesNotif.slice(0, 10).map(n => ({
             key: n.id_notif,
-            title: n.tipo === 'recordatorio_cita_pendiente' ? 'Recordatorio de cita pendiente' : 'Tienes una cita pendiente por aprobar',
+            title: getNotificationTitle(n.tipo),
             description: n.mensaje || [
                 n.paciente || n.nombre_paciente || 'Paciente sin registrar',
                 n.fecha_hora ? new Date(n.fecha_hora).toLocaleString('es-PE', { dateStyle: 'medium', timeStyle: 'short' }) : 'Sin fecha',

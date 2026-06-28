@@ -1,6 +1,7 @@
 from fastapi import APIRouter, HTTPException
 from app.schemas.cita import AtencionCreate, CitaCreate, CitaReprogramar
 from app.services.cita_service import (
+    agregar_fecha_fin_citas,
     cancelar_cita,
     cancelar_citas_vencidas,
     cambiar_estado_cita,
@@ -44,14 +45,14 @@ def nueva_cita(data: CitaCreate, id_paciente: int):
 def todas_las_citas():
     cancelar_citas_vencidas()
     res = supabase.table("v_citas_detalle").select("*").order("fecha_hora", desc=True).execute()
-    return res.data
+    return agregar_fecha_fin_citas(res.data or [])
 
 @router.get("/hoy")
 def citas_hoy():
     cancelar_citas_vencidas()
     inicio, fin = get_lima_day_bounds()
     res = supabase.table("v_citas_detalle").select("*").gte("fecha_hora", inicio).lte("fecha_hora", fin).execute()
-    return res.data
+    return agregar_fecha_fin_citas(res.data or [])
 
 @router.get("/stats")
 def estadisticas():
