@@ -168,19 +168,10 @@ export default function Login() {
   }
 
   return (
-    <div style={{
-      minHeight: '100vh',
-      display: 'flex',
-      fontFamily: SF_FONT,
-      background: 'linear-gradient(135deg, #e8f4f1 0%, #d4ecec 50%, #e0f0f5 100%)',
-    }}>
+    <div className="login-page" style={{ fontFamily: SF_FONT }}>
 
       {/* ══════════ LADO IZQUIERDO — solo carrusel limpio ══════════ */}
-      <div style={{
-        flex: '0 0 52%',
-        position: 'relative',
-        overflow: 'hidden',
-      }}>
+      <div className="login-visual">
         {/* Imágenes carrusel sin óvalo */}
         {CAROUSEL.map((src, i) => (
           <div key={i} style={{
@@ -204,17 +195,10 @@ export default function Login() {
         }} />
 
         {/* Contenido izquierdo */}
-        <div style={{
-          position: 'relative',
-          zIndex: 2,
-          height: '100%',
-          display: 'flex',
-          flexDirection: 'column',
-          padding: '44px 48px',
-        }}>
+        <div className="login-visual-content">
 
           {/* Texto central */}
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', maxWidth: 380 }}>
+          <div className="login-visual-copy">
             <p style={{
               fontSize: 12,
               fontWeight: 700,
@@ -251,7 +235,7 @@ export default function Login() {
           </div>
 
           {/* Tarjetas valores */}
-          <div style={{
+          <div className="login-values" style={{
             background: 'rgba(0,0,0,0.28)',
             backdropFilter: 'blur(16px)',
             borderRadius: 20,
@@ -294,33 +278,11 @@ export default function Login() {
       </div>
 
       {/* ══════════ LADO DERECHO — formulario ══════════ */}
-      <div style={{
-        flex: 1,
-        display: 'flex',
-        alignItems: 'stretch',
-        justifyContent: 'center',
-        padding: '20px 24px',
-        overflowY: 'auto',
-      }}>
-        <div style={{
-          width: '100%',
-          maxWidth: 510,
-          display: 'flex',
-          flexDirection: 'column',
-        }}>
+      <div className="login-form-side">
+        <div className="login-form-shell">
 
           {/* Card blanco ocupa todo el alto */}
-          <div style={{
-            background: '#ffffff',
-            borderRadius: 28,
-            padding: '58px 52px',
-            boxShadow: '0 20px 60px rgba(0,107,93,0.12), 0 4px 16px rgba(0,0,0,0.06)',
-            flex: 1,
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'center',
-            border: '1px solid rgba(18,184,163,0.12)',
-          }}>
+          <div className="login-card">
 
             {/* Logo centrado */}
             <div style={{ textAlign: 'center', marginBottom: 28 }}>

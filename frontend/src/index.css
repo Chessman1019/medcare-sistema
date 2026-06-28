@@ -157,6 +157,151 @@ canvas {
   display: none;
 }
 
+.login-page {
+  min-height: 100svh;
+  display: flex;
+  background: linear-gradient(135deg, #e8f4f1 0%, #d4ecec 50%, #e0f0f5 100%);
+}
+
+.login-visual {
+  flex: 0 0 52%;
+  min-height: 100svh;
+  position: relative;
+  overflow: hidden;
+}
+
+.login-visual-content {
+  position: relative;
+  z-index: 2;
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+  padding: 44px 48px;
+}
+
+.login-visual-copy {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  max-width: 380px;
+}
+
+.login-form-side {
+  flex: 1;
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  padding: 20px 24px;
+  overflow-y: auto;
+}
+
+.login-form-shell {
+  width: 100%;
+  max-width: 510px;
+  display: flex;
+  flex-direction: column;
+}
+
+.login-card {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  background: #ffffff;
+  border: 1px solid rgba(18, 184, 163, 0.12);
+  border-radius: 28px;
+  padding: 58px 52px;
+  box-shadow: 0 20px 60px rgba(0, 107, 93, 0.12), 0 4px 16px rgba(0, 0, 0, 0.06);
+}
+
+@media (max-height: 760px) and (min-width: 901px) {
+  .login-visual-content {
+    padding: 32px 42px;
+  }
+
+  .login-values {
+    display: none;
+  }
+
+  .login-card {
+    padding: 34px 44px;
+  }
+}
+
+@media (max-width: 900px) {
+  .login-page {
+    display: block;
+    min-height: 100svh;
+    overflow-x: hidden;
+  }
+
+  .login-visual {
+    min-height: 320px;
+    flex: none;
+  }
+
+  .login-visual-content {
+    min-height: 320px;
+    padding: 28px 24px 82px;
+  }
+
+  .login-visual-copy {
+    max-width: 520px;
+    min-height: 0;
+    justify-content: center;
+  }
+
+  .login-values {
+    display: none;
+  }
+
+  .login-form-side {
+    position: relative;
+    z-index: 3;
+    margin-top: -58px;
+    padding: 0 16px 24px;
+    overflow: visible;
+  }
+
+  .login-form-shell {
+    max-width: 520px;
+    margin: 0 auto;
+  }
+
+  .login-card {
+    min-height: auto;
+    padding: 32px 24px 28px;
+    border-radius: 24px;
+  }
+}
+
+@media (max-width: 520px) {
+  .login-visual {
+    min-height: 285px;
+  }
+
+  .login-visual-content {
+    min-height: 285px;
+    padding: 22px 20px 78px;
+  }
+
+  .login-visual-copy h2 {
+    font-size: 2rem !important;
+    line-height: 1.08 !important;
+    letter-spacing: 0 !important;
+  }
+
+  .login-visual-copy p {
+    max-width: 18rem;
+  }
+
+  .login-card {
+    padding: 28px 18px 24px;
+    border-radius: 22px;
+  }
+}
+
 @media (max-width: 640px) {
   .medcare-shell {
     overflow-x: clip;
