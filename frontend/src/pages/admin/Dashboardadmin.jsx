@@ -18,6 +18,8 @@ import AdminEspera from './AdminEspera'
 import AdminReportes from './AdminReportes'
 import AdminConfiguracion from './AdminConfiguracion'
 
+const NOTIFICATION_REFRESH_MS = 5 * 60 * 1000
+
 export default function DashboardAdmin() {
     const [tab, setTab] = useState('inicio')
     const [stats, setStats] = useState({})
@@ -29,6 +31,9 @@ export default function DashboardAdmin() {
     const [citasPendientesNotif, setCitasPendientesNotif] = useState([])
     const [loading, setLoading] = useState(true)
     const [search, setSearch] = useState('')
+    const [citaNotificada, setCitaNotificada] = useState(null)
+    const [message, setMessage] = useState(null)
+    const [actionLoading, setActionLoading] = useState('')
 
     // ── Fetches individuales ─────────────────────────────────
     const fetchStats = useCallback(async () => { try { const r = await getStatsCitas(); setStats(r.data) } catch (e) { console.warn('fetchStats:', e.message) } }, [])
@@ -61,35 +66,78 @@ export default function DashboardAdmin() {
         setLoading(false)
     }, [fetchCitasPendientesNotif])
 
-    useEffect(() => { fetchAll() }, [fetchAll])
-
-    // ── Auto-refresh cada 60 segundos ────────────────────────
     useEffect(() => {
-        const interval = setInterval(() => {
+        const timer = window.setTimeout(fetchAll, 0)
+        return () => window.clearTimeout(timer)
+    }, [fetchAll])
+
+    // ── Auto-refresh de recordatorios cada 5 minutos ─────────
+    useEffect(() => {
+        const refreshRecordatorios = () => {
             fetchStats()
             fetchCitas()
             fetchCitasPendientesNotif()
-        }, 60000)
-        return () => clearInterval(interval)
+        }
+        const handleVisibility = () => {
+            if (!document.hidden) refreshRecordatorios()
+        }
+        const interval = window.setInterval(refreshRecordatorios, NOTIFICATION_REFRESH_MS)
+        document.addEventListener('visibilitychange', handleVisibility)
+        return () => {
+            window.clearInterval(interval)
+            document.removeEventListener('visibilitychange', handleVisibility)
+        }
     }, [fetchStats, fetchCitas, fetchCitasPendientesNotif])
 
     // ── Acciones de citas ────────────────────────────────────
+    const showMessage = (text, type = 'success') => {
+        setMessage({ text, type })
+        window.setTimeout(() => setMessage(null), 3500)
+    }
+
     const accionCita = async (id, accion) => {
-        if (accion === 'confirmar') await confirmarCita(id)
-        else if (accion === 'cancelar') await cancelarCita(id)
-        else if (accion === 'completar') await completarCita(id)
-        await Promise.all([fetchStats(), fetchCitas(), fetchCitasPendientesNotif()])
+        const acciones = {
+            confirmar: { run: confirmarCita, success: 'Cita confirmada correctamente.' },
+            cancelar: { run: cancelarCita, success: 'Cita cancelada correctamente.' },
+            completar: { run: completarCita, success: 'Cita completada correctamente.' },
+        }
+        const seleccion = acciones[accion]
+        if (!seleccion) throw new Error('Accion de cita no permitida.')
+
+        setActionLoading(`${accion}-${id}`)
+        try {
+            await seleccion.run(id)
+            await Promise.all([fetchStats(), fetchCitas(), fetchCitasPendientesNotif()])
+            showMessage(seleccion.success)
+        } catch (error) {
+            const detail = error.response?.data?.detail || 'No se pudo actualizar la cita.'
+            showMessage(detail, 'error')
+            throw new Error(detail, { cause: error })
+        } finally {
+            setActionLoading('')
+        }
     }
 
     const abrirNotificacionCita = useCallback(async (notificacion) => {
         if (!notificacion.leida) await marcarNotificacionLeida(notificacion.id_notif)
         setTab('citas')
         setSearch('')
+        setCitaNotificada({
+            id_cita: notificacion.id_cita,
+            estado: 'pendiente',
+            doctor: notificacion.doctor || notificacion.nombre_doctor || '',
+            fecha: notificacion.fecha_hora?.slice(0, 10) || notificacion.fecha_programada?.slice(0, 10) || '',
+        })
         await fetchCitasPendientesNotif()
     }, [fetchCitasPendientesNotif])
 
     const borrarNotificacionCita = useCallback(async (id) => {
         await eliminarNotificacion(id)
+        await fetchCitasPendientesNotif()
+    }, [fetchCitasPendientesNotif])
+
+    const marcarNotificacionCitaVista = useCallback(async (id) => {
+        await marcarNotificacionLeida(id)
         await fetchCitasPendientesNotif()
     }, [fetchCitasPendientesNotif])
 
@@ -165,9 +213,10 @@ export default function DashboardAdmin() {
             actionLabel: n.leida ? 'Leída · Ir a Citas' : 'No leída · Ir a Citas',
             read: n.leida,
             onClick: () => abrirNotificacionCita(n),
+            onMarkRead: () => marcarNotificacionCitaVista(n.id_notif),
             onDelete: () => borrarNotificacionCita(n.id_notif),
         }))
-    }, [abrirNotificacionCita, borrarNotificacionCita, citasPendientesNotif])
+    }, [abrirNotificacionCita, borrarNotificacionCita, citasPendientesNotif, marcarNotificacionCitaVista])
 
     const unreadNotificationCount = useMemo(
         () => citasPendientesNotif.filter(n => !n.leida).length,
@@ -243,6 +292,18 @@ export default function DashboardAdmin() {
             appItems={appItems}
         >
             <div className="mx-auto w-full max-w-[1440px] p-4 sm:p-6 lg:p-8">
+                {message && (
+                    <div className={`mb-5 flex items-start gap-3 rounded-xl border px-4 py-3 text-sm font-bold ${
+                        message.type === 'error'
+                            ? 'border-[#ffb4ab] bg-[#fff0ef] text-[#93000a]'
+                            : 'border-[#b7e8df] bg-[#e5fbf7] text-[#006b5d]'
+                    }`}>
+                        <span className="material-symbols-outlined text-[20px]">
+                            {message.type === 'error' ? 'error' : 'check_circle'}
+                        </span>
+                        {message.text}
+                    </div>
+                )}
                 {tab === 'inicio' && (
                     <AdminInicio
                         stats={stats} listaEspera={listaEspera}
@@ -253,7 +314,9 @@ export default function DashboardAdmin() {
                 {tab === 'citas' && (
                     <AdminCitas
                         citas={citas} doctores={doctores} especialidades={especialidades}
+                        citaNotificada={citaNotificada}
                         onAccion={accionCita}
+                        actionLoading={actionLoading}
                         onCrearHorario={registrarHorarioDisponible}
                         onRefresh={() => Promise.all([fetchStats(), fetchCitas()])}
                     />

@@ -22,6 +22,15 @@ export function getLimaTimeInputValue() {
   return `${parts.hour}:${parts.minute}`
 }
 
+export function getNextLimaTimeInputValue(minutesAhead = 10) {
+  const parts = getLimaParts()
+  const nowMinutes = (Number(parts.hour) * 60) + Number(parts.minute)
+  const nextMinutes = Math.min(nowMinutes + minutesAhead, (24 * 60) - 1)
+  const hours = Math.floor(nextMinutes / 60)
+  const minutes = nextMinutes % 60
+  return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`
+}
+
 export function normalizeTimeValue(value) {
   if (!value) return ''
   return value.length === 5 ? `${value}:00` : value.slice(0, 8)
