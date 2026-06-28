@@ -1,72 +1,217 @@
-export default function Layout({ children, sidebar }) {
-  return (
-    <div className="min-h-screen flex flex-col">
+import { useState } from 'react'
+import ProfileMenu from './ProfileMenu'
 
-      {/* BARRA SUPERIOR */}
-      <header style={{background: 'linear-gradient(90deg, #0284c7 0%, #0ea5e9 40%, #06b6d4 100%)'}}
-        className="fixed top-0 left-0 right-0 z-50 h-14 flex items-center justify-between px-6 shadow-lg">
+function HeaderDropdown({ title, icon, items = [], emptyText, onClose }) {
+  return (
+    <div className="fixed right-3 top-32 z-50 w-[calc(100vw-1.5rem)] overflow-hidden rounded-2xl border border-[#bdcbc7] bg-white shadow-2xl shadow-[#08284d]/12 sm:absolute sm:right-0 sm:top-12 sm:w-[22rem] sm:max-w-[calc(100vw-2rem)]">
+      <div className="flex items-center justify-between border-b border-[#d8e3fb] bg-[#f8fbff] px-5 py-4">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center">
-            <span className="text-lg">🏥</span>
-          </div>
-          <div>
-            <span className="text-white font-bold text-base tracking-wide">MedCare</span>
-            <span className="text-cyan-200 text-xs ml-2">| Sistema de Gestión Médica</span>
-          </div>
+          <span className="flex h-10 w-10 items-center justify-center rounded-full bg-[#d8f4ee] text-[#006b5d]">
+            <span className="material-symbols-outlined">{icon}</span>
+          </span>
+          <p className="font-extrabold text-[#101828]">{title}</p>
         </div>
-        <div className="flex items-center gap-6">
-          <div className="flex items-center gap-1">
-            <span className="text-cyan-200 text-xs">🔒</span>
-            <span className="text-cyan-100 text-xs">Conexión segura</span>
+        <button type="button" onClick={onClose}
+          className="rounded-lg p-1.5 text-[#52615f] transition hover:bg-white hover:text-[#006b5d] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#12b8a3]/20 active:scale-95"
+          aria-label="Cerrar menú">
+          <span className="material-symbols-outlined text-[20px]">close</span>
+        </button>
+      </div>
+      <div className="max-h-[min(420px,calc(100vh-7rem))] overflow-y-auto p-3">
+        {items.length === 0 ? (
+          <p className="rounded-xl bg-[#edf2ff] p-4 text-sm text-[#52615f]">{emptyText}</p>
+        ) : (
+          <div className="space-y-2">
+            {items.map((item) => {
+              const body = (
+                <>
+                  <div className="flex items-start justify-between gap-4">
+                    <p className="font-extrabold text-[#101828]">{item.title}</p>
+                    {item.time && <span className="shrink-0 text-xs font-bold text-[#52615f]">{item.time}</span>}
+                  </div>
+                  {item.description && <p className="mt-1 text-sm leading-5 text-[#52615f]">{item.description}</p>}
+                  {item.actionLabel && <p className="mt-3 text-sm font-extrabold text-[#006b5d]">{item.actionLabel}</p>}
+                </>
+              )
+              if (item.onClick) {
+                return (
+                  <button key={item.title} type="button"
+                    onClick={() => { item.onClick(); onClose() }}
+                    className="w-full rounded-xl border border-transparent p-4 text-left transition hover:-translate-y-0.5 hover:border-[#12b8a3]/35 hover:bg-[#f4fffc] hover:shadow-sm focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#12b8a3]/20 active:scale-[0.98]">
+                    {body}
+                  </button>
+                )
+              }
+              return (
+                <div key={item.title} className="rounded-xl border border-[#edf2ff] bg-white p-4">{body}</div>
+              )
+            })}
           </div>
-          <div className="flex items-center gap-1">
-            <span className="text-cyan-200 text-xs">📡</span>
-            <span className="text-cyan-100 text-xs">API conectada</span>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function SearchDropdown({ value, items, onClose }) {
+  if (!value.trim()) return null
+  return (
+    <div className="absolute left-0 right-0 top-full mt-2 z-50 overflow-hidden rounded-2xl border border-[#bdcbc7] bg-white shadow-2xl shadow-[#08284d]/12">
+      <div className="flex items-center justify-between border-b border-[#d8e3fb] bg-[#f8fbff] px-5 py-3">
+        <div className="flex items-center gap-2">
+          <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#d8f4ee] text-[#006b5d]">
+            <span className="material-symbols-outlined text-[18px]">search</span>
+          </span>
+          <p className="font-extrabold text-[#101828] text-sm">Resultados para "{value}"</p>
+        </div>
+        <button type="button" onClick={onClose}
+          className="rounded-lg p-1 text-[#52615f] hover:bg-white hover:text-[#006b5d]">
+          <span className="material-symbols-outlined text-[18px]">close</span>
+        </button>
+      </div>
+      <div className="max-h-80 overflow-y-auto p-2">
+        {items.length === 0 ? (
+          <p className="rounded-xl bg-[#edf2ff] p-4 text-sm text-[#52615f]">No se encontraron resultados.</p>
+        ) : (
+          <div className="space-y-1">
+            {items.map((item, i) => (
+              <button key={i} type="button"
+                onClick={() => { item.onClick?.(); onClose() }}
+                className="w-full rounded-xl px-4 py-3 text-left transition hover:bg-[#f4fffc]">
+                <p className="font-extrabold text-sm text-[#101828]">{item.title}</p>
+                {item.description && <p className="text-xs text-[#52615f] mt-0.5">{item.description}</p>}
+                {item.actionLabel && <p className="text-xs font-extrabold text-[#006b5d] mt-1">{item.actionLabel}</p>}
+              </button>
+            ))}
           </div>
-          <div className="flex items-center gap-1.5 bg-white/15 px-3 py-1 rounded-full">
-            <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse"></div>
-            <span className="text-white text-xs font-medium">En línea</span>
+        )}
+      </div>
+    </div>
+  )
+}
+
+export default function Layout({
+  children,
+  sidebar,
+  title,
+  searchValue,
+  searchPlaceholder = 'Buscar pacientes, citas o historiales...',
+  onSearchChange,
+  notificationItems = [],
+  helpItems = [],
+  appItems = [],
+}) {
+  const [openMenu, setOpenMenu] = useState(null)
+
+  if (!sidebar) {
+    return (
+      <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,rgba(18,184,163,0.16),transparent_28rem),linear-gradient(135deg,#f8fbff_0%,#eef3ff_100%)]">
+        {children}
+      </div>
+    )
+  }
+
+  const topButtonClass = 'rounded-xl p-2 text-[#223330] transition hover:-translate-y-0.5 hover:bg-[#edf2ff] hover:text-[#006b5d] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#12b8a3]/20 active:scale-[0.95]'
+  const toggleMenu = (menu) => setOpenMenu((current) => (current === menu ? null : menu))
+
+  return (
+    <div className="medcare-shell min-h-screen">
+      {sidebar}
+      <header className="fixed left-0 right-0 top-0 z-40 grid min-h-20 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b border-[#bdcbc7] bg-white/95 px-4 py-3 backdrop-blur lg:left-72 lg:flex lg:h-20 lg:flex-nowrap lg:px-8 lg:py-0">
+        <div className="min-w-0 lg:flex-none">
+          <h1 className="min-w-0 truncate text-lg font-extrabold tracking-tight text-[#101828] min-[380px]:text-xl sm:text-2xl lg:overflow-visible lg:text-clip lg:whitespace-nowrap">
+            {title || 'Portal MedCare'}
+          </h1>
+        </div>
+
+        <div className="flex shrink-0 items-center gap-1.5 sm:gap-3 lg:order-3 lg:gap-6">
+          <div className="relative">
+            <button type="button" onClick={() => toggleMenu('notifications')} className={`relative ${topButtonClass}`} aria-label="Notificaciones" aria-expanded={openMenu === 'notifications'}>
+              <span className="material-symbols-outlined">notifications</span>
+              {notificationItems.length > 0 && !searchValue?.trim() && (
+                <span className="absolute right-1.5 top-1 h-2.5 w-2.5 rounded-full bg-[#ba1a1a]" />
+              )}
+            </button>
+            {openMenu === 'notifications' && (
+              <HeaderDropdown
+                title="Notificaciones"
+                icon="notifications"
+                items={searchValue?.trim() ? [] : notificationItems}
+                emptyText="No tienes notificaciones nuevas por ahora."
+                onClose={() => setOpenMenu(null)}
+              />
+            )}
           </div>
+
+          <div className="relative">
+            <button type="button" onClick={() => toggleMenu('help')} className={topButtonClass} aria-label="Ayuda" aria-expanded={openMenu === 'help'}>
+              <span className="material-symbols-outlined">help</span>
+            </button>
+            {openMenu === 'help' && (
+              <HeaderDropdown
+                title="Ayuda rápida"
+                icon="help"
+                items={helpItems}
+                emptyText="No hay accesos de ayuda configurados para esta vista."
+                onClose={() => setOpenMenu(null)}
+              />
+            )}
+          </div>
+
+          <div className="relative hidden sm:block">
+            <button type="button" onClick={() => toggleMenu('apps')} className={topButtonClass} aria-label="Aplicaciones" aria-expanded={openMenu === 'apps'}>
+              <span className="material-symbols-outlined">apps</span>
+            </button>
+            {openMenu === 'apps' && (
+              <HeaderDropdown
+                title="Accesos rápidos"
+                icon="apps"
+                items={appItems}
+                emptyText="No hay accesos rápidos configurados."
+                onClose={() => setOpenMenu(null)}
+              />
+            )}
+          </div>
+
+          <div className="hidden h-10 w-px bg-[#bdcbc7] md:block" />
+          <ProfileMenu />
+        </div>
+
+        <div className="relative col-span-2 w-full min-w-0 lg:order-2 lg:col-span-1 lg:max-w-xl">
+          <div className="flex items-center gap-2 rounded-full bg-[#edf2ff] px-3 py-2.5 text-[#52615f] transition focus-within:ring-4 focus-within:ring-[#12b8a3]/15 sm:gap-3 sm:px-4 lg:px-5 lg:py-3">
+            <span className="material-symbols-outlined shrink-0 text-[22px]">search</span>
+            {onSearchChange ? (
+              <>
+                <input
+                  type="search"
+                  value={searchValue}
+                  onChange={(event) => onSearchChange(event.target.value)}
+                  placeholder={searchPlaceholder}
+                  className="min-w-0 flex-1 bg-transparent text-sm text-[#101828] outline-none placeholder:text-[#52615f]"
+                />
+                {searchValue?.trim() && (
+                  <button type="button" onClick={() => onSearchChange('')}
+                    className="shrink-0 text-[#52615f] hover:text-[#101828]">
+                    <span className="material-symbols-outlined text-[18px]">close</span>
+                  </button>
+                )}
+              </>
+            ) : (
+              <span className="min-w-0 truncate text-sm">{searchPlaceholder}</span>
+            )}
+          </div>
+          {onSearchChange && searchValue?.trim() && (
+            <SearchDropdown
+              value={searchValue}
+              items={notificationItems}
+              onClose={() => onSearchChange('')}
+            />
+          )}
         </div>
       </header>
-
-      {/* CONTENIDO CENTRAL */}
-      <div className="flex flex-1 pt-14 pb-12">
-        {sidebar && sidebar}
-        <main className={`flex-1 ${sidebar ? 'ml-64' : ''} bg-gray-100 min-h-full`}>
-          {children}
-        </main>
-      </div>
-
-      {/* BARRA INFERIOR */}
-      <footer style={{background: 'linear-gradient(90deg, #0284c7 0%, #0ea5e9 40%, #06b6d4 80%, #0284c7 100%)'}}
-        className="fixed bottom-0 left-0 right-0 z-50 h-12 flex items-center justify-between px-6 shadow-lg">
-        <div className="flex items-center gap-3">
-          <span className="text-white text-sm">🏥</span>
-          <span className="text-white text-xs font-semibold">MedCare S.A.C.</span>
-          <span className="text-cyan-300 text-xs">© 2026 — Todos los derechos reservados</span>
-        </div>
-        <div className="flex items-center gap-2">
-          {[
-            { icon: '🐍', label: 'Python' },
-            { icon: '⚛️', label: 'React' },
-            { icon: '🗄️', label: 'Supabase' },
-          ].map(tech => (
-            <span key={tech.label}
-              className="flex items-center gap-1 bg-white/15 text-white text-xs px-2.5 py-1 rounded-full">
-              {tech.icon} {tech.label}
-            </span>
-          ))}
-        </div>
-        <div className="flex items-center gap-4">
-          <span className="text-cyan-200 text-xs">📍 Lima, Perú</span>
-          <div className="flex items-center gap-1.5 bg-white/15 px-3 py-1 rounded-full">
-            <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse"></div>
-            <span className="text-white text-xs font-semibold">Sistema Activo</span>
-          </div>
-        </div>
-      </footer>
-
+      <main className="min-h-screen min-w-0 overflow-x-hidden pb-32 pt-36 sm:pt-32 lg:ml-72 lg:pb-0 lg:pt-20">
+        {children}
+      </main>
     </div>
   )
 }

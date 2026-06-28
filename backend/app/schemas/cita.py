@@ -15,6 +15,15 @@ class CitaUpdate(BaseModel):
     id_horario: Optional[int] = None
     fecha_hora: Optional[datetime] = None
 
+class CitaReprogramar(BaseModel):
+    id_horario: int
+    fecha_hora: datetime
+
+class AtencionCreate(BaseModel):
+    diagnostico: str
+    observaciones: Optional[str] = None
+    tratamiento: Optional[str] = None
+
 class CitaResponse(BaseModel):
     id_cita: int
     id_paciente: int

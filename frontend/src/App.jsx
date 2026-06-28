@@ -1,15 +1,17 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
+import Welcome from './pages/Welcome'
 import Login from './pages/Login'
 import Register from './pages/Register'
-import DashboardPaciente from './pages/DashboardPaciente'
-import DashboardDoctor from './pages/DashboardDoctor'
-import DashboardAdmin from './pages/DashboardAdmin'
+import DashboardAdmin from './pages/admin/DashboardAdmin'
+import DashboardDoctor from './pages/doctor/DashboardDoctor'
+import DashboardRecepcionista from './pages/recepcionista/DashboardRecepcionista'
+import DashboardPaciente from './pages/paciente/DashboardPaciente'
 import ProtectedRoute from './components/ProtectedRoute'
 
 export default function App() {
   return (
     <Routes>
-      <Route path="/" element={<Navigate to="/login" />} />
+      <Route path="/" element={<Welcome />} />
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
       <Route path="/dashboard/paciente" element={
@@ -18,9 +20,13 @@ export default function App() {
       <Route path="/dashboard/doctor" element={
         <ProtectedRoute rol="doctor"><DashboardDoctor /></ProtectedRoute>
       } />
+      <Route path="/dashboard/recepcionista" element={
+        <ProtectedRoute roles={['recepcionista']}><DashboardRecepcionista /></ProtectedRoute>
+      } />
       <Route path="/dashboard/admin" element={
         <ProtectedRoute rol="administrador"><DashboardAdmin /></ProtectedRoute>
       } />
+      <Route path="*" element={<Navigate to="/" />} />
     </Routes>
   )
 }
