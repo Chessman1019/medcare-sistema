@@ -135,6 +135,13 @@ export default function RecepGestion({ citasFiltradas, doctores, citaNotificada,
                           {actionLoading === `asistencia-${cita.id_cita}` ? '...' : 'Asistencia'}
                         </button>
                       )}
+                      {cita.estado === 'confirmada' && (
+                        <button type="button" onClick={() => onCambiarEstado(cita.id_cita, 'completar')}
+                          disabled={actionLoading === `completar-${cita.id_cita}`}
+                          className="rounded-xl bg-[#355382] px-3 py-1.5 text-xs font-extrabold text-white transition hover:bg-[#263f66] disabled:opacity-60">
+                          {actionLoading === `completar-${cita.id_cita}` ? '...' : 'Completar'}
+                        </button>
+                      )}
                       {cita.estado === 'en_atencion' && (
                         <button type="button" onClick={() => onCambiarEstado(cita.id_cita, 'salida')}
                           disabled={actionLoading === `salida-${cita.id_cita}`}

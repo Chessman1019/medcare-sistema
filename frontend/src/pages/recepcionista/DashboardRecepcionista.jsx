@@ -3,7 +3,7 @@ import Layout from '../../components/Layout'
 import PortalSidebar from '../../components/PortalSidebar'
 import { useAuth } from '../../context/AuthContext'
 import {
-  actualizarSoporteTicket, cancelarCita, confirmarCita, crearUsuario, enviarSoporte,
+  actualizarSoporteTicket, cancelarCita, completarCita, confirmarCita, crearUsuario, enviarSoporte,
   crearHorarioDisponible,
   getCitasHoy, getDoctores, getEspecialidades, getHorarios,
   getNotificacionesCitasPendientes,
@@ -20,7 +20,7 @@ import { getCodigosSugeridosFromUsuarios } from '../../utils/codigosUsuarios'
 
 const emptyRegistro = { nombre: '', apellido: '', email: '', password: '', telefono: '', dni: '', fecha_nacimiento: '', genero: 'M', seguro_medico: '', direccion: '' }
 const emptyUsuarioAdmin = { tipo_usuario: 'doctor', nombre: '', apellido: '', email: '', password: '', telefono: '', dni: '', fecha_nacimiento: '', genero: 'M', seguro_medico: '', direccion: '', cmp: '', id_especialidad: '', codigo_empleado: '', turno: 'mañana' }
-const NOTIFICATION_REFRESH_MS = 5 * 60 * 1000
+const NOTIFICATION_REFRESH_MS = 60 * 1000
 
 function formatDateTime(value) {
   if (!value) return 'Sin fecha'
@@ -29,6 +29,12 @@ function formatDateTime(value) {
   return date.toLocaleString('es-PE', { dateStyle: 'medium', timeStyle: 'short' })
 }
 function todayInputValue() { return new Date().toISOString().slice(0, 10) }
+
+function getNotificationTitle(tipo) {
+  if (tipo === 'cita_por_completar') return 'Cita pendiente de completar'
+  if (tipo === 'recordatorio_cita_pendiente') return 'Recordatorio de cita pendiente'
+  return 'Tienes una cita pendiente por aprobar'
+}
 
 export default function DashboardRecepcionista() {
   const { user } = useAuth()
@@ -102,8 +108,15 @@ export default function DashboardRecepcionista() {
     finally { setLoading(false) }
   }, [isAdmin])
 
-  useEffect(() => { fetchData() }, [fetchData])
-  useEffect(() => { if (isAdmin && tab === 'registro') setTab('usuarios') }, [isAdmin, tab])
+  useEffect(() => {
+    const timer = window.setTimeout(fetchData, 0)
+    return () => window.clearTimeout(timer)
+  }, [fetchData])
+  useEffect(() => {
+    if (!isAdmin || tab !== 'registro') return undefined
+    const timer = window.setTimeout(() => setTab('usuarios'), 0)
+    return () => window.clearTimeout(timer)
+  }, [isAdmin, tab])
   useEffect(() => {
     if (!focusVersion) return
     window.setTimeout(() => { contentRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }) }, 0)
@@ -166,15 +179,16 @@ export default function DashboardRecepcionista() {
   const handleNotificacion = async (notificacion) => {
     try {
       if (!notificacion.leida) { await marcarNotificacionLeida(notificacion.id_notif); await refreshNotificaciones() }
+      const estadoObjetivo = notificacion.tipo === 'cita_por_completar' ? 'confirmada' : 'pendiente'
       setSearchTerm('')
       setCitaNotificada({
         id_cita: notificacion.id_cita,
-        estado: 'pendiente',
+        estado: estadoObjetivo,
         doctor: notificacion.doctor || notificacion.nombre_doctor || '',
         fecha: notificacion.fecha_hora?.slice(0, 10) || notificacion.fecha_programada?.slice(0, 10) || '',
       })
       goToTab('gestion', {
-        estado: 'pendiente',
+        estado: estadoObjetivo,
         doctor: notificacion.doctor || notificacion.nombre_doctor || '',
         fecha: notificacion.fecha_hora?.slice(0, 10) || notificacion.fecha_programada?.slice(0, 10) || '',
       })
@@ -210,7 +224,7 @@ export default function DashboardRecepcionista() {
   }
 
   const cambiarEstado = async (id, accion) => {
-    const acciones = { confirmar: confirmarCita, asistencia: registrarAsistencia, salida: registrarSalida, cancelar: cancelarCita }
+    const acciones = { confirmar: confirmarCita, asistencia: registrarAsistencia, salida: registrarSalida, completar: completarCita, cancelar: cancelarCita }
     setActionLoading(`${accion}-${id}`)
     try { await acciones[accion](id); showMessage('Cita actualizada correctamente.'); await fetchData() }
     catch (error) { showMessage(error.response?.data?.detail || 'No se pudo actualizar la cita.') }
@@ -282,7 +296,7 @@ export default function DashboardRecepcionista() {
 
   const notificationItems = citasPendientesNotif.length ? citasPendientesNotif.slice(0, 8).map(item => ({
     key: item.id_notif,
-    title: item.tipo === 'recordatorio_cita_pendiente' ? 'Recordatorio de cita pendiente' : 'Tienes una cita pendiente por aprobar',
+    title: getNotificationTitle(item.tipo),
     description: item.mensaje || [
       item.paciente || item.nombre_paciente || 'Paciente sin registrar',
       item.fecha_hora ? formatDateTime(item.fecha_hora) : 'Sin fecha',
