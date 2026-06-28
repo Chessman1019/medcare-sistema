@@ -4,7 +4,7 @@ function doctorFullName(doctor) {
   return name || 'Doctor disponible'
 }
 
-export default function PacienteAgendar({ form, setForm, especialidades, doctores, horarios, loading, loadingOptions, loadingHorarios, error, onEspecialidad, onDoctor, onSubmit }) {
+export default function PacienteAgendar({ form, setForm, especialidades, doctores, horarios, loading, loadingOptions, loadingHorarios, onEspecialidad, onDoctor, onSubmit }) {
   const selectedEspecialidad = especialidades.find(i => String(i.id_especialidad) === String(form.id_especialidad))
   const selectedDoctor = doctores.find(i => String(i.id_usuario) === String(form.id_doctor))
   const selectedHorario = horarios.find(i => String(i.id_horario) === String(form.id_horario))
@@ -64,7 +64,7 @@ export default function PacienteAgendar({ form, setForm, especialidades, doctore
                 <p className="col-span-2 rounded-xl bg-[#edf2ff] p-5 text-sm text-[#52615f]">Cargando horarios disponibles...</p>
               ) : horarios.length === 0 ? (
                 <p className="col-span-2 rounded-xl bg-[#edf2ff] p-5 text-sm text-[#52615f]">
-                  {form.id_doctor ? 'No hay horarios libres para este doctor.' : 'Selecciona un doctor para ver disponibilidad.'}
+                  {form.id_doctor ? 'No hay citas disponibles por el momento. Vuelve a intentarlo más tarde.' : 'Selecciona un doctor para ver disponibilidad.'}
                 </p>
               ) : horarios.map(horario => {
                 const selected = String(form.id_horario) === String(horario.id_horario)

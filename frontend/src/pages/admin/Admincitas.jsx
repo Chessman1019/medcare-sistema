@@ -1,3 +1,6 @@
+import { useMemo, useState } from 'react'
+import HorarioDisponibleForm from '../../components/HorarioDisponibleForm'
+
 const statusClass = {
   pendiente:    'bg-[#f5f5f2] text-[#46514f]',
   confirmada:   'bg-[#d8f4ee] text-[#006b5d]',
@@ -14,34 +17,47 @@ function formatDate(value) {
   return date.toLocaleString('es-PE', { dateStyle: 'medium', timeStyle: 'short' })
 }
 
-export default function AdminCitas({ citas, especialidades, onAccion, onRefresh }) {
+export default function AdminCitas({ citas, doctores = [], especialidades, onAccion, onRefresh, onCrearHorario }) {
   const [filtros, setFiltros] = useState({ estado: '', especialidad: '', doctor: '', fecha: '' })
-  const [citasFiltradas, setCitasFiltradas] = useState(citas)
+  const [mostrarHorarioForm, setMostrarHorarioForm] = useState(false)
 
-  useState(() => { setCitasFiltradas(citas) }, [citas])
-
-  const aplicarFiltros = (nuevosFiltros) => {
-    setFiltros(nuevosFiltros)
+  const citasFiltradas = useMemo(() => {
     let resultado = [...citas]
-    if (nuevosFiltros.estado) resultado = resultado.filter(c => c.estado === nuevosFiltros.estado)
-    if (nuevosFiltros.especialidad) resultado = resultado.filter(c => c.especialidad === nuevosFiltros.especialidad)
-    if (nuevosFiltros.doctor) resultado = resultado.filter(c => c.doctor?.toLowerCase().includes(nuevosFiltros.doctor.toLowerCase()))
-    if (nuevosFiltros.fecha) resultado = resultado.filter(c => c.fecha_hora?.startsWith(nuevosFiltros.fecha))
-    setCitasFiltradas(resultado)
-  }
+    if (filtros.estado) resultado = resultado.filter(c => c.estado === filtros.estado)
+    if (filtros.especialidad) resultado = resultado.filter(c => c.especialidad === filtros.especialidad)
+    if (filtros.doctor) resultado = resultado.filter(c => c.doctor?.toLowerCase().includes(filtros.doctor.toLowerCase()))
+    if (filtros.fecha) resultado = resultado.filter(c => c.fecha_hora?.startsWith(filtros.fecha))
+    return resultado
+  }, [citas, filtros])
+
+  const aplicarFiltros = (nuevosFiltros) => setFiltros(nuevosFiltros)
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
           <h2 className="text-4xl font-extrabold tracking-tight text-[#101828]">Gestión de Citas</h2>
           <p className="mt-2 text-lg text-[#52615f]">{citasFiltradas.length} citas encontradas</p>
         </div>
-        <button onClick={onRefresh} className="flex items-center gap-2 medcare-secondary-button px-4 py-2">
-          <span className="material-symbols-outlined text-[18px]">refresh</span>
-          Actualizar
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <button onClick={() => setMostrarHorarioForm(value => !value)} className="flex items-center gap-2 medcare-primary-button px-4 py-2">
+            <span className="material-symbols-outlined text-[18px]">add_circle</span>
+            Agregar más fechas y horas disponibles
+          </button>
+          <button onClick={onRefresh} className="flex items-center gap-2 medcare-secondary-button px-4 py-2">
+            <span className="material-symbols-outlined text-[18px]">refresh</span>
+            Actualizar
+          </button>
+        </div>
       </div>
+
+      {mostrarHorarioForm && (
+        <HorarioDisponibleForm
+          doctores={doctores}
+          onSubmit={onCrearHorario}
+          onCancel={() => setMostrarHorarioForm(false)}
+        />
+      )}
 
       <div className="medcare-card p-5">
         <h3 className="text-sm font-extrabold uppercase tracking-widest text-[#006b5d] mb-4">Filtros</h3>
@@ -145,5 +161,3 @@ export default function AdminCitas({ citas, especialidades, onAccion, onRefresh 
     </div>
   )
 }
-
-import { useState } from 'react'

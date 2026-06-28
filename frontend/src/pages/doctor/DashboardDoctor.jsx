@@ -248,7 +248,7 @@ export default function DashboardDoctor() {
               onChange={e => setMensajeSoporte(e.target.value)}
               placeholder="Describe qué necesitas..."
             />
-            <div className="flex gap-3">
+            <div className="flex flex-col gap-3 sm:flex-row">
               <button type="button" onClick={registrarSoporteMedico}
                 disabled={saving || !mensajeSoporte.trim()}
                 className="medcare-primary-button px-6 py-2.5 disabled:opacity-60">

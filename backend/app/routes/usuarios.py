@@ -1,15 +1,45 @@
 import logging
+import re
 logger = logging.getLogger(__name__)
 
 from postgrest.exceptions import APIError
 from app.schemas.usuario import UsuarioAdminCreate
 from app.services.auth_service import decode_token, hash_password
+from app.services.input_validation import normalize_optional_phone
 from fastapi import APIRouter, Body, Depends, Header, HTTPException
 from app.database import supabase, supabase_admin
 
 router = APIRouter()
 
 ROLES_ADMIN_CREABLES = {"paciente", "doctor", "recepcionista", "administrador"}
+CODE_PADDING = 3
+CODE_NUMBER_PATTERN = re.compile(r"(\d+)$")
+
+def _normalize_optional_text(value):
+    if value is None:
+        return None
+    normalized = " ".join(str(value).strip().split())
+    return normalized or None
+
+def _normalize_code(value):
+    normalized = _normalize_optional_text(value)
+    return normalized.upper() if normalized else None
+
+def _numeric_suffix(value):
+    match = CODE_NUMBER_PATTERN.search(str(value or ""))
+    return int(match.group(1)) if match else 0
+
+def _next_code(values, prefix):
+    next_number = max((_numeric_suffix(value) for value in values), default=0) + 1
+    return f"{prefix}-{next_number:0{CODE_PADDING}d}"
+
+def _get_next_cmp():
+    res = supabase_admin.table("doctor").select("cmp").execute()
+    return _next_code((item.get("cmp") for item in res.data or []), "CMP")
+
+def _get_next_codigo_empleado():
+    res = supabase_admin.table("administrador").select("codigo_empleado").execute()
+    return _next_code((item.get("codigo_empleado") for item in res.data or []), "EMP")
 
 def require_admin(authorization: str | None = Header(default=None)):
     if not authorization or not authorization.startswith("Bearer "):
@@ -22,7 +52,7 @@ def require_admin(authorization: str | None = Header(default=None)):
 def _get_or_raise_unique(table, field, value, message):
     if value in (None, ""):
         return
-    res = supabase.table(table).select(field).eq(field, value).execute()
+    res = supabase_admin.table(table).select(field).eq(field, value).execute()
     if res.data:
         raise HTTPException(status_code=400, detail=message)
 
@@ -35,24 +65,27 @@ def _insert_role_profile(id_usuario: int, data: UsuarioAdminCreate):
         supabase_admin.table("paciente").insert({
             "id_usuario": id_usuario, "dni": data.dni,
             "fecha_nacimiento": str(data.fecha_nacimiento), "genero": data.genero,
-            "seguro_medico": data.seguro_medico, "direccion": data.direccion,
+            "seguro_medico": _normalize_optional_text(data.seguro_medico),
+            "direccion": _normalize_optional_text(data.direccion),
         }).execute()
         return
     if rol == "doctor":
-        if not data.cmp or not data.id_especialidad or not data.turno:
-            raise HTTPException(status_code=400, detail="CMP, especialidad y turno son obligatorios para médicos")
-        _get_or_raise_unique("doctor", "cmp", data.cmp, "CMP ya registrado")
+        cmp = _normalize_code(data.cmp) or _get_next_cmp()
+        if not data.id_especialidad or not data.turno:
+            raise HTTPException(status_code=400, detail="Especialidad y turno son obligatorios para médicos")
+        _get_or_raise_unique("doctor", "cmp", cmp, "CMP ya registrado")
         supabase_admin.table("doctor").insert({
             "id_usuario": id_usuario, "id_especialidad": data.id_especialidad,
-            "cmp": data.cmp, "disponible": True, "turno": data.turno,
+            "cmp": cmp, "disponible": True, "turno": data.turno,
         }).execute()
         return
     if rol in {"recepcionista", "administrador"}:
-        if not data.codigo_empleado or not data.turno:
-            raise HTTPException(status_code=400, detail="Código de empleado y turno son obligatorios")
-        _get_or_raise_unique("administrador", "codigo_empleado", data.codigo_empleado, "Código de empleado ya registrado")
+        codigo_empleado = _normalize_code(data.codigo_empleado) or _get_next_codigo_empleado()
+        if not data.turno:
+            raise HTTPException(status_code=400, detail="Turno es obligatorio")
+        _get_or_raise_unique("administrador", "codigo_empleado", codigo_empleado, "Código de empleado ya registrado")
         supabase_admin.table("administrador").insert({
-            "id_usuario": id_usuario, "codigo_empleado": data.codigo_empleado, "turno": data.turno,
+            "id_usuario": id_usuario, "codigo_empleado": codigo_empleado, "turno": data.turno,
         }).execute()
         return
     raise HTTPException(status_code=400, detail="Tipo de usuario no permitido")
@@ -63,6 +96,23 @@ def _insert_role_profile(id_usuario: int, data: UsuarioAdminCreate):
 def get_especialidades():
     res = supabase.table("especialidad").select("*").execute()
     return res.data
+
+@router.get("/seguros-medicos")
+def get_seguros_medicos():
+    res = supabase_admin.table("paciente").select("seguro_medico").execute()
+    seguros = {}
+    for item in res.data or []:
+        nombre = _normalize_optional_text(item.get("seguro_medico"))
+        if nombre:
+            seguros.setdefault(nombre.casefold(), nombre)
+    return sorted(seguros.values(), key=lambda seguro: seguro.casefold())
+
+@router.get("/codigos-sugeridos")
+def get_codigos_sugeridos(_: dict = Depends(require_admin)):
+    return {
+        "cmp": _get_next_cmp(),
+        "codigo_empleado": _get_next_codigo_empleado(),
+    }
 
 
 # ── Usuarios ────────────────────────────────────────────────
@@ -120,6 +170,8 @@ def get_doctores_por_especialidad(id_especialidad: int):
 def actualizar_doctor(id_usuario: int, data: dict = Body(...), _: dict = Depends(require_admin)):
     try:
         usuario_data = {k: v for k, v in data.items() if k in ["nombre", "apellido", "email", "telefono"]}
+        if "telefono" in usuario_data:
+            usuario_data["telefono"] = normalize_optional_phone(usuario_data["telefono"])
         if usuario_data:
             supabase_admin.table("usuario").update(usuario_data).eq("id_usuario", id_usuario).execute()
         doctor_data = {k: v for k, v in data.items() if k in ["cmp", "turno", "id_especialidad"]}
@@ -128,6 +180,8 @@ def actualizar_doctor(id_usuario: int, data: dict = Body(...), _: dict = Depends
                 doctor_data["id_especialidad"] = int(doctor_data["id_especialidad"])
             supabase_admin.table("doctor").update(doctor_data).eq("id_usuario", id_usuario).execute()
         return {"mensaje": "Doctor actualizado correctamente"}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

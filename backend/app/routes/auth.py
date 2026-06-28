@@ -25,6 +25,13 @@ router = APIRouter()
 CODIGO_EXPIRACION_MINUTOS = 10
 
 
+def _normalize_optional_text(value):
+    if value is None:
+        return None
+    normalized = " ".join(str(value).strip().split())
+    return normalized or None
+
+
 def _generar_codigo() -> str:
     return f"{secrets.randbelow(1_000_000):06d}"
 
@@ -128,7 +135,7 @@ def actualizar_perfil(data: UsuarioPerfilUpdate, usuario: dict = Depends(_get_cu
         for campo in ("direccion", "seguro_medico"):
             valor = getattr(data, campo)
             if valor is not None:
-                paciente_update[campo] = valor.strip() if isinstance(valor, str) else valor
+                paciente_update[campo] = _normalize_optional_text(valor)
         if paciente_update:
             supabase.table("paciente").update(paciente_update).eq("id_usuario", usuario["id_usuario"]).execute()
 
@@ -242,7 +249,7 @@ def registro_paciente(data: PacienteCreate):
         "dni": data.dni,
         "fecha_nacimiento": str(data.fecha_nacimiento),
         "genero": data.genero,
-        "seguro_medico": data.seguro_medico,
-        "direccion": data.direccion
+        "seguro_medico": _normalize_optional_text(data.seguro_medico),
+        "direccion": _normalize_optional_text(data.direccion)
     }).execute()
     return {"mensaje": "Paciente registrado correctamente", "id_usuario": id_usuario}

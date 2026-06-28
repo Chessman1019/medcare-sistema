@@ -1,17 +1,36 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 
 export default function AdminPacientes({ pacientes, onRefresh }) {
-  const [search, setSearch] = useState('')
+  const [filtros, setFiltros] = useState({ busqueda: '', genero: '', seguro: '', estado: '' })
   const [selectedId, setSelectedId] = useState(null)
 
   const selected = pacientes.find(p => p.id_usuario === selectedId) || null
 
-  const filtered = pacientes.filter(p => {
-    const term = search.trim().toLowerCase()
-    if (!term) return true
-    return [p.nombre, p.apellido, p.email, p.paciente?.dni, p.telefono]
+  const generos = useMemo(() => {
+    const unique = new Set(pacientes.map(p => p.paciente?.genero).filter(Boolean))
+    return [...unique].sort((a, b) => a.localeCompare(b, 'es-PE'))
+  }, [pacientes])
+
+  const seguros = useMemo(() => {
+    const unique = new Map()
+    pacientes.forEach(p => {
+      const seguro = String(p.paciente?.seguro_medico || '').trim()
+      if (seguro) unique.set(seguro.toLocaleLowerCase('es-PE'), seguro)
+    })
+    return [...unique.values()].sort((a, b) => a.localeCompare(b, 'es-PE'))
+  }, [pacientes])
+
+  const filtered = useMemo(() => pacientes.filter(p => {
+    const term = filtros.busqueda.trim().toLowerCase()
+    const coincideBusqueda = !term || [p.nombre, p.apellido, p.email, p.paciente?.dni, p.telefono]
       .some(f => String(f || '').toLowerCase().includes(term))
-  })
+    const coincideGenero = !filtros.genero || p.paciente?.genero === filtros.genero
+    const coincideSeguro = !filtros.seguro || String(p.paciente?.seguro_medico || '').toLocaleLowerCase('es-PE') === filtros.seguro
+    const coincideEstado = !filtros.estado || (filtros.estado === 'activo' ? p.activo : !p.activo)
+    return coincideBusqueda && coincideGenero && coincideSeguro && coincideEstado
+  }), [pacientes, filtros])
+
+  const limpiarFiltros = () => setFiltros({ busqueda: '', genero: '', seguro: '', estado: '' })
 
   const calcEdad = (fecha) => {
     if (!fecha) return '—'
@@ -23,53 +42,95 @@ export default function AdminPacientes({ pacientes, onRefresh }) {
       <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div>
           <h2 className="text-4xl font-extrabold tracking-tight text-[#101828]">Pacientes</h2>
-          <p className="mt-2 text-lg text-[#52615f]">{pacientes.length} pacientes registrados</p>
-        </div>
-        <div className="relative max-w-sm w-full">
-          <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[#52615f] text-[18px]">search</span>
-          <input className="w-full rounded-xl border border-[#bdcbc7] bg-white py-2.5 pl-9 pr-4 text-sm focus:border-[#007a68] focus:outline-none focus:ring-4 focus:ring-[#12b8a3]/15"
-            placeholder="Buscar por nombre, DNI, email..."
-            value={search} onChange={e => setSearch(e.target.value)} />
+          <p className="mt-2 text-lg text-[#52615f]">{filtered.length} de {pacientes.length} pacientes registrados</p>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-5 xl:grid-cols-[1fr_380px] xl:gap-6">
+      <div className="medcare-card p-5">
+        <h3 className="mb-4 text-sm font-extrabold uppercase tracking-widest text-[#006b5d]">Filtros</h3>
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <div>
+            <label className="mb-1 block text-xs font-bold text-[#223330]">Búsqueda</label>
+            <div className="relative">
+              <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[#52615f] text-[18px]">search</span>
+              <input className="medcare-input medcare-input-with-icon" placeholder="Nombre, DNI, email..."
+                value={filtros.busqueda} onChange={e => setFiltros({ ...filtros, busqueda: e.target.value })} />
+            </div>
+          </div>
+          <div>
+            <label className="mb-1 block text-xs font-bold text-[#223330]">Género</label>
+            <select className="medcare-input" value={filtros.genero} onChange={e => setFiltros({ ...filtros, genero: e.target.value })}>
+              <option value="">Todos</option>
+              {generos.map(genero => <option key={genero} value={genero}>{genero}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="mb-1 block text-xs font-bold text-[#223330]">Seguro</label>
+            <select className="medcare-input" value={filtros.seguro} onChange={e => setFiltros({ ...filtros, seguro: e.target.value })}>
+              <option value="">Todos</option>
+              {seguros.map(seguro => <option key={seguro} value={seguro.toLocaleLowerCase('es-PE')}>{seguro}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="mb-1 block text-xs font-bold text-[#223330]">Estado</label>
+            <select className="medcare-input" value={filtros.estado} onChange={e => setFiltros({ ...filtros, estado: e.target.value })}>
+              <option value="">Todos</option>
+              <option value="activo">Activo</option>
+              <option value="inactivo">Inactivo</option>
+            </select>
+          </div>
+        </div>
+        <button type="button" onClick={limpiarFiltros} className="mt-3 text-xs font-bold text-[#006b5d] hover:underline">
+          Limpiar filtros
+        </button>
+      </div>
+
+      <div className="grid min-w-0 grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_380px] xl:gap-6">
         {/* Lista */}
-        <div className="medcare-card overflow-hidden">
+        <div className="medcare-card min-w-0 overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[600px] text-left">
+            <table className="w-full min-w-[860px] table-fixed text-left">
+              <colgroup>
+                <col className="w-[30%]" />
+                <col className="w-[12%]" />
+                <col className="w-[9%]" />
+                <col className="w-[9%]" />
+                <col className="w-[13%]" />
+                <col className="w-[13%]" />
+                <col className="w-[14%]" />
+              </colgroup>
               <thead className="bg-[#f8fbff] text-xs uppercase text-[#223330]">
                 <tr>
                   {['Paciente', 'DNI', 'Edad', 'Género', 'Seguro', 'Teléfono', 'Estado'].map(h => (
-                    <th key={h} className="px-5 py-4 font-extrabold">{h}</th>
+                    <th key={h} className="px-4 py-4 font-extrabold">{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#bdcbc7]">
                 {filtered.length === 0 ? (
-                  <tr><td colSpan="7" className="px-5 py-10 text-center text-[#52615f]">No se encontraron pacientes.</td></tr>
+                  <tr><td colSpan="7" className="px-4 py-10 text-center text-[#52615f]">No se encontraron pacientes.</td></tr>
                 ) : filtered.map(p => (
                   <tr key={p.id_usuario}
                     onClick={() => setSelectedId(p.id_usuario)}
                     className={`cursor-pointer transition ${selectedId === p.id_usuario ? 'bg-[#f4fffc]' : 'bg-white hover:bg-[#f8fbff]'}`}>
-                    <td className="px-5 py-4">
+                    <td className="px-4 py-4">
                       <div className="flex items-center gap-3">
                         <div className="w-8 h-8 rounded-full bg-[#edf2ff] flex items-center justify-center text-[#355382] text-xs font-extrabold">
                           {p.nombre?.charAt(0)}
                         </div>
-                        <div>
-                          <p className="text-sm font-bold text-[#101828]">{p.nombre} {p.apellido}</p>
-                          <p className="text-xs text-[#52615f]">{p.email}</p>
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-bold text-[#101828]">{p.nombre} {p.apellido}</p>
+                          <p className="truncate text-xs text-[#52615f]">{p.email}</p>
                         </div>
                       </div>
                     </td>
-                    <td className="px-5 py-4 text-sm text-[#52615f]">{p.paciente?.dni || '—'}</td>
-                    <td className="px-5 py-4 text-sm text-[#52615f]">{calcEdad(p.paciente?.fecha_nacimiento)} {p.paciente?.fecha_nacimiento ? 'años' : ''}</td>
-                    <td className="px-5 py-4 text-sm text-[#52615f]">{p.paciente?.genero || '—'}</td>
-                    <td className="px-5 py-4 text-sm text-[#52615f]">{p.paciente?.seguro_medico || '—'}</td>
-                    <td className="px-5 py-4 text-sm text-[#52615f]">{p.telefono || '—'}</td>
-                    <td className="px-5 py-4">
-                      <span className={`text-xs px-3 py-1 rounded-full font-extrabold ${p.activo ? 'bg-[#d8f4ee] text-[#006b5d]' : 'bg-[#ffdad6] text-[#93000a]'}`}>
+                    <td className="px-4 py-4 text-sm text-[#52615f]">{p.paciente?.dni || '—'}</td>
+                    <td className="px-4 py-4 text-sm text-[#52615f]">{calcEdad(p.paciente?.fecha_nacimiento)} {p.paciente?.fecha_nacimiento ? 'años' : ''}</td>
+                    <td className="px-4 py-4 text-sm text-[#52615f]">{p.paciente?.genero || '—'}</td>
+                    <td className="truncate px-4 py-4 text-sm text-[#52615f]">{p.paciente?.seguro_medico || '—'}</td>
+                    <td className="px-4 py-4 text-sm text-[#52615f]">{p.telefono || '—'}</td>
+                    <td className="px-4 py-4">
+                      <span className={`whitespace-nowrap text-xs px-3 py-1 rounded-full font-extrabold ${p.activo ? 'bg-[#d8f4ee] text-[#006b5d]' : 'bg-[#ffdad6] text-[#93000a]'}`}>
                         {p.activo ? 'Activo' : 'Inactivo'}
                       </span>
                     </td>

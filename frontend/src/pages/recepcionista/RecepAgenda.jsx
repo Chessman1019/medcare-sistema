@@ -1,3 +1,6 @@
+import { useState } from 'react'
+import HorarioDisponibleForm from '../../components/HorarioDisponibleForm'
+
 const estadoClass = {
   pendiente:    'bg-[#faeeda] text-[#854F0B]',
   confirmada:   'bg-[#d8f4ee] text-[#006b5d]',
@@ -24,7 +27,9 @@ function doctorLabel(doctor) {
   return [source.nombre, source.apellido].filter(Boolean).join(' ') || 'Doctor'
 }
 
-export default function RecepAgenda({ citasFiltradas, filtros, setFiltros, doctores, horariosAgenda, agendaDoctor, onCargarDisponibilidad, onGoToTab }) {
+export default function RecepAgenda({ citasFiltradas, filtros, setFiltros, doctores, horariosAgenda, agendaDoctor, onCargarDisponibilidad, onCrearHorario, onGoToTab }) {
+  const [mostrarHorarioForm, setMostrarHorarioForm] = useState(false)
+
   return (
     <div className="space-y-6">
       <div>
@@ -73,24 +78,42 @@ export default function RecepAgenda({ citasFiltradas, filtros, setFiltros, docto
           </div>
         </div>
 
-        <div className="medcare-card p-6 h-fit xl:sticky xl:top-28">
-          <h3 className="font-extrabold text-[#101828] mb-4">Disponibilidad</h3>
-          <select className={`w-full ${inputClass}`} value={agendaDoctor}
-            onChange={e => onCargarDisponibilidad(e.target.value)}>
-            <option value="">Selecciona doctor</option>
-            {doctores.map(doctor => (
-              <option key={doctor.id_usuario} value={doctor.id_usuario}>Dr. {doctorLabel(doctor)}</option>
-            ))}
-          </select>
-          <div className="mt-4 space-y-2">
-            {horariosAgenda.length === 0 ? (
-              <p className="rounded-xl bg-[#edf2ff] p-4 text-sm text-[#52615f]">Sin horarios libres.</p>
-            ) : horariosAgenda.slice(0, 8).map(horario => (
-              <div key={horario.id_horario}
-                className="rounded-xl bg-[#f8fbff] px-4 py-3 text-sm font-bold text-[#223330]">
-                {horario.fecha} · {horario.hora_inicio} a {horario.hora_fin}
-              </div>
-            ))}
+        <div className="space-y-4 h-fit xl:sticky xl:top-28">
+          {mostrarHorarioForm && (
+            <HorarioDisponibleForm
+              key={agendaDoctor || 'nuevo-horario'}
+              doctores={doctores}
+              initialDoctorId={agendaDoctor}
+              onSubmit={onCrearHorario}
+              onCancel={() => setMostrarHorarioForm(false)}
+            />
+          )}
+
+          <div className="medcare-card p-6">
+            <div className="mb-4 flex items-center justify-between gap-3">
+              <h3 className="font-extrabold text-[#101828]">Disponibilidad</h3>
+              <button type="button" onClick={() => setMostrarHorarioForm(value => !value)}
+                className="rounded-xl bg-[#007a68] px-3 py-2 text-xs font-extrabold text-white transition hover:brightness-105 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#12b8a3]/20">
+                Agregar más fechas y horas disponibles
+              </button>
+            </div>
+            <select className={`w-full ${inputClass}`} value={agendaDoctor}
+              onChange={e => onCargarDisponibilidad(e.target.value)}>
+              <option value="">Selecciona doctor</option>
+              {doctores.map(doctor => (
+                <option key={doctor.id_usuario} value={doctor.id_usuario}>Dr. {doctorLabel(doctor)}</option>
+              ))}
+            </select>
+            <div className="mt-4 space-y-2">
+              {horariosAgenda.length === 0 ? (
+                <p className="rounded-xl bg-[#edf2ff] p-4 text-sm text-[#52615f]">Sin horarios libres.</p>
+              ) : horariosAgenda.slice(0, 8).map(horario => (
+                <div key={horario.id_horario}
+                  className="rounded-xl bg-[#f8fbff] px-4 py-3 text-sm font-bold text-[#223330]">
+                  {horario.fecha} · {horario.hora_inicio} a {horario.hora_fin}
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </div>

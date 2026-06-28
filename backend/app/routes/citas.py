@@ -3,9 +3,11 @@ from app.schemas.cita import AtencionCreate, CitaCreate, CitaReprogramar
 from app.services.cita_service import (
     cancelar_cita,
     cambiar_estado_cita,
+    contar_horarios_libres_futuros,
     crear_cita,
     get_citas_doctor,
     get_citas_paciente,
+    get_lima_day_bounds,
     registrar_atencion,
     reprogramar_cita,
 )
@@ -15,16 +17,19 @@ router = APIRouter()
 
 @router.post("/")
 def nueva_cita(data: CitaCreate, id_paciente: int):
-    cita = crear_cita({
-        "id_paciente": id_paciente,
-        "id_doctor": data.id_doctor,
-        "id_horario": data.id_horario,
-        "fecha_hora": str(data.fecha_hora),
-        "motivo": data.motivo,
-        "tipo_atencion": data.tipo_atencion,
-        "duracion_min": data.duracion_min,
-        "estado": "pendiente"
-    })
+    try:
+        cita = crear_cita({
+            "id_paciente": id_paciente,
+            "id_doctor": data.id_doctor,
+            "id_horario": data.id_horario,
+            "fecha_hora": str(data.fecha_hora),
+            "motivo": data.motivo,
+            "tipo_atencion": data.tipo_atencion,
+            "duracion_min": data.duracion_min,
+            "estado": "pendiente"
+        })
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error))
     if not cita:
         raise HTTPException(status_code=400, detail="No se pudo registrar la cita")
     return cita
@@ -36,9 +41,8 @@ def todas_las_citas():
 
 @router.get("/hoy")
 def citas_hoy():
-    from datetime import date
-    hoy = str(date.today())
-    res = supabase.table("v_citas_detalle").select("*").gte("fecha_hora", f"{hoy}T00:00:00").lte("fecha_hora", f"{hoy}T23:59:59").execute()
+    inicio, fin = get_lima_day_bounds()
+    res = supabase.table("v_citas_detalle").select("*").gte("fecha_hora", inicio).lte("fecha_hora", fin).execute()
     return res.data
 
 @router.get("/stats")
@@ -47,11 +51,10 @@ def estadisticas():
     pacientes = supabase.table("paciente").select("id_usuario").execute().data
     doctores = supabase.table("doctor").select("id_usuario, disponible").execute().data
     especialidades = supabase.table("especialidad").select("id_especialidad").execute().data
-    horarios_libres = supabase.table("horario_disponible").select("id_horario").eq("ocupado", False).execute().data
+    horarios_libres = contar_horarios_libres_futuros()
     lista_espera = supabase.table("lista_espera").select("id_espera").eq("estado", "en_espera").execute().data
-    from datetime import date
-    hoy = str(date.today())
-    citas_hoy = supabase.table("cita").select("estado").gte("fecha_hora", f"{hoy}T00:00:00").lte("fecha_hora", f"{hoy}T23:59:59").execute().data
+    inicio, fin = get_lima_day_bounds()
+    citas_hoy = supabase.table("cita").select("estado").gte("fecha_hora", inicio).lte("fecha_hora", fin).execute().data
     return {
         "total_citas": len(citas),
         "citas_hoy": len(citas_hoy),
@@ -63,7 +66,7 @@ def estadisticas():
         "total_pacientes": len(pacientes),
         "doctores_activos": len([d for d in doctores if d["disponible"]]),
         "total_especialidades": len(especialidades),
-        "horarios_libres": len(horarios_libres),
+        "horarios_libres": horarios_libres,
         "lista_espera": len(lista_espera),
     }
 

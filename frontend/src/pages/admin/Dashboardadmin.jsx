@@ -7,6 +7,7 @@ import {
     getPacientes, getListaEspera, getEspecialidades,
     confirmarCita, cancelarCita, completarCita,
     getNotificacionesAdmin, marcarNotificacionEnviada,
+    crearHorarioDisponible,
 } from '../../services/api'
 import AdminInicio from './AdminInicio'
 import AdminCitas from './AdminCitas'
@@ -78,6 +79,12 @@ export default function DashboardAdmin() {
         else if (accion === 'cancelar') await cancelarCita(id)
         else if (accion === 'completar') await completarCita(id)
         await Promise.all([fetchStats(), fetchCitas()])
+    }
+
+    const registrarHorarioDisponible = async (payload) => {
+        const res = await crearHorarioDisponible(payload)
+        await fetchStats()
+        return res.data
     }
 
     // ── Buscador general ─────────────────────────────────────
@@ -218,8 +225,9 @@ export default function DashboardAdmin() {
                 )}
                 {tab === 'citas' && (
                     <AdminCitas
-                        citas={citas} especialidades={especialidades}
+                        citas={citas} doctores={doctores} especialidades={especialidades}
                         onAccion={accionCita}
+                        onCrearHorario={registrarHorarioDisponible}
                         onRefresh={() => Promise.all([fetchStats(), fetchCitas()])}
                     />
                 )}

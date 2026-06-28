@@ -4,8 +4,9 @@ import PortalSidebar from '../../components/PortalSidebar'
 import { useAuth } from '../../context/AuthContext'
 import {
   actualizarSoporteTicket, cancelarCita, confirmarCita, crearUsuario, enviarSoporte,
+  crearHorarioDisponible,
   getCitasHoy, getDoctores, getEspecialidades, getHorarios, getNotificacionesAdmin,
-  getPacientes, getSoporteTickets, getStatsCitas, getTodasCitas, getUsuarios,
+  getPacientes, getSoporteTickets, getStatsCitas, getTodasCitas, getUsuarios, getCodigosSugeridos,
   marcarNotificacionEnviada, registrarAsistencia, registrarPaciente, registrarSalida, reprogramarCita,
 } from '../../services/api'
 import RecepDashboard from './RecepDashboard'
@@ -14,6 +15,7 @@ import RecepGestion from './RecepGestion'
 import RecepRegistro from './RecepRegistro'
 import RecepUsuarios from './RecepUsuarios'
 import RecepSoporte from './RecepSoporte'
+import { getCodigosSugeridosFromUsuarios } from '../../utils/codigosUsuarios'
 
 const emptyRegistro = { nombre: '', apellido: '', email: '', password: '', telefono: '', dni: '', fecha_nacimiento: '', genero: 'M', seguro_medico: '', direccion: '' }
 const emptyUsuarioAdmin = { tipo_usuario: 'doctor', nombre: '', apellido: '', email: '', password: '', telefono: '', dni: '', fecha_nacimiento: '', genero: 'M', seguro_medico: '', direccion: '', cmp: '', id_especialidad: '', codigo_empleado: '', turno: 'mañana' }
@@ -47,6 +49,7 @@ export default function DashboardRecepcionista() {
   const [reprogramacion, setReprogramacion] = useState(null)
   const [registro, setRegistro] = useState(emptyRegistro)
   const [usuarioAdmin, setUsuarioAdmin] = useState(emptyUsuarioAdmin)
+  const [codigosSugeridos, setCodigosSugeridos] = useState({ cmp: '', codigo_empleado: '' })
   const [message, setMessage] = useState('')
   const [actionLoading, setActionLoading] = useState('')
   const [focusVersion, setFocusVersion] = useState(0)
@@ -66,8 +69,31 @@ export default function DashboardRecepcionista() {
       setStats(statsR.data); setCitas(todasR.data); setCitasHoy(hoyR.data)
       setDoctores(doctoresR.data); setPacientes(pacientesR.data); setEspecialidades(especialidadesR.data)
       setNotificaciones(notificacionesR.data || []); setSoporteTickets(soporteR.data || [])
-      if (isAdmin) { const usuariosR = await getUsuarios(); setUsuarios(usuariosR.data || []) }
-      else setUsuarios([])
+      if (isAdmin) {
+        const usuariosR = await getUsuarios()
+        const usuariosData = usuariosR.data || []
+        let nextCodes = getCodigosSugeridosFromUsuarios(usuariosData)
+
+        try {
+          const codigosR = await getCodigosSugeridos()
+          nextCodes = { ...nextCodes, ...(codigosR.data || {}) }
+        } catch (error) {
+          console.warn('codigos sugeridos:', error.message)
+        }
+
+        setUsuarios(usuariosData)
+        setCodigosSugeridos(nextCodes)
+        setUsuarioAdmin(current => {
+          if (current.tipo_usuario === 'doctor' && !current.cmp && nextCodes.cmp) return { ...current, cmp: nextCodes.cmp }
+          if (['recepcionista', 'administrador'].includes(current.tipo_usuario) && !current.codigo_empleado && nextCodes.codigo_empleado) {
+            return { ...current, codigo_empleado: nextCodes.codigo_empleado }
+          }
+          return current
+        })
+      } else {
+        setUsuarios([])
+        setCodigosSugeridos({ cmp: '', codigo_empleado: '' })
+      }
     } catch (error) { setMessage(error.response?.data?.detail || 'No se pudieron cargar los datos.') }
     finally { setLoading(false) }
   }, [isAdmin])
@@ -162,6 +188,18 @@ export default function DashboardRecepcionista() {
     catch { setHorariosAgenda([]) }
   }
 
+  const registrarHorarioDisponible = async (payload) => {
+    const res = await crearHorarioDisponible(payload)
+    const statsR = await getStatsCitas()
+    setStats(statsR.data)
+    if (String(agendaDoctor || payload.id_doctor) === String(payload.id_doctor)) {
+      setAgendaDoctor(String(payload.id_doctor))
+      const horariosR = await getHorarios(payload.id_doctor)
+      setHorariosAgenda(horariosR.data || [])
+    }
+    return res.data
+  }
+
   const registrarNuevoPaciente = async (event) => {
     event.preventDefault()
     setActionLoading('registro')
@@ -244,7 +282,8 @@ export default function DashboardRecepcionista() {
         {tab === 'agenda' && (
           <RecepAgenda citasFiltradas={citasFiltradas} filtros={filtros} setFiltros={setFiltros}
             doctores={doctores} horariosAgenda={horariosAgenda} agendaDoctor={agendaDoctor}
-            onCargarDisponibilidad={cargarDisponibilidad} onGoToTab={goToTab} onShowMessage={showMessage} />
+            onCargarDisponibilidad={cargarDisponibilidad} onCrearHorario={registrarHorarioDisponible}
+            onGoToTab={goToTab} onShowMessage={showMessage} />
         )}
         {tab === 'gestion' && (
           <RecepGestion citasFiltradas={citasFiltradas} doctores={doctores}
@@ -261,6 +300,7 @@ export default function DashboardRecepcionista() {
         {tab === 'usuarios' && isAdmin && (
           <RecepUsuarios usuarios={usuarios} usuarioAdmin={usuarioAdmin}
             setUsuarioAdmin={setUsuarioAdmin} especialidades={especialidades}
+            codigosSugeridos={codigosSugeridos}
             actionLoading={actionLoading} onCrearUsuario={registrarUsuarioAdmin}
             onShowMessage={showMessage} />
         )}
@@ -290,7 +330,7 @@ export default function DashboardRecepcionista() {
                   placeholder="Describe qué necesitas..."
                   autoFocus
                 />
-                <div className="flex gap-3">
+                <div className="flex flex-col gap-3 sm:flex-row">
                   <button type="button" onClick={registrarSoporteInterno}
                     disabled={actionLoading === 'soporte' || !mensajeSoporteInterno.trim()}
                     className="medcare-primary-button px-6 py-2.5 disabled:opacity-60">

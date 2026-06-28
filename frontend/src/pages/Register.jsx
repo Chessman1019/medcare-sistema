@@ -3,6 +3,8 @@ import { Link, useNavigate } from 'react-router-dom'
 import { registrarPaciente } from '../services/api'
 import Layout from '../components/Layout'
 import { isPasswordValid, PasswordField, PasswordStrength } from '../components/PasswordControls'
+import SeguroMedicoField from '../components/SeguroMedicoField'
+import { dniInputProps, formatDniInput, formatPhoneInput, phoneInputProps } from '../utils/numericFields'
 
 const initialForm = {
   nombre: '',
@@ -117,11 +119,13 @@ export default function Register() {
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                   <label className="block text-sm font-bold text-[#223330]">
                     DNI
-                    <input className="medcare-input mt-2" placeholder="12345678" maxLength={8} {...bind('dni')} required />
+                    <input className="medcare-input mt-2" placeholder="12345678" {...dniInputProps}
+                      value={form.dni} onChange={(event) => setForm({ ...form, dni: formatDniInput(event.target.value) })} required />
                   </label>
                   <label className="block text-sm font-bold text-[#223330]">
                     Teléfono
-                    <input className="medcare-input mt-2" placeholder="999999999" {...bind('telefono')} />
+                    <input className="medcare-input mt-2" placeholder="999999999" {...phoneInputProps}
+                      value={form.telefono} onChange={(event) => setForm({ ...form, telefono: formatPhoneInput(event.target.value) })} />
                   </label>
                 </div>
 
@@ -140,10 +144,10 @@ export default function Register() {
                   </label>
                 </div>
 
-                <label className="block text-sm font-bold text-[#223330]">
-                  Seguro médico
-                  <input className="medcare-input mt-2" placeholder="SIS, EsSalud, EPS..." {...bind('seguro_medico')} />
-                </label>
+                <SeguroMedicoField
+                  value={form.seguro_medico}
+                  onChange={(value) => setForm({ ...form, seguro_medico: value })}
+                />
 
                 <button type="submit" disabled={loading} className="medcare-primary-button flex w-full items-center justify-center gap-2 py-4 disabled:opacity-60">
                   {loading ? 'Registrando...' : 'Crear cuenta'}

@@ -1,8 +1,19 @@
 import { PasswordField, PasswordStrength, isPasswordValid } from '../../components/PasswordControls'
+import SeguroMedicoField from '../../components/SeguroMedicoField'
+import { dniInputProps, formatDniInput, formatPhoneInput, phoneInputProps } from '../../utils/numericFields'
 
 const inputClass = 'rounded-xl border border-[#bdcbc7] px-3 py-2.5 text-sm transition focus:border-[#007a68] focus:outline-none focus:ring-4 focus:ring-[#12b8a3]/15 w-full mt-1'
 
-export default function RecepRegistro({ registro, setRegistro, pacientes, especialidades, actionLoading, onRegistrar, onShowMessage }) {
+export default function RecepRegistro({ registro, setRegistro, pacientes, actionLoading, onRegistrar, onShowMessage }) {
+  const updateField = (field, value) => {
+    const nextValue = field === 'dni'
+      ? formatDniInput(value)
+      : field === 'telefono'
+        ? formatPhoneInput(value)
+        : value
+    setRegistro({ ...registro, [field]: nextValue })
+  }
+
   const handleSubmit = (event) => {
     event.preventDefault()
     if (!isPasswordValid(registro.password)) {
@@ -28,17 +39,22 @@ export default function RecepRegistro({ registro, setRegistro, pacientes, especi
             ['dni',              'DNI',                  'text'],
             ['telefono',         'Teléfono',             'text'],
             ['fecha_nacimiento', 'Fecha de nacimiento',  'date'],
-            ['seguro_medico',    'Seguro médico',        'text'],
             ['direccion',        'Dirección',            'text'],
           ].map(([field, label, type]) => (
             <label key={field} className="block text-sm font-bold text-[#223330]">
               {label}
               <input type={type}
+                {...(field === 'dni' ? dniInputProps : field === 'telefono' ? phoneInputProps : {})}
                 required={!['telefono', 'seguro_medico', 'direccion'].includes(field)}
                 className={inputClass} value={registro[field]}
-                onChange={e => setRegistro({ ...registro, [field]: e.target.value })} />
+                onChange={e => updateField(field, e.target.value)} />
             </label>
           ))}
+          <SeguroMedicoField
+            value={registro.seguro_medico}
+            onChange={(value) => setRegistro({ ...registro, seguro_medico: value })}
+            inputClassName={inputClass}
+          />
           <div className="md:col-span-2">
             <PasswordField label="Contraseña inicial" value={registro.password}
               onChange={e => setRegistro({ ...registro, password: e.target.value })}

@@ -3,7 +3,9 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useAuth } from '../context/AuthContext'
 import { actualizarPerfil, cambiarContrasenaPerfil, getPerfil } from '../services/api'
-import { isPasswordValid, PasswordField } from './PasswordControls'
+import { isPasswordValid, PasswordField, PasswordStrength } from './PasswordControls'
+import SeguroMedicoField from './SeguroMedicoField'
+import { formatPhoneInput, phoneInputProps } from '../utils/numericFields'
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY
@@ -69,34 +71,6 @@ function DetailItem({ icon, label, value }) {
       <div className="min-w-0">
         <p className="text-xs font-bold uppercase tracking-wider text-slate-500">{label}</p>
         <p className="mt-0.5 break-words text-sm font-semibold text-slate-800">{value}</p>
-      </div>
-    </div>
-  )
-}
-
-function PasswordStrength({ password }) {
-  const checks = [
-    ['Mínimo 6 caracteres', password.length >= 6],
-    ['Incluye letras', /[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ]/.test(password)],
-    ['Incluye números', /\d/.test(password)],
-  ]
-  const strength = checks.filter(([, ok]) => ok).length
-  return (
-    <div className="rounded-lg bg-slate-50 p-4">
-      <div className="mb-3 flex gap-2">
-        {[0, 1, 2].map((i) => (
-          <div key={i} className={`h-2 flex-1 rounded-full transition ${i < strength ? 'bg-[#12b8a3]' : 'bg-slate-200'}`} />
-        ))}
-      </div>
-      <div className="grid gap-2 text-xs font-semibold text-slate-600 sm:grid-cols-3">
-        {checks.map(([label, ok]) => (
-          <span key={label} className={`flex items-center gap-2 ${ok ? 'text-[#006b5d]' : 'text-slate-500'}`}>
-            <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 transition ${ok ? 'border-[#007a68] bg-[#007a68]' : 'border-slate-400 bg-white'}`}>
-              {ok && <span className="h-2 w-2 rounded-full bg-white" />}
-            </span>
-            {label}
-          </span>
-        ))}
       </div>
     </div>
   )
@@ -312,10 +286,15 @@ export default function ProfileMenu() {
                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                       <label className="text-sm font-medium text-slate-700">Nombre<input className={inputClass} value={form.nombre} onChange={(e) => setForm({ ...form, nombre: e.target.value })} required /></label>
                       <label className="text-sm font-medium text-slate-700">Apellido<input className={inputClass} value={form.apellido} onChange={(e) => setForm({ ...form, apellido: e.target.value })} required /></label>
-                      <label className="text-sm font-medium text-slate-700">Teléfono<input className={inputClass} value={form.telefono} onChange={(e) => setForm({ ...form, telefono: e.target.value })} placeholder="Ej. 987654321" /></label>
+                      <label className="text-sm font-medium text-slate-700">Teléfono<input className={inputClass} {...phoneInputProps}
+                        value={form.telefono} onChange={(e) => setForm({ ...form, telefono: formatPhoneInput(e.target.value) })} placeholder="Ej. 987654321" /></label>
                       <label className="text-sm font-medium text-slate-700">Correo<input className={inputClass} value={profile?.email || user?.email || ''} disabled /></label>
                       {profile?.tipo_usuario === 'paciente' && (<>
-                        <label className="text-sm font-medium text-slate-700">Seguro médico<input className={inputClass} value={form.seguro_medico} onChange={(e) => setForm({ ...form, seguro_medico: e.target.value })} /></label>
+                        <SeguroMedicoField
+                          value={form.seguro_medico}
+                          onChange={(value) => setForm({ ...form, seguro_medico: value })}
+                          inputClassName={inputClass}
+                        />
                         <label className="text-sm font-medium text-slate-700">Dirección<input className={inputClass} value={form.direccion} onChange={(e) => setForm({ ...form, direccion: e.target.value })} /></label>
                       </>)}
                     </div>
@@ -391,7 +370,7 @@ export default function ProfileMenu() {
       </button>
 
       {open && (
-        <div className="fixed right-3 top-20 z-50 w-[calc(100vw-1.5rem)] overflow-hidden rounded-2xl border border-[#bdcbc7] bg-white shadow-2xl shadow-[#08284d]/12 sm:absolute sm:right-0 sm:top-14 sm:w-72">
+        <div className="fixed right-3 top-32 z-50 w-[calc(100vw-1.5rem)] overflow-hidden rounded-2xl border border-[#bdcbc7] bg-white shadow-2xl shadow-[#08284d]/12 sm:absolute sm:right-0 sm:top-14 sm:w-72">
           <div className="bg-[linear-gradient(135deg,#f8fbff_0%,#eef8f6_100%)] px-4 py-4">
             <div className="flex items-center gap-3">
               <Avatar src={avatarUrl} initial={getInitial(user, profile)} size="md" />
