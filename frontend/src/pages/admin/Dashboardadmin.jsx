@@ -6,8 +6,8 @@ import {
     getStatsCitas, getTodasCitas, getDoctores,
     getPacientes, getListaEspera, getEspecialidades,
     confirmarCita, cancelarCita, completarCita,
-    getNotificacionesAdmin, marcarNotificacionEnviada,
-    crearHorarioDisponible,
+    crearHorarioDisponible, getNotificacionesCitasPendientes,
+    marcarNotificacionLeida, eliminarNotificacion,
 } from '../../services/api'
 import AdminInicio from './AdminInicio'
 import AdminCitas from './AdminCitas'
@@ -26,7 +26,7 @@ export default function DashboardAdmin() {
     const [pacientes, setPacientes] = useState([])
     const [especialidades, setEspecialidades] = useState([])
     const [listaEspera, setListaEspera] = useState([])
-    const [notificaciones, setNotificaciones] = useState([])
+    const [citasPendientesNotif, setCitasPendientesNotif] = useState([])
     const [loading, setLoading] = useState(true)
     const [search, setSearch] = useState('')
 
@@ -37,7 +37,7 @@ export default function DashboardAdmin() {
     const fetchPacientes = useCallback(async () => { try { const r = await getPacientes(); setPacientes(r.data) } catch (e) { console.warn('fetchPacientes:', e.message) } }, [])
     const fetchEspecialidades = useCallback(async () => { try { const r = await getEspecialidades(); setEspecialidades(r.data) } catch (e) { console.warn('fetchEspecialidades:', e.message) } }, [])
     const fetchListaEspera = useCallback(async () => { try { const r = await getListaEspera(); setListaEspera(r.data) } catch (e) { console.warn('fetchListaEspera:', e.message) } }, [])
-    const fetchNotificaciones = useCallback(async () => { try { const r = await getNotificacionesAdmin(); setNotificaciones(r.data || []) } catch (e) { console.warn('fetchNotifs:', e.message) } }, [])
+    const fetchCitasPendientesNotif = useCallback(async () => { try { const r = await getNotificacionesCitasPendientes('administrador'); setCitasPendientesNotif(r.data || []) } catch (e) { console.warn('fetchCitasPendientesNotif:', e.message) } }, [])
 
     // ── Carga inicial con reintento ──────────────────────────
     const fetchAll = useCallback(async () => {
@@ -46,7 +46,7 @@ export default function DashboardAdmin() {
             let intentos = 0
             while (intentos < 5) {
                 try { const r = await fn(); setter(r.data); return }
-                catch (e) { intentos++; if (intentos < 5) await new Promise(res => setTimeout(res, 1000)) }
+                catch { intentos++; if (intentos < 5) await new Promise(res => setTimeout(res, 1000)) }
             }
         }
         await Promise.all([
@@ -57,9 +57,9 @@ export default function DashboardAdmin() {
             cargar(getListaEspera, setListaEspera),
             cargar(getEspecialidades, setEspecialidades),
         ])
-        fetchNotificaciones()
+        fetchCitasPendientesNotif()
         setLoading(false)
-    }, [fetchNotificaciones])
+    }, [fetchCitasPendientesNotif])
 
     useEffect(() => { fetchAll() }, [fetchAll])
 
@@ -68,18 +68,30 @@ export default function DashboardAdmin() {
         const interval = setInterval(() => {
             fetchStats()
             fetchCitas()
-            fetchNotificaciones()
+            fetchCitasPendientesNotif()
         }, 60000)
         return () => clearInterval(interval)
-    }, [fetchStats, fetchCitas, fetchNotificaciones])
+    }, [fetchStats, fetchCitas, fetchCitasPendientesNotif])
 
     // ── Acciones de citas ────────────────────────────────────
     const accionCita = async (id, accion) => {
         if (accion === 'confirmar') await confirmarCita(id)
         else if (accion === 'cancelar') await cancelarCita(id)
         else if (accion === 'completar') await completarCita(id)
-        await Promise.all([fetchStats(), fetchCitas()])
+        await Promise.all([fetchStats(), fetchCitas(), fetchCitasPendientesNotif()])
     }
+
+    const abrirNotificacionCita = useCallback(async (notificacion) => {
+        if (!notificacion.leida) await marcarNotificacionLeida(notificacion.id_notif)
+        setTab('citas')
+        setSearch('')
+        await fetchCitasPendientesNotif()
+    }, [fetchCitasPendientesNotif])
+
+    const borrarNotificacionCita = useCallback(async (id) => {
+        await eliminarNotificacion(id)
+        await fetchCitasPendientesNotif()
+    }, [fetchCitasPendientesNotif])
 
     const registrarHorarioDisponible = async (payload) => {
         const res = await crearHorarioDisponible(payload)
@@ -140,13 +152,27 @@ export default function DashboardAdmin() {
 
     // ── Notificaciones ───────────────────────────────────────
     const notificationItems = useMemo(() => {
-        if (!notificaciones.length) return []
-        return notificaciones.slice(0, 10).map(n => ({
-            title: n.tipo_notif_enum || n.tipo || 'Notificación',
-            description: n.mensaje || '',
-            time: n.fecha_envio ? new Date(n.fecha_envio).toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' }) : '',
+        return citasPendientesNotif.slice(0, 10).map(n => ({
+            key: n.id_notif,
+            title: n.tipo === 'recordatorio_cita_pendiente' ? 'Recordatorio de cita pendiente' : 'Tienes una cita pendiente por aprobar',
+            description: n.mensaje || [
+                n.paciente || n.nombre_paciente || 'Paciente sin registrar',
+                n.fecha_hora ? new Date(n.fecha_hora).toLocaleString('es-PE', { dateStyle: 'medium', timeStyle: 'short' }) : 'Sin fecha',
+                n.especialidad,
+                n.doctor || n.nombre_doctor ? `Dr. ${n.doctor || n.nombre_doctor}` : '',
+            ].filter(Boolean).join(' · '),
+            time: n.fecha_programada ? new Date(n.fecha_programada).toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' }) : '',
+            actionLabel: n.leida ? 'Leída · Ir a Citas' : 'No leída · Ir a Citas',
+            read: n.leida,
+            onClick: () => abrirNotificacionCita(n),
+            onDelete: () => borrarNotificacionCita(n.id_notif),
         }))
-    }, [notificaciones])
+    }, [abrirNotificacionCita, borrarNotificacionCita, citasPendientesNotif])
+
+    const unreadNotificationCount = useMemo(
+        () => citasPendientesNotif.filter(n => !n.leida).length,
+        [citasPendientesNotif]
+    )
 
     // ── Ayuda rápida ─────────────────────────────────────────
     const helpItems = useMemo(() => [
@@ -212,6 +238,7 @@ export default function DashboardAdmin() {
             onSearchChange={setSearch}
             searchPlaceholder="Buscar pacientes, doctores, citas..."
             notificationItems={search.trim() ? searchResults : notificationItems}
+            notificationCount={search.trim() ? 0 : unreadNotificationCount}
             helpItems={helpItems}
             appItems={appItems}
         >

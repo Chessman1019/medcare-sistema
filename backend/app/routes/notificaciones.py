@@ -1,7 +1,12 @@
 from datetime import datetime, timezone
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
 from app.database import supabase, supabase_admin
 from app.schemas.notificacion import SoporteCreate
+from app.services.notificacion_service import (
+    eliminar_notificacion,
+    listar_notificaciones_citas,
+    marcar_notificacion_leida,
+)
 
 router = APIRouter()
 
@@ -29,6 +34,11 @@ def notificaciones_admin():
     return _listar_notificaciones()
 
 
+@router.get("/citas-pendientes")
+def notificaciones_citas_pendientes(rol: str | None = Query(default=None)):
+    return listar_notificaciones_citas(rol)
+
+
 @router.put("/{id_notif}/marcar-enviada")
 def marcar_notificacion_enviada(id_notif: int):
     res = supabase_admin.table("notificacion").update({
@@ -38,6 +48,22 @@ def marcar_notificacion_enviada(id_notif: int):
     if not res.data:
         raise HTTPException(status_code=404, detail="Notificacion no encontrada")
     return res.data[0]
+
+
+@router.put("/{id_notif}/marcar-leida")
+def marcar_leida(id_notif: int):
+    notificacion = marcar_notificacion_leida(id_notif)
+    if not notificacion:
+        raise HTTPException(status_code=404, detail="Notificacion no encontrada")
+    return notificacion
+
+
+@router.delete("/{id_notif}")
+def eliminar(id_notif: int):
+    notificacion = eliminar_notificacion(id_notif)
+    if not notificacion:
+        raise HTTPException(status_code=404, detail="Notificacion no encontrada")
+    return notificacion
 
 
 @router.post("/soporte")

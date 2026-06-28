@@ -3,6 +3,7 @@ from zoneinfo import ZoneInfo
 from zoneinfo import ZoneInfoNotFoundError
 
 from app.database import supabase, supabase_admin
+from app.services.notificacion_service import marcar_notificaciones_cita_leidas
 
 try:
     LIMA_TZ = ZoneInfo("America/Lima")
@@ -198,6 +199,7 @@ def cancelar_cita(id_cita: int):
         .update({"estado": "cancelada"})\
         .eq("id_cita", id_cita)\
         .execute()
+    marcar_notificaciones_cita_leidas(id_cita)
     if cita and cita.get("id_horario"):
         liberar_horario(cita["id_horario"])
     return res.data
@@ -216,6 +218,8 @@ def cambiar_estado_cita(id_cita: int, estado: str):
         .update({"estado": estado})\
         .eq("id_cita", id_cita)\
         .execute()
+    if estado in {"confirmada", "cancelada"}:
+        marcar_notificaciones_cita_leidas(id_cita)
     return res.data
 
 def liberar_horario(id_horario: int):

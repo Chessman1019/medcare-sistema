@@ -5,9 +5,10 @@ import { useAuth } from '../../context/AuthContext'
 import {
   actualizarSoporteTicket, cancelarCita, confirmarCita, crearUsuario, enviarSoporte,
   crearHorarioDisponible,
-  getCitasHoy, getDoctores, getEspecialidades, getHorarios, getNotificacionesAdmin,
+  getCitasHoy, getDoctores, getEspecialidades, getHorarios,
+  getNotificacionesCitasPendientes,
   getPacientes, getSoporteTickets, getStatsCitas, getTodasCitas, getUsuarios, getCodigosSugeridos,
-  marcarNotificacionEnviada, registrarAsistencia, registrarPaciente, registrarSalida, reprogramarCita,
+  marcarNotificacionLeida, eliminarNotificacion, registrarAsistencia, registrarPaciente, registrarSalida, reprogramarCita,
 } from '../../services/api'
 import RecepDashboard from './RecepDashboard'
 import RecepAgenda from './RecepAgenda'
@@ -36,7 +37,7 @@ export default function DashboardRecepcionista() {
   const [stats, setStats] = useState({})
   const [citas, setCitas] = useState([])
   const [citasHoy, setCitasHoy] = useState([])
-  const [notificaciones, setNotificaciones] = useState([])
+  const [citasPendientesNotif, setCitasPendientesNotif] = useState([])
   const [soporteTickets, setSoporteTickets] = useState([])
   const [usuarios, setUsuarios] = useState([])
   const [doctores, setDoctores] = useState([])
@@ -62,13 +63,14 @@ export default function DashboardRecepcionista() {
   const fetchData = useCallback(async () => {
     setLoading(true)
     try {
-      const [statsR, todasR, hoyR, doctoresR, pacientesR, especialidadesR, notificacionesR, soporteR] = await Promise.all([
+      const rolNotificaciones = isAdmin ? 'administrador' : 'recepcionista'
+      const [statsR, todasR, hoyR, doctoresR, pacientesR, especialidadesR, pendientesR, soporteR] = await Promise.all([
         getStatsCitas(), getTodasCitas(), getCitasHoy(), getDoctores(), getPacientes(),
-        getEspecialidades(), getNotificacionesAdmin(), getSoporteTickets(),
+        getEspecialidades(), getNotificacionesCitasPendientes(rolNotificaciones), getSoporteTickets(),
       ])
       setStats(statsR.data); setCitas(todasR.data); setCitasHoy(hoyR.data)
       setDoctores(doctoresR.data); setPacientes(pacientesR.data); setEspecialidades(especialidadesR.data)
-      setNotificaciones(notificacionesR.data || []); setSoporteTickets(soporteR.data || [])
+      setCitasPendientesNotif(pendientesR.data || []); setSoporteTickets(soporteR.data || [])
       if (isAdmin) {
         const usuariosR = await getUsuarios()
         const usuariosData = usuariosR.data || []
@@ -120,14 +122,23 @@ export default function DashboardRecepcionista() {
     setTab(nextTab); setFiltros(actual => ({ ...actual, ...nextFilters })); requestFocus()
   }
   const showMessage = (text) => { setMessage(text); requestFocus(); window.setTimeout(() => setMessage(''), 3500) }
-  const refreshNotificaciones = async () => { const res = await getNotificacionesAdmin(); setNotificaciones(res.data || []) }
+  const refreshNotificaciones = async () => {
+    const rolNotificaciones = isAdmin ? 'administrador' : 'recepcionista'
+    const pendientesR = await getNotificacionesCitasPendientes(rolNotificaciones)
+    setCitasPendientesNotif(pendientesR.data || [])
+  }
   const refreshSoporte = async () => { const res = await getSoporteTickets(); setSoporteTickets(res.data || []) }
 
   const handleNotificacion = async (notificacion) => {
     try {
-      if (!notificacion.enviada) { await marcarNotificacionEnviada(notificacion.id_notif); await refreshNotificaciones() }
+      if (!notificacion.leida) { await marcarNotificacionLeida(notificacion.id_notif); await refreshNotificaciones() }
       goToTab('gestion', { doctor: notificacion.doctor || '', fecha: notificacion.fecha_hora?.slice(0, 10) || '' })
     } catch (error) { showMessage(error.response?.data?.detail || 'No se pudo actualizar.') }
+  }
+
+  const borrarNotificacion = async (id) => {
+    try { await eliminarNotificacion(id); await refreshNotificaciones() }
+    catch (error) { showMessage(error.response?.data?.detail || 'No se pudo eliminar la notificación.') }
   }
 
   const registrarSoporteInterno = async () => {
@@ -219,15 +230,26 @@ export default function DashboardRecepcionista() {
 
   const ticketsActivos = soporteTickets.filter(t => ['abierto', 'en_revision'].includes(t.estado))
 
-  const notificationItems = notificaciones.length ? notificaciones.slice(0, 8).map(item => ({
-    title: item.tipo?.replaceAll('_', ' ') || 'Notificación',
-    description: item.mensaje, time: formatDateTime(item.fecha_programada),
-    actionLabel: item.enviada ? 'Abrir gestión' : 'Marcar como vista',
+  const notificationItems = citasPendientesNotif.length ? citasPendientesNotif.slice(0, 8).map(item => ({
+    key: item.id_notif,
+    title: item.tipo === 'recordatorio_cita_pendiente' ? 'Recordatorio de cita pendiente' : 'Tienes una cita pendiente por aprobar',
+    description: item.mensaje || [
+      item.paciente || item.nombre_paciente || 'Paciente sin registrar',
+      item.fecha_hora ? formatDateTime(item.fecha_hora) : 'Sin fecha',
+      item.especialidad,
+      item.doctor || item.nombre_doctor ? `Dr. ${item.doctor || item.nombre_doctor}` : '',
+    ].filter(Boolean).join(' · '),
+    time: item.fecha_programada ? formatDateTime(item.fecha_programada) : '',
+    actionLabel: item.leida ? 'Leída · Ir a gestión' : 'No leída · Ir a gestión',
+    read: item.leida,
     onClick: () => handleNotificacion(item),
+    onDelete: () => borrarNotificacion(item.id_notif),
   })) : [
     { title: `${stats.pendientes ?? 0} citas pendientes`, description: 'Valida solicitudes nuevas.', time: 'Ahora', actionLabel: 'Ir a gestión', onClick: () => goToTab('gestion', { estado: 'pendiente' }) },
     { title: `${stats.citas_hoy ?? 0} citas hoy`, description: 'Revisa la agenda del día.', time: 'Hoy', actionLabel: 'Ver agenda', onClick: () => goToTab('agenda', { fecha: todayInputValue() }) },
   ]
+
+  const unreadNotificationCount = citasPendientesNotif.filter(n => !n.leida).length
 
   const helpItems = [
     ...(isAdmin ? [{ title: 'Gestionar usuarios', description: 'Crea cuentas desde un solo lugar.', actionLabel: 'Abrir usuarios', onClick: () => goToTab('usuarios') }] : [{ title: 'Registrar paciente', description: 'Crea una ficha de paciente.', actionLabel: 'Abrir registro', onClick: () => goToTab('registro') }]),
@@ -257,7 +279,7 @@ export default function DashboardRecepcionista() {
   )
 
   if (loading) return (
-    <Layout sidebar={sidebar} title={isAdmin ? 'Administración' : 'Recepción'} notificationItems={notificationItems} helpItems={helpItems} appItems={appItems}>
+    <Layout sidebar={sidebar} title={isAdmin ? 'Administración' : 'Recepción'} notificationItems={notificationItems} notificationCount={unreadNotificationCount} helpItems={helpItems} appItems={appItems}>
       <div className="flex min-h-screen items-center justify-center text-sm text-slate-500">Cargando datos...</div>
     </Layout>
   )
@@ -265,7 +287,7 @@ export default function DashboardRecepcionista() {
   return (
     <Layout sidebar={sidebar} title={isAdmin ? 'Administración' : 'Recepción'}
       searchValue={searchTerm} searchPlaceholder="Buscar pacientes, doctores o citas..."
-      onSearchChange={setSearchTerm} notificationItems={notificationItems} helpItems={helpItems} appItems={appItems}>
+      onSearchChange={setSearchTerm} notificationItems={notificationItems} notificationCount={unreadNotificationCount} helpItems={helpItems} appItems={appItems}>
       <div ref={contentRef} tabIndex={-1} className="mx-auto w-full max-w-[1440px] space-y-6 p-4 focus:outline-none sm:p-6 lg:p-8">
 
         {message && (
