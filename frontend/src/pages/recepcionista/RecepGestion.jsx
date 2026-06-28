@@ -14,7 +14,18 @@ function formatDateTime(value) {
   if (!value) return 'Sin fecha'
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return value
-  return date.toLocaleString('es-PE', { dateStyle: 'medium', timeStyle: 'short' })
+  return date.toLocaleString('es-PE', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'America/Lima' })
+}
+function getFechaFinCita(cita) {
+  if (cita.fecha_fin) return cita.fecha_fin
+  if (!cita.fecha_hora) return null
+
+  const inicio = new Date(cita.fecha_hora)
+  if (Number.isNaN(inicio.getTime())) return null
+
+  const duracion = Number(cita.duracion_min)
+  const minutos = Number.isFinite(duracion) && duracion >= 0 ? duracion : 30
+  return new Date(inicio.getTime() + minutos * 60000).toISOString()
 }
 function formatEstado(value) {
   const labels = { pendiente: 'Pendiente', confirmada: 'Confirmada', reprogramada: 'Reprogramada', en_atencion: 'En atención', cancelada: 'Cancelada', completada: 'Completada' }
@@ -85,17 +96,17 @@ export default function RecepGestion({ citasFiltradas, doctores, citaNotificada,
 
       <div className="medcare-card overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[860px] text-left">
+          <table className="w-full min-w-[960px] text-left">
             <thead className="bg-[#f8fbff] text-xs uppercase text-[#223330]">
               <tr>
-                {['Paciente', 'Doctor', 'Fecha', 'Estado', 'Acciones'].map(h => (
+                {['Paciente', 'Doctor', 'Inicio', 'Fin', 'Estado', 'Acciones'].map(h => (
                   <th key={h} className="px-5 py-4 font-extrabold">{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody className="divide-y divide-[#bdcbc7]">
               {citasFiltradas.length === 0 ? (
-                <tr><td colSpan="5" className="px-5 py-10 text-center text-[#52615f]">No hay citas con esos filtros.</td></tr>
+                <tr><td colSpan="6" className="px-5 py-10 text-center text-[#52615f]">No hay citas con esos filtros.</td></tr>
               ) : citasFiltradas.map(cita => (
                 <tr
                   key={cita.id_cita}
@@ -108,6 +119,7 @@ export default function RecepGestion({ citasFiltradas, doctores, citaNotificada,
                   </td>
                   <td className="px-5 py-4 text-sm text-[#52615f]">Dr. {cita.doctor}</td>
                   <td className="px-5 py-4 text-sm text-[#52615f]">{formatDateTime(cita.fecha_hora)}</td>
+                  <td className="px-5 py-4 text-sm text-[#52615f]">{formatDateTime(getFechaFinCita(cita))}</td>
                   <td className="px-5 py-4">
                     <span className={`rounded-full px-3 py-1 text-xs font-extrabold ${estadoClass[cita.estado] || estadoClass.pendiente}`}>
                       {formatEstado(cita.estado)}

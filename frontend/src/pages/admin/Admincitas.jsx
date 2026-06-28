@@ -44,7 +44,19 @@ function formatDate(value) {
   if (!value) return 'Sin fecha'
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return value
-  return date.toLocaleString('es-PE', { dateStyle: 'medium', timeStyle: 'short' })
+  return date.toLocaleString('es-PE', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'America/Lima' })
+}
+
+function getFechaFinCita(cita) {
+  if (cita.fecha_fin) return cita.fecha_fin
+  if (!cita.fecha_hora) return null
+
+  const inicio = new Date(cita.fecha_hora)
+  if (Number.isNaN(inicio.getTime())) return null
+
+  const duracion = Number(cita.duracion_min)
+  const minutos = Number.isFinite(duracion) && duracion >= 0 ? duracion : 30
+  return new Date(inicio.getTime() + minutos * 60000).toISOString()
 }
 
 export default function AdminCitas({ citas, doctores = [], especialidades, citaNotificada, onAccion, actionLoading = '', onRefresh, onCrearHorario }) {
@@ -175,17 +187,17 @@ export default function AdminCitas({ citas, doctores = [], especialidades, citaN
 
       <div className="medcare-card overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[760px] text-left">
+          <table className="w-full min-w-[900px] text-left">
             <thead className="bg-[#f8fbff] text-xs uppercase text-[#223330]">
               <tr>
-                {['#', 'Paciente', 'Doctor', 'Especialidad', 'Fecha', 'Tipo', 'Estado', 'Acciones'].map(h => (
+                {['#', 'Paciente', 'Doctor', 'Especialidad', 'Inicio', 'Fin', 'Tipo', 'Estado', 'Acciones'].map(h => (
                   <th key={h} className="px-5 py-4 font-extrabold">{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody className="divide-y divide-[#bdcbc7]">
               {citasFiltradas.length === 0 ? (
-                <tr><td colSpan={8} className="text-center py-12 text-[#52615f]">No hay citas con esos filtros</td></tr>
+                <tr><td colSpan={9} className="text-center py-12 text-[#52615f]">No hay citas con esos filtros</td></tr>
               ) : citasFiltradas.map((c, i) => (
                 <tr
                   key={c.id_cita}
@@ -207,6 +219,7 @@ export default function AdminCitas({ citas, doctores = [], especialidades, citaN
                   <td className="px-5 py-4 text-sm text-[#52615f]">Dr. {c.doctor}</td>
                   <td className="px-5 py-4 text-sm text-[#52615f]">{c.especialidad}</td>
                   <td className="px-5 py-4 text-sm text-[#52615f]">{formatDate(c.fecha_hora)}</td>
+                  <td className="px-5 py-4 text-sm text-[#52615f]">{formatDate(getFechaFinCita(c))}</td>
                   <td className="px-5 py-4">
                     <span className="text-xs bg-[#edf2ff] text-[#355382] px-2 py-0.5 rounded-full font-bold">{c.tipo_atencion}</span>
                   </td>

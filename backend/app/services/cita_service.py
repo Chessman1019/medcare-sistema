@@ -247,7 +247,7 @@ def get_citas_paciente(id_paciente: int):
         .eq("id_paciente", id_paciente)\
         .order("fecha_hora", desc=True)\
         .execute()
-    return res.data
+    return agregar_fecha_fin_citas(res.data or [])
 
 def get_citas_doctor(id_doctor: int):
     cancelar_citas_vencidas()
@@ -256,7 +256,7 @@ def get_citas_doctor(id_doctor: int):
         .eq("id_doctor", id_doctor)\
         .order("fecha_hora")\
         .execute()
-    return res.data
+    return agregar_fecha_fin_citas(res.data or [])
 
 
 def _citas_con_horarios(citas: list[dict]) -> list[dict]:
@@ -282,6 +282,18 @@ def _citas_con_horarios(citas: list[dict]) -> list[dict]:
         }
         for cita in citas
     ]
+
+
+def agregar_fecha_fin_citas(citas: list[dict]) -> list[dict]:
+    citas = _citas_con_horarios(citas)
+    resultado = []
+    for cita in citas:
+        fecha_fin = _fecha_fin_cita(cita)
+        resultado.append({
+            **cita,
+            "fecha_fin": fecha_fin.isoformat() if fecha_fin else None,
+        })
+    return resultado
 
 
 def _notificar_citas_confirmadas_finalizadas(citas: list[dict], ahora: datetime):
