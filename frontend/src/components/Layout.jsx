@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import ProfileMenu from './ProfileMenu'
 
 function HeaderDropdown({ title, icon, items = [], emptyText, onClose }) {
@@ -157,6 +157,12 @@ export default function Layout({
   appItems = [],
 }) {
   const [openMenu, setOpenMenu] = useState(null)
+
+  useEffect(() => {
+    const closeMenus = () => setOpenMenu(null)
+    window.addEventListener('medcare:auth-cleared', closeMenus)
+    return () => window.removeEventListener('medcare:auth-cleared', closeMenus)
+  }, [])
 
   if (!sidebar) {
     return (

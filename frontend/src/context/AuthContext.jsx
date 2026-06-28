@@ -2,6 +2,21 @@
 import { createContext, useContext, useState } from 'react'
 
 const AuthContext = createContext()
+const AUTH_CLEARED_EVENT = 'medcare:auth-cleared'
+
+function notifyAuthCleared() {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new Event(AUTH_CLEARED_EVENT))
+  }
+}
+
+function clearSessionStorage() {
+  try {
+    sessionStorage.clear()
+  } catch {
+    // El navegador puede bloquear sessionStorage en algunos modos privados.
+  }
+}
 
 function getSavedUser() {
   const savedUser = localStorage.getItem('user')
@@ -32,6 +47,8 @@ export function AuthProvider({ children }) {
     setToken(null)
     localStorage.removeItem('user')
     localStorage.removeItem('token')
+    clearSessionStorage()
+    notifyAuthCleared()
   }
 
   const updateUser = (updates) => {
