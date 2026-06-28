@@ -1,10 +1,13 @@
 import { PasswordField, PasswordStrength, isPasswordValid } from '../../components/PasswordControls'
 import SeguroMedicoField from '../../components/SeguroMedicoField'
+import { DateWheelPicker } from '../../components/WheelPickers'
 import { dniInputProps, formatDniInput, formatPhoneInput, phoneInputProps } from '../../utils/numericFields'
+import { getLimaDateInputValue } from '../../utils/limaTime'
 
 const inputClass = 'rounded-xl border border-[#bdcbc7] px-3 py-2.5 text-sm transition focus:border-[#007a68] focus:outline-none focus:ring-4 focus:ring-[#12b8a3]/15 w-full mt-1'
 
 export default function RecepRegistro({ registro, setRegistro, pacientes, actionLoading, onRegistrar, onShowMessage }) {
+  const maxBirthDate = getLimaDateInputValue()
   const updateField = (field, value) => {
     const nextValue = field === 'dni'
       ? formatDniInput(value)
@@ -16,6 +19,10 @@ export default function RecepRegistro({ registro, setRegistro, pacientes, action
 
   const handleSubmit = (event) => {
     event.preventDefault()
+    if (!registro.fecha_nacimiento) {
+      onShowMessage('Selecciona la fecha de nacimiento.')
+      return
+    }
     if (!isPasswordValid(registro.password)) {
       onShowMessage('La contraseña inicial debe tener mínimo 6 caracteres, letras y números.')
       return
@@ -43,11 +50,22 @@ export default function RecepRegistro({ registro, setRegistro, pacientes, action
           ].map(([field, label, type]) => (
             <label key={field} className="block text-sm font-bold text-[#223330]">
               {label}
-              <input type={type}
-                {...(field === 'dni' ? dniInputProps : field === 'telefono' ? phoneInputProps : {})}
-                required={!['telefono', 'seguro_medico', 'direccion'].includes(field)}
-                className={inputClass} value={registro[field]}
-                onChange={e => updateField(field, e.target.value)} />
+              {field === 'fecha_nacimiento' ? (
+                <DateWheelPicker
+                  value={registro.fecha_nacimiento}
+                  onChange={value => updateField('fecha_nacimiento', value)}
+                  min="1900-01-01"
+                  max={maxBirthDate}
+                  initialValue="1990-01-01"
+                  inputClassName={inputClass}
+                />
+              ) : (
+                <input type={type}
+                  {...(field === 'dni' ? dniInputProps : field === 'telefono' ? phoneInputProps : {})}
+                  required={!['telefono', 'seguro_medico', 'direccion'].includes(field)}
+                  className={inputClass} value={registro[field]}
+                  onChange={e => updateField(field, e.target.value)} />
+              )}
             </label>
           ))}
           <SeguroMedicoField

@@ -102,6 +102,128 @@ canvas {
   box-shadow: 0 0 0 4px rgba(18, 184, 163, 0.14);
 }
 
+.medcare-wheel-trigger {
+  display: flex;
+  min-height: 2.85rem;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  text-align: left;
+}
+
+.medcare-wheel-trigger:disabled {
+  cursor: not-allowed;
+  background: #f8fbff;
+  color: var(--medcare-muted);
+}
+
+.medcare-wheel-panel {
+  position: absolute;
+  left: 0;
+  top: calc(100% + 0.5rem);
+  z-index: 80;
+  width: min(24rem, calc(100vw - 2rem));
+  overflow: hidden;
+  border: 1px solid #d5dfef;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.98);
+  box-shadow: 0 22px 60px rgba(8, 40, 77, 0.16);
+}
+
+.medcare-wheel-panel-time {
+  width: min(22rem, calc(100vw - 2rem));
+}
+
+.medcare-wheel-column {
+  position: relative;
+  height: 9.75rem;
+  overflow: hidden;
+  border: 1px solid #edf2ff;
+  border-radius: 14px;
+  background: linear-gradient(180deg, #fbfcff 0%, #ffffff 50%, #fbfcff 100%);
+}
+
+.medcare-wheel-column::before,
+.medcare-wheel-column::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  z-index: 2;
+  width: 100%;
+  height: 3.5rem;
+  pointer-events: none;
+}
+
+.medcare-wheel-column::before {
+  top: 0;
+  background: linear-gradient(180deg, #ffffff 20%, rgba(255, 255, 255, 0));
+}
+
+.medcare-wheel-column::after {
+  bottom: 0;
+  background: linear-gradient(0deg, #ffffff 20%, rgba(255, 255, 255, 0));
+}
+
+.medcare-wheel-selection {
+  position: absolute;
+  left: 0.5rem;
+  right: 0.5rem;
+  top: 50%;
+  z-index: 1;
+  height: 2.75rem;
+  transform: translateY(-50%);
+  border-block: 1px solid rgba(0, 122, 104, 0.35);
+  background: rgba(216, 244, 238, 0.42);
+  pointer-events: none;
+}
+
+.medcare-wheel-list {
+  position: relative;
+  z-index: 3;
+  height: 100%;
+  overflow-y: auto;
+  padding-block: 3.5rem;
+  scroll-snap-type: y mandatory;
+  scrollbar-width: none;
+}
+
+.medcare-wheel-list::-webkit-scrollbar {
+  display: none;
+}
+
+.medcare-wheel-option {
+  display: flex;
+  height: 2.75rem;
+  width: 100%;
+  scroll-snap-align: center;
+  align-items: center;
+  justify-content: center;
+  padding-inline: 0.35rem;
+  border: 0;
+  background: transparent;
+  color: rgba(82, 97, 95, 0.68);
+  font: inherit;
+  font-size: 1rem;
+  font-weight: 800;
+  line-height: 1.1;
+  transition: color 140ms ease, transform 140ms ease;
+}
+
+.medcare-wheel-option.is-active {
+  color: var(--medcare-ink);
+  transform: scale(1.08);
+}
+
+.medcare-wheel-option:disabled {
+  color: rgba(82, 97, 95, 0.25);
+  cursor: not-allowed;
+}
+
+.medcare-wheel-option:focus-visible {
+  outline: 2px solid var(--medcare-accent);
+  outline-offset: -4px;
+}
+
 .medcare-input-with-icon {
   padding-left: 2.75rem;
 }

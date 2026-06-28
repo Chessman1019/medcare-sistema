@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import HorarioDisponibleForm from '../../components/HorarioDisponibleForm'
+import { DateWheelPicker } from '../../components/WheelPickers'
 
 const statusClass = {
   pendiente:    'bg-[#f5f5f2] text-[#46514f]',
@@ -176,7 +177,11 @@ export default function AdminCitas({ citas, doctores = [], especialidades, citaN
           </div>
           <div>
             <label className="block text-xs font-bold text-[#223330] mb-1">Fecha</label>
-            <input type="date" className="medcare-input" value={filtros.fecha} onChange={e => aplicarFiltros({ ...filtros, fecha: e.target.value })} />
+            <DateWheelPicker
+              value={filtros.fecha}
+              onChange={fecha => aplicarFiltros({ ...filtros, fecha })}
+              clearable
+            />
           </div>
         </div>
         <button onClick={() => aplicarFiltros({ estado: '', especialidad: '', doctor: '', fecha: '' })}

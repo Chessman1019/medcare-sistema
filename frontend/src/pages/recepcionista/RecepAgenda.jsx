@@ -1,5 +1,7 @@
 import { useState } from 'react'
 import HorarioDisponibleForm from '../../components/HorarioDisponibleForm'
+import { DateWheelPicker } from '../../components/WheelPickers'
+import { formatTime12h } from '../../utils/timeFormat'
 
 const estadoClass = {
   pendiente:    'bg-[#faeeda] text-[#854F0B]',
@@ -41,8 +43,12 @@ export default function RecepAgenda({ citasFiltradas, filtros, setFiltros, docto
         <div className="medcare-card overflow-hidden">
           <div className="border-b border-[#bdcbc7] bg-[#f8fbff] px-6 py-4">
             <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-              <input type="date" className={inputClass} value={filtros.fecha}
-                onChange={e => setFiltros({ ...filtros, fecha: e.target.value })} />
+              <DateWheelPicker
+                value={filtros.fecha}
+                onChange={fecha => setFiltros({ ...filtros, fecha })}
+                clearable
+                inputClassName={`w-full ${inputClass}`}
+              />
               <input className={inputClass} placeholder="Buscar doctor" value={filtros.doctor}
                 onChange={e => setFiltros({ ...filtros, doctor: e.target.value })} />
               <select className={inputClass} value={filtros.estado}
@@ -110,7 +116,7 @@ export default function RecepAgenda({ citasFiltradas, filtros, setFiltros, docto
               ) : horariosAgenda.slice(0, 8).map(horario => (
                 <div key={horario.id_horario}
                   className="rounded-xl bg-[#f8fbff] px-4 py-3 text-sm font-bold text-[#223330]">
-                  {horario.fecha} · {horario.hora_inicio} a {horario.hora_fin}
+                  {horario.fecha} · {formatTime12h(horario.hora_inicio) || horario.hora_inicio} a {formatTime12h(horario.hora_fin) || horario.hora_fin}
                 </div>
               ))}
             </div>

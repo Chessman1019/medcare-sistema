@@ -3,8 +3,10 @@ import { getConfiguracion, actualizarConfiguracion, getEspecialidades, crearUsua
 import { PasswordField, PasswordStrength, isPasswordValid } from '../../components/PasswordControls'
 import SeguroMedicoField from '../../components/SeguroMedicoField'
 import CodigoSugeridoField from '../../components/CodigoSugeridoField'
+import { DateWheelPicker } from '../../components/WheelPickers'
 import { getCodigosSugeridosFromUsuarios } from '../../utils/codigosUsuarios'
 import { dniInputProps, formatDniInput, formatPhoneInput, phoneInputProps } from '../../utils/numericFields'
+import { getLimaDateInputValue } from '../../utils/limaTime'
 
 const inputClass = 'rounded-lg border border-[#bdcbc7] px-3 py-2 text-sm transition focus:border-[#007a68] focus:outline-none focus:ring-4 focus:ring-[#12b8a3]/15 disabled:cursor-not-allowed disabled:bg-slate-50 w-full mt-1'
 const primaryButton = 'medcare-primary-button px-6 py-3 disabled:opacity-60'
@@ -29,6 +31,7 @@ export default function AdminConfiguracion() {
   const [usuarioMsg, setUsuarioMsg] = useState('')
   const [usuarioError, setUsuarioError] = useState('')
   const [codigosSugeridos, setCodigosSugeridos] = useState({ cmp: '', codigo_empleado: '' })
+  const maxBirthDate = getLimaDateInputValue()
 
   const fetchConfig = useCallback(async () => {
     try {
@@ -91,6 +94,10 @@ export default function AdminConfiguracion() {
   const crearNuevoUsuario = async (e) => {
     e.preventDefault()
     setUsuarioError('')
+    if (nuevoUsuario.tipo_usuario === 'paciente' && !nuevoUsuario.fecha_nacimiento) {
+      setUsuarioError('Selecciona la fecha de nacimiento.')
+      return
+    }
     if (!isPasswordValid(nuevoUsuario.password)) {
       setUsuarioError('La contraseña debe tener mínimo 6 caracteres, letras y números.')
       return
@@ -278,7 +285,14 @@ export default function AdminConfiguracion() {
                       value={nuevoUsuario.dni} onChange={e => update('dni', formatDniInput(e.target.value))} required />
                   </label>
                   <label className="text-sm font-bold text-[#223330]">Fecha de nacimiento
-                    <input type="date" className={inputClass} autoComplete="off" value={nuevoUsuario.fecha_nacimiento} onChange={e => update('fecha_nacimiento', e.target.value)} required />
+                    <DateWheelPicker
+                      value={nuevoUsuario.fecha_nacimiento}
+                      onChange={value => update('fecha_nacimiento', value)}
+                      min="1900-01-01"
+                      max={maxBirthDate}
+                      initialValue="1990-01-01"
+                      inputClassName={inputClass}
+                    />
                   </label>
                   <label className="text-sm font-bold text-[#223330]">Género
                     <select className={inputClass} value={nuevoUsuario.genero} onChange={e => update('genero', e.target.value)} required>

@@ -4,7 +4,9 @@ import { registrarPaciente } from '../services/api'
 import Layout from '../components/Layout'
 import { isPasswordValid, PasswordField, PasswordStrength } from '../components/PasswordControls'
 import SeguroMedicoField from '../components/SeguroMedicoField'
+import { DateWheelPicker } from '../components/WheelPickers'
 import { dniInputProps, formatDniInput, formatPhoneInput, phoneInputProps } from '../utils/numericFields'
+import { getLimaDateInputValue } from '../utils/limaTime'
 
 const initialForm = {
   nombre: '',
@@ -23,11 +25,18 @@ export default function Register() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const navigate = useNavigate()
+  const maxBirthDate = getLimaDateInputValue()
 
   const handleSubmit = async (event) => {
     event.preventDefault()
     setLoading(true)
     setError('')
+
+    if (!form.fecha_nacimiento) {
+      setError('Selecciona la fecha de nacimiento.')
+      setLoading(false)
+      return
+    }
 
     if (!isPasswordValid(form.password)) {
       setError('La contraseña debe tener mínimo 6 caracteres, letras y números.')
@@ -132,7 +141,14 @@ export default function Register() {
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                   <label className="block text-sm font-bold text-[#223330]">
                     Fecha de nacimiento
-                    <input className="medcare-input mt-2" type="date" {...bind('fecha_nacimiento')} required />
+                    <DateWheelPicker
+                      className="mt-2"
+                      value={form.fecha_nacimiento}
+                      onChange={value => setForm({ ...form, fecha_nacimiento: value })}
+                      min="1900-01-01"
+                      max={maxBirthDate}
+                      initialValue="1990-01-01"
+                    />
                   </label>
                   <label className="block text-sm font-bold text-[#223330]">
                     Género

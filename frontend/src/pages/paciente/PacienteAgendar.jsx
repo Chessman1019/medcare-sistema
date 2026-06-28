@@ -1,7 +1,16 @@
+import { formatTime12h } from '../../utils/timeFormat'
+
 function doctorFullName(doctor) {
   if (!doctor) return ''
   const name = `${doctor.usuario?.nombre || doctor.nombre || ''} ${doctor.usuario?.apellido || doctor.apellido || ''}`.trim()
   return name || 'Doctor disponible'
+}
+
+function formatHorarioRange(horario) {
+  if (!horario) return ''
+  const inicio = formatTime12h(horario.hora_inicio) || horario.hora_inicio
+  const fin = formatTime12h(horario.hora_fin) || horario.hora_fin
+  return `${inicio} a ${fin}`
 }
 
 export default function PacienteAgendar({ form, setForm, especialidades, doctores, horarios, loading, loadingOptions, loadingHorarios, onEspecialidad, onDoctor, onSubmit }) {
@@ -16,7 +25,7 @@ export default function PacienteAgendar({ form, setForm, especialidades, doctore
           {[
             ['1', 'Especialidad', selectedEspecialidad?.nombre || 'Seleccionar'],
             ['2', 'Doctor', selectedDoctor ? `Dr. ${doctorFullName(selectedDoctor)}` : 'Seleccionar'],
-            ['3', 'Fecha y hora', selectedHorario ? `${selectedHorario.fecha} ${selectedHorario.hora_inicio}` : 'Elegir horario'],
+            ['3', 'Fecha y hora', selectedHorario ? `${selectedHorario.fecha} ${formatTime12h(selectedHorario.hora_inicio) || selectedHorario.hora_inicio}` : 'Elegir horario'],
           ].map(([step, title, detail], index) => {
             const isComplete = index === 0 ? Boolean(selectedEspecialidad) : index === 1 ? Boolean(selectedDoctor) : Boolean(selectedHorario)
             return (
@@ -72,7 +81,7 @@ export default function PacienteAgendar({ form, setForm, especialidades, doctore
                   <button key={horario.id_horario} type="button" onClick={() => setForm(f => ({ ...f, id_horario: horario.id_horario }))}
                     aria-pressed={selected}
                     className={`rounded-xl border px-3 py-4 text-sm font-extrabold transition hover:-translate-y-0.5 hover:shadow-sm focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#12b8a3]/20 active:scale-[0.98] ${selected ? 'border-[#006b5d] bg-[#e5fbf7] text-[#006b5d]' : 'border-[#bdcbc7] bg-white text-[#101828] hover:border-[#006b5d]'}`}>
-                    {horario.fecha}<br />{horario.hora_inicio} a {horario.hora_fin}
+                    {horario.fecha}<br />{formatHorarioRange(horario)}
                   </button>
                 )
               })}
@@ -90,7 +99,7 @@ export default function PacienteAgendar({ form, setForm, especialidades, doctore
         <div className="space-y-6 p-7">
           <div><p className="text-xs font-extrabold uppercase tracking-widest text-[#006b5d]">Especialidad</p><p className="mt-1 text-lg font-extrabold">{selectedEspecialidad?.nombre || 'Pendiente'}</p></div>
           <div><p className="text-xs font-extrabold uppercase tracking-widest text-[#006b5d]">Doctor</p><p className="mt-1 text-lg font-extrabold">{selectedDoctor ? `Dr. ${doctorFullName(selectedDoctor)}` : 'Pendiente'}</p></div>
-          <div><p className="text-xs font-extrabold uppercase tracking-widest text-[#006b5d]">Fecha y hora</p><p className="mt-1 text-lg font-extrabold">{selectedHorario ? `${selectedHorario.fecha} - ${selectedHorario.hora_inicio}` : 'Pendiente'}</p></div>
+          <div><p className="text-xs font-extrabold uppercase tracking-widest text-[#006b5d]">Fecha y hora</p><p className="mt-1 text-lg font-extrabold">{selectedHorario ? `${selectedHorario.fecha} - ${formatTime12h(selectedHorario.hora_inicio) || selectedHorario.hora_inicio}` : 'Pendiente'}</p></div>
           <div className="border-t border-dashed border-[#bdcbc7] pt-6 text-sm text-[#52615f]">Recibirás la confirmación cuando recepción valide la disponibilidad.</div>
         </div>
       </aside>

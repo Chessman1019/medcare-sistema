@@ -1,3 +1,5 @@
+import { formatTime12h } from '../../utils/timeFormat'
+
 const statusClass = { pendiente: 'bg-[#f5f5f2] text-[#46514f]', confirmada: 'bg-[#d8f4ee] text-[#006b5d]', reprogramada: 'bg-[#e8edff] text-[#355382]', cancelada: 'bg-[#ffdad6] text-[#93000a]', completada: 'bg-[#d8e5e2] text-[#293533]', en_atencion: 'bg-[#dff8fb] text-[#006b5d]' }
 const dangerButtonClass = 'rounded-xl border border-[#ffb4ab] bg-white px-4 py-3 font-extrabold text-[#93000a] transition hover:-translate-y-0.5 hover:bg-[#fff0ef] hover:shadow-sm focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#ffb4ab]/30 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60'
 
@@ -31,7 +33,7 @@ export default function PacienteCitas({ filteredCitas, reprogramacion, setReprog
               onChange={e => setReprogramacion(r => ({ ...r, id_horario: e.target.value }))}
               disabled={reprogramacion.loading}>
               <option value="">{reprogramacion.loading ? 'Cargando horarios...' : 'Nuevo horario'}</option>
-              {reprogramacion.horarios.map(h => <option key={h.id_horario} value={h.id_horario}>{h.fecha} - {h.hora_inicio} a {h.hora_fin}</option>)}
+              {reprogramacion.horarios.map(h => <option key={h.id_horario} value={h.id_horario}>{h.fecha} - {formatTime12h(h.hora_inicio) || h.hora_inicio} a {formatTime12h(h.hora_fin) || h.hora_fin}</option>)}
             </select>
             <button type="submit" disabled={savingReprogramacion || reprogramacion.loading || !reprogramacion.id_horario} className="medcare-primary-button px-6 py-3 disabled:opacity-60">
               {savingReprogramacion ? 'Guardando...' : 'Guardar'}

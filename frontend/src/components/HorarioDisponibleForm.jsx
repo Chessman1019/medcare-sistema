@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react'
+import { DateWheelPicker, TimeWheelPicker } from './WheelPickers'
 import { getLimaDateInputValue, getLimaTimeInputValue, getNextLimaTimeInputValue, isPastLimaSlot, normalizeTimeValue } from '../utils/limaTime'
 
-const inputClass = 'rounded-lg border border-slate-200 px-3 py-2 text-sm transition focus:border-[#007a68] focus:outline-none focus:ring-4 focus:ring-[#12b8a3]/15 disabled:cursor-not-allowed disabled:bg-slate-50'
+const inputClass = 'w-full rounded-lg border border-slate-200 px-3 py-2 text-sm transition focus:border-[#007a68] focus:outline-none focus:ring-4 focus:ring-[#12b8a3]/15 disabled:cursor-not-allowed disabled:bg-slate-50'
 const primaryButton = 'rounded-lg bg-[#007a68] px-4 py-2 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:brightness-105 hover:shadow-lg focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#12b8a3]/20 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60'
 const DEFAULT_DURATION_MINUTES = 90
 
@@ -141,15 +142,32 @@ export default function HorarioDisponibleForm({ doctores = [], initialDoctorId =
         </label>
         <label className="grid gap-1 text-xs font-semibold text-slate-600">
           Fecha
-          <input type="date" className={inputClass} min={today} value={form.fecha} onChange={event => updateFecha(event.target.value)} required />
+          <DateWheelPicker
+            value={form.fecha}
+            onChange={updateFecha}
+            min={today}
+            initialValue={today}
+            inputClassName={inputClass}
+          />
         </label>
         <label className="grid gap-1 text-xs font-semibold text-slate-600">
           Hora inicio
-          <input type="time" className={inputClass} min={minTime} value={form.hora_inicio} onChange={event => updateHoraInicio(event.target.value)} required />
+          <TimeWheelPicker
+            value={form.hora_inicio}
+            onChange={updateHoraInicio}
+            min={minTime}
+            initialValue={getNextLimaTimeInputValue()}
+            inputClassName={inputClass}
+          />
         </label>
         <label className="grid gap-1 text-xs font-semibold text-slate-600">
           Hora fin
-          <input type="time" className={inputClass} value={form.hora_fin} onChange={event => setForm(current => ({ ...current, hora_fin: event.target.value }))} required />
+          <TimeWheelPicker
+            value={form.hora_fin}
+            onChange={value => setForm(current => ({ ...current, hora_fin: value }))}
+            initialValue={addMinutesToTime(form.hora_inicio)}
+            inputClassName={inputClass}
+          />
         </label>
         <div className="flex items-end">
           <button type="submit" disabled={saving || !doctores.length} className={`${primaryButton} w-full whitespace-nowrap`}>

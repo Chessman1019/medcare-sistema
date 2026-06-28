@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react'
+import { formatTime12h } from '../../utils/timeFormat'
 
 const estadoClass = {
   pendiente:    'bg-[#faeeda] text-[#854F0B]',
@@ -77,7 +78,7 @@ export default function RecepGestion({ citasFiltradas, doctores, citaNotificada,
               disabled={reprogramacion.loading}>
               <option value="">{reprogramacion.loading ? 'Cargando horarios...' : 'Nuevo horario'}</option>
               {reprogramacion.horarios.map(h => (
-                <option key={h.id_horario} value={h.id_horario}>{h.fecha} - {h.hora_inicio} a {h.hora_fin}</option>
+                <option key={h.id_horario} value={h.id_horario}>{h.fecha} - {formatTime12h(h.hora_inicio) || h.hora_inicio} a {formatTime12h(h.hora_fin) || h.hora_fin}</option>
               ))}
             </select>
             <div className="flex gap-2">

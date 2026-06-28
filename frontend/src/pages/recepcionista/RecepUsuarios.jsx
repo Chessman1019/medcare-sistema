@@ -2,13 +2,16 @@ import { useMemo, useState } from 'react'
 import { PasswordField, PasswordStrength, isPasswordValid } from '../../components/PasswordControls'
 import SeguroMedicoField from '../../components/SeguroMedicoField'
 import CodigoSugeridoField from '../../components/CodigoSugeridoField'
+import { DateWheelPicker } from '../../components/WheelPickers'
 import { dniInputProps, formatDniInput, formatPhoneInput, phoneInputProps } from '../../utils/numericFields'
+import { getLimaDateInputValue } from '../../utils/limaTime'
 
 const inputClass = 'rounded-xl border border-[#bdcbc7] px-3 py-2.5 text-sm transition focus:border-[#007a68] focus:outline-none focus:ring-4 focus:ring-[#12b8a3]/15 w-full mt-1 disabled:cursor-not-allowed disabled:bg-[#f8fbff]'
 const roleLabels = { paciente: 'Paciente', doctor: 'Médico', recepcionista: 'Recepcionista', administrador: 'Administrador' }
 
 export default function RecepUsuarios({ usuarios, usuarioAdmin, setUsuarioAdmin, especialidades, codigosSugeridos = {}, actionLoading, onCrearUsuario, onShowMessage }) {
   const [filtros, setFiltros] = useState({ busqueda: '', rol: '', estado: '' })
+  const maxBirthDate = getLimaDateInputValue()
   const updateField = (field, value) => setUsuarioAdmin(c => ({ ...c, [field]: value }))
   const updateRole = (rol) => setUsuarioAdmin(current => ({
     ...current,
@@ -21,6 +24,10 @@ export default function RecepUsuarios({ usuarios, usuarioAdmin, setUsuarioAdmin,
 
   const handleSubmit = (event) => {
     event.preventDefault()
+    if (usuarioAdmin.tipo_usuario === 'paciente' && !usuarioAdmin.fecha_nacimiento) {
+      onShowMessage('Selecciona la fecha de nacimiento.')
+      return
+    }
     if (!isPasswordValid(usuarioAdmin.password)) {
       onShowMessage('La contraseña debe tener mínimo 6 caracteres, letras y números.')
       return
@@ -120,7 +127,16 @@ export default function RecepUsuarios({ usuarios, usuarioAdmin, setUsuarioAdmin,
           {usuarioAdmin.tipo_usuario === 'paciente' && (<>
             <label className="block text-sm font-bold text-[#223330]">DNI<input className={inputClass} {...dniInputProps}
               value={usuarioAdmin.dni} onChange={e => updateField('dni', formatDniInput(e.target.value))} required /></label>
-            <label className="block text-sm font-bold text-[#223330]">Fecha nacimiento<input type="date" className={inputClass} value={usuarioAdmin.fecha_nacimiento} onChange={e => updateField('fecha_nacimiento', e.target.value)} required /></label>
+            <label className="block text-sm font-bold text-[#223330]">Fecha nacimiento
+              <DateWheelPicker
+                value={usuarioAdmin.fecha_nacimiento}
+                onChange={value => updateField('fecha_nacimiento', value)}
+                min="1900-01-01"
+                max={maxBirthDate}
+                initialValue="1990-01-01"
+                inputClassName={inputClass}
+              />
+            </label>
             <label className="block text-sm font-bold text-[#223330]">Género
               <select className={inputClass} value={usuarioAdmin.genero} onChange={e => updateField('genero', e.target.value)} required>
                 <option value="M">Masculino</option><option value="F">Femenino</option><option value="Otro">Otro</option>
