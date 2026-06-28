@@ -62,10 +62,18 @@ export default function PortalSidebar({
   return (
     <>
       <aside className="medcare-sidebar fixed left-0 top-0 z-50 hidden h-dvh w-72 flex-col overflow-hidden px-5 py-5 lg:flex">
-        <div className="mb-5 shrink-0">
-          <img src="/medcare-logo.png" alt="Clínica MedCare S.A.C." className="mb-4 h-14 w-28 rounded-sm object-contain object-left" />
-          <h2 className="text-xl font-extrabold text-[#006b5d]">Portal Clínico</h2>
-          <p className="text-sm font-medium tracking-wide text-[#52615f]">Excelencia en salud</p>
+        <div className="mb-5 shrink-0 flex flex-col items-center text-center">
+          <img
+            src="/medcare-logo.png"
+            alt="Clínica MedCare S.A.C."
+            className="mb-4 h-14 w-28 rounded-sm object-contain"
+          />
+          <h2 className="text-xl font-extrabold text-[#006b5d]">
+            Portal Clínico
+          </h2>
+          <p className="text-sm font-medium tracking-wide text-[#52615f]">
+            Excelencia en salud
+          </p>
         </div>
 
         {ctaFirst && <div className="mb-5 shrink-0">{cta}</div>}
