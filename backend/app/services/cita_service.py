@@ -7,7 +7,7 @@ from postgrest.exceptions import APIError
 from app.database import supabase, supabase_admin
 from app.services.notificacion_service import (
     marcar_notificaciones_cita_leidas,
-    notificar_cita_por_completar,
+    notificar_cita_finalizada_pendiente,
 )
 
 try:
@@ -21,7 +21,6 @@ ESTADOS_CITA = {
 }
 ESTADOS_AUTO_CANCELABLES = {"pendiente", "reprogramada"}
 ESTADOS_REVISION_VENCIMIENTO = ESTADOS_AUTO_CANCELABLES | {"confirmada"}
-MINUTOS_GRACIA_COMPLETADO = 10
 
 
 def now_lima() -> datetime:
@@ -285,8 +284,7 @@ def _citas_con_horarios(citas: list[dict]) -> list[dict]:
     ]
 
 
-def _notificar_citas_confirmadas_por_completar(citas: list[dict], ahora: datetime) -> list[dict]:
-    por_autocompletar = []
+def _notificar_citas_confirmadas_finalizadas(citas: list[dict], ahora: datetime):
     for cita in citas:
         if cita.get("estado") != "confirmada":
             continue
@@ -294,16 +292,10 @@ def _notificar_citas_confirmadas_por_completar(citas: list[dict], ahora: datetim
         if not fecha_fin or fecha_fin > ahora:
             continue
 
-        fecha_autocompletado = fecha_fin + timedelta(minutes=MINUTOS_GRACIA_COMPLETADO)
-        cita_con_fechas = {
-            **cita,
-            "fecha_fin": fecha_fin.isoformat(),
-            "fecha_autocompletado": fecha_autocompletado.isoformat(),
-        }
-        notificar_cita_por_completar(cita_con_fechas, fecha_fin, fecha_autocompletado)
-        if ahora >= fecha_autocompletado:
-            por_autocompletar.append(cita_con_fechas)
-    return por_autocompletar
+        notificar_cita_finalizada_pendiente(
+            {**cita, "fecha_fin": fecha_fin.isoformat()},
+            fecha_fin,
+        )
 
 
 def cancelar_citas_vencidas(id_cita: int | None = None, *, raise_errors: bool = False):
@@ -318,7 +310,7 @@ def cancelar_citas_vencidas(id_cita: int | None = None, *, raise_errors: bool = 
 
     citas = _citas_con_horarios(query.execute().data or [])
     vencidas = [cita for cita in citas if is_cita_vencida(cita)]
-    confirmadas_por_autocompletar = _notificar_citas_confirmadas_por_completar(citas, ahora)
+    _notificar_citas_confirmadas_finalizadas(citas, ahora)
 
     actualizadas = []
     ids_cita = [cita["id_cita"] for cita in vencidas]
@@ -345,27 +337,6 @@ def cancelar_citas_vencidas(id_cita: int | None = None, *, raise_errors: bool = 
         for cita_id in ids_cita:
             marcar_notificaciones_cita_leidas(cita_id)
 
-    ids_autocompletar = [cita["id_cita"] for cita in confirmadas_por_autocompletar]
-    if ids_autocompletar:
-        try:
-            res = supabase_admin.table("cita")\
-                .update({"estado": "completada"})\
-                .in_("id_cita", ids_autocompletar)\
-                .eq("estado", "confirmada")\
-                .execute()
-        except APIError as error:
-            if raise_errors:
-                _raise_cita_update_error(error)
-            return actualizadas
-
-        autocompletadas = res.data or [
-            {**cita, "estado": "completada"}
-            for cita in confirmadas_por_autocompletar
-        ]
-        actualizadas.extend(autocompletadas)
-        for cita_id in ids_autocompletar:
-            marcar_notificaciones_cita_leidas(cita_id)
-
     return actualizadas
 
 def cancelar_cita(id_cita: int):
@@ -374,7 +345,7 @@ def cancelar_cita(id_cita: int):
         estado_auto = auto_actualizadas[0].get("estado")
         if estado_auto == "cancelada":
             return auto_actualizadas
-        raise ValueError("La cita ya finalizo y fue completada automaticamente")
+        raise ValueError("La cita ya fue actualizada automaticamente")
     cita = get_cita(id_cita)
     if not cita:
         raise ValueError("Cita no encontrada")
@@ -411,8 +382,6 @@ def cambiar_estado_cita(id_cita: int, estado: str):
         estado_auto = auto_actualizadas[0].get("estado")
         if estado == estado_auto:
             return auto_actualizadas
-        if estado_auto == "completada":
-            raise ValueError("La cita ya finalizo y fue completada automaticamente")
         raise ValueError("La cita ya paso de horario y fue cancelada automaticamente")
     cita = get_cita(id_cita)
     if not cita:

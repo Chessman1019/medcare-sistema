@@ -7,11 +7,11 @@ from app.database import supabase, supabase_admin
 ROLES_NOTIFICACION_CITA = ("administrador", "recepcionista")
 TIPO_CITA_PENDIENTE = "cita_pendiente"
 TIPO_RECORDATORIO_CITA = "recordatorio_cita_pendiente"
-TIPO_CITA_POR_COMPLETAR = "cita_por_completar"
+TIPO_CITA_FINALIZADA_PENDIENTE = "cita_finalizada_pendiente_gestion"
 DB_TIPOS_NOTIFICACION_CITA = {
     TIPO_CITA_PENDIENTE: "cita_creada",
     TIPO_RECORDATORIO_CITA: "recordatorio_24h",
-    TIPO_CITA_POR_COMPLETAR: TIPO_CITA_POR_COMPLETAR,
+    TIPO_CITA_FINALIZADA_PENDIENTE: TIPO_CITA_FINALIZADA_PENDIENTE,
 }
 SCHEMA_COLUMNS_PERSISTENTES = ("leida", "leida_en", "eliminada", "eliminada_en", "rol_destino", "clave")
 
@@ -52,11 +52,11 @@ def _tipo_db(tipo: str) -> str:
     return DB_TIPOS_NOTIFICACION_CITA.get(tipo, tipo)
 
 
-def _tipos_db_notificacion_cita(incluir_por_completar: bool = True) -> list[str]:
+def _tipos_db_notificacion_cita(incluir_finalizadas: bool = True) -> list[str]:
     return [
         tipo_db
         for tipo_logico, tipo_db in DB_TIPOS_NOTIFICACION_CITA.items()
-        if incluir_por_completar or tipo_logico != TIPO_CITA_POR_COMPLETAR
+        if incluir_finalizadas or tipo_logico != TIPO_CITA_FINALIZADA_PENDIENTE
     ]
 
 
@@ -166,25 +166,24 @@ def sincronizar_notificaciones_citas_pendientes():
                 )
 
 
-def notificar_cita_por_completar(cita: dict, fecha_fin: datetime, fecha_autocompletado: datetime):
-    hora_limite = fecha_autocompletado.strftime("%H:%M")
+def notificar_cita_finalizada_pendiente(cita: dict, fecha_fin: datetime):
     mensaje = (
-        "Tienes una cita por completar. Tienes 10 minutos para completarla manualmente; "
-        f"si no, el sistema la completara automaticamente desde las {hora_limite}. "
+        "Tienes una cita finalizada pendiente de gestionar. "
+        "Puedes completarla si fue atendida o cancelarla si el paciente no asistio. "
         f"{_descripcion_cita(cita)}"
     )
     for rol in ROLES_NOTIFICACION_CITA:
         _insertar_notificacion_si_no_existe(
             cita,
             rol,
-            TIPO_CITA_POR_COMPLETAR,
+            TIPO_CITA_FINALIZADA_PENDIENTE,
             mensaje,
             fecha_fin.isoformat(),
         )
 
 
 def _notificacion_cita_visible(notificacion: dict, cita: dict | None) -> bool:
-    if notificacion.get("tipo") != TIPO_CITA_POR_COMPLETAR:
+    if notificacion.get("tipo") != TIPO_CITA_FINALIZADA_PENDIENTE:
         return True
     return (cita or {}).get("estado") == "confirmada"
 
@@ -212,7 +211,7 @@ def listar_notificaciones_citas(rol: str | None = None, limit: int = 50):
             res = _consultar_notificaciones_citas(
                 rol,
                 limit,
-                _tipos_db_notificacion_cita(incluir_por_completar=False),
+                _tipos_db_notificacion_cita(incluir_finalizadas=False),
             )
         else:
             raise
@@ -294,7 +293,7 @@ def marcar_notificaciones_cita_leidas(id_cita: int):
                 "enviada": True,
                 "enviado_en": ahora,
             }).eq("id_cita", id_cita)\
-              .in_("tipo", _tipos_db_notificacion_cita(incluir_por_completar=False))\
+              .in_("tipo", _tipos_db_notificacion_cita(incluir_finalizadas=False))\
               .eq("eliminada", False)\
               .execute()
         if not _is_missing_column_error(error, "leida", "leida_en", "eliminada"):

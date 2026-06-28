@@ -21,7 +21,7 @@ import AdminConfiguracion from './AdminConfiguracion'
 const NOTIFICATION_REFRESH_MS = 60 * 1000
 
 function getNotificationTitle(tipo) {
-    if (tipo === 'cita_por_completar') return 'Cita pendiente de completar'
+    if (tipo === 'cita_finalizada_pendiente_gestion') return 'Cita finalizada pendiente de gestionar'
     if (tipo === 'recordatorio_cita_pendiente') return 'Recordatorio de cita pendiente'
     return 'Tienes una cita pendiente por aprobar'
 }
@@ -126,7 +126,7 @@ export default function DashboardAdmin() {
 
     const abrirNotificacionCita = useCallback(async (notificacion) => {
         if (!notificacion.leida) await marcarNotificacionLeida(notificacion.id_notif)
-        const estadoObjetivo = notificacion.tipo === 'cita_por_completar' ? 'confirmada' : 'pendiente'
+        const estadoObjetivo = notificacion.tipo === 'cita_finalizada_pendiente_gestion' ? 'confirmada' : 'pendiente'
         setTab('citas')
         setSearch('')
         setCitaNotificada({
