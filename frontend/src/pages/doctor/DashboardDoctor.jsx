@@ -3,8 +3,8 @@ import { useAuth } from '../../context/AuthContext'
 import Layout from '../../components/Layout'
 import PortalSidebar from '../../components/PortalSidebar'
 import {
-  enviarSoporte, getCitasDoctor, getHistorial,
-  getNotificacionesDoctor, marcarNotificacionEnviada, registrarAtencion,
+  eliminarNotificacion, enviarSoporte, getCitasDoctor, getHistorial,
+  getNotificacionesDoctor, marcarNotificacionLeida, registrarAtencion,
   getSoporteTickets,
 } from '../../services/api'
 import DoctorAgenda from './DoctorAgenda'
@@ -124,8 +124,8 @@ export default function DashboardDoctor() {
 
   const handleNotificacion = async (notificacion) => {
     try {
-      if (!notificacion.enviada) {
-        await marcarNotificacionEnviada(notificacion.id_notif)
+      if (!(notificacion.leida ?? notificacion.enviada)) {
+        await marcarNotificacionLeida(notificacion.id_notif)
         await refreshNotificaciones()
       }
       const cita = citas.find(c => c.id_cita === notificacion.id_cita)
@@ -133,6 +133,24 @@ export default function DashboardDoctor() {
       else goToTab('agenda')
     } catch (error) {
       setMessage(error.response?.data?.detail || 'No se pudo actualizar la notificación.')
+    }
+  }
+
+  const marcarNotificacionVista = async (id) => {
+    try {
+      await marcarNotificacionLeida(id)
+      await refreshNotificaciones()
+    } catch (error) {
+      setMessage(error.response?.data?.detail || 'No se pudo marcar la notificación como vista.')
+    }
+  }
+
+  const borrarNotificacion = async (id) => {
+    try {
+      await eliminarNotificacion(id)
+      await refreshNotificaciones()
+    } catch (error) {
+      setMessage(error.response?.data?.detail || 'No se pudo eliminar la notificación.')
     }
   }
 
@@ -167,15 +185,25 @@ export default function DashboardDoctor() {
     } finally { setSaving(false) }
   }
 
-  const notificationItems = notificaciones.length ? notificaciones.slice(0, 6).map(item => ({
-    title: item.tipo?.replaceAll('_', ' ') || 'Notificación',
-    description: item.mensaje, time: formatDateTime(item.fecha_programada),
-    actionLabel: item.enviada ? 'Abrir atención' : 'Marcar como vista',
-    onClick: () => handleNotificacion(item),
-  })) : [
+  const notificationItems = notificaciones.length ? notificaciones.slice(0, 6).map(item => {
+    const read = item.leida ?? item.enviada
+    return {
+      key: item.id_notif,
+      title: item.tipo?.replaceAll('_', ' ') || 'Notificación',
+      description: item.mensaje,
+      time: formatDateTime(item.fecha_programada),
+      actionLabel: read ? 'Abrir atención' : 'No leída · Abrir atención',
+      read,
+      onClick: () => handleNotificacion(item),
+      onMarkRead: () => marcarNotificacionVista(item.id_notif),
+      onDelete: () => borrarNotificacion(item.id_notif),
+    }
+  }) : [
     { title: `${agendaDiaria.length} pacientes hoy`, description: 'Revisa la agenda cronológica.', time: 'Hoy', actionLabel: 'Ver agenda', onClick: () => goToTab('agenda') },
     { title: `${enAtencion.length} en atención`, description: 'Consultas abiertas.', time: 'Ahora', actionLabel: 'Abrir atención', onClick: () => enAtencion[0] ? abrirAtencion(enAtencion[0]) : goToTab('agenda') },
   ]
+
+  const unreadNotificationCount = notificaciones.filter(item => !(item.leida ?? item.enviada)).length
 
   const helpItems = [
     { title: 'Registrar atención', description: 'Selecciona un paciente confirmado y completa el diagnóstico.', actionLabel: 'Ir a agenda', onClick: () => goToTab('agenda') },
@@ -202,7 +230,7 @@ export default function DashboardDoctor() {
   )
 
   if (loading) return (
-    <Layout sidebar={sidebar} title="Panel médico" notificationItems={notificationItems} helpItems={helpItems} appItems={appItems}>
+    <Layout sidebar={sidebar} title="Panel médico" notificationItems={notificationItems} notificationCount={unreadNotificationCount} helpItems={helpItems} appItems={appItems}>
       <div className="flex min-h-screen items-center justify-center">
         <div className="text-center">
           <div className="w-12 h-12 border-4 border-[#12b8a3] border-t-transparent rounded-full animate-spin mx-auto mb-4" />
@@ -215,7 +243,7 @@ export default function DashboardDoctor() {
   return (
     <Layout sidebar={sidebar} title="Panel médico" searchValue={searchTerm}
       searchPlaceholder="Buscar pacientes, DNI o estados..." onSearchChange={setSearchTerm}
-      notificationItems={notificationItems} helpItems={helpItems} appItems={appItems}>
+      notificationItems={notificationItems} notificationCount={unreadNotificationCount} helpItems={helpItems} appItems={appItems}>
       <div ref={contentRef} tabIndex={-1} className="mx-auto w-full max-w-[1440px] space-y-6 p-4 focus:outline-none sm:p-6 lg:p-8">
 
         {message && (

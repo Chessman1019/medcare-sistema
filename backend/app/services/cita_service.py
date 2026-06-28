@@ -2,7 +2,10 @@ from datetime import date, datetime, time, timedelta, timezone
 from zoneinfo import ZoneInfo
 from zoneinfo import ZoneInfoNotFoundError
 
+from postgrest.exceptions import APIError
+
 from app.database import supabase, supabase_admin
+from app.services.notificacion_service import marcar_notificaciones_cita_leidas
 
 try:
     LIMA_TZ = ZoneInfo("America/Lima")
@@ -13,6 +16,7 @@ ESTADOS_CITA = {
     "pendiente", "confirmada", "reprogramada",
     "cancelada", "en_atencion", "completada",
 }
+ESTADOS_AUTO_CANCELABLES = {"pendiente", "confirmada", "reprogramada"}
 
 
 def now_lima() -> datetime:
@@ -55,6 +59,16 @@ def _time_str(value) -> str:
     return _parse_time(value).strftime("%H:%M:%S")
 
 
+def _parse_datetime(value) -> datetime:
+    if isinstance(value, datetime):
+        parsed = value
+    else:
+        parsed = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+    if parsed.tzinfo is None:
+        return parsed.replace(tzinfo=LIMA_TZ)
+    return parsed.astimezone(LIMA_TZ)
+
+
 def _horario_datetime(horario: dict) -> datetime:
     return datetime.combine(
         _parse_date(horario["fecha"]),
@@ -65,6 +79,31 @@ def _horario_datetime(horario: dict) -> datetime:
 
 def is_horario_futuro(horario: dict) -> bool:
     return _horario_datetime(horario) > now_lima()
+
+
+def is_cita_vencida(cita: dict) -> bool:
+    if cita.get("estado") not in ESTADOS_AUTO_CANCELABLES:
+        return False
+    try:
+        fecha_hora = _parse_datetime(cita["fecha_hora"])
+    except (KeyError, TypeError, ValueError):
+        return False
+    try:
+        duracion_min = int(cita.get("duracion_min") or 30)
+    except (TypeError, ValueError):
+        duracion_min = 30
+    return fecha_hora + timedelta(minutes=max(duracion_min, 0)) <= now_lima()
+
+
+def _is_on_conflict_constraint_error(error: APIError) -> bool:
+    text = str(error)
+    return "42P10" in text or "no unique or exclusion constraint matching the ON CONFLICT specification" in text
+
+
+def _raise_cita_update_error(error: APIError):
+    if _is_on_conflict_constraint_error(error):
+        raise ValueError("Hay un trigger antiguo de notificaciones en la base de datos. Ejecuta la migracion 20260628_desactivar_triggers_notificacion_cita.sql.")
+    raise error
 
 
 def _validar_rango_horario(fecha, hora_inicio, hora_fin) -> tuple[str, str, str]:
@@ -177,6 +216,7 @@ def crear_cita(data: dict):
     return cita
 
 def get_citas_paciente(id_paciente: int):
+    cancelar_citas_vencidas()
     res = supabase.table("v_citas_detalle")\
         .select("*")\
         .eq("id_paciente", id_paciente)\
@@ -185,6 +225,7 @@ def get_citas_paciente(id_paciente: int):
     return res.data
 
 def get_citas_doctor(id_doctor: int):
+    cancelar_citas_vencidas()
     res = supabase.table("v_citas_detalle")\
         .select("*")\
         .eq("id_doctor", id_doctor)\
@@ -192,18 +233,68 @@ def get_citas_doctor(id_doctor: int):
         .execute()
     return res.data
 
+def cancelar_citas_vencidas(id_cita: int | None = None, *, raise_errors: bool = False):
+    query = supabase_admin.table("cita")\
+        .select("id_cita,id_horario,fecha_hora,duracion_min,estado")\
+        .in_("estado", list(ESTADOS_AUTO_CANCELABLES))
+    if id_cita is not None:
+        query = query.eq("id_cita", id_cita)
+    else:
+        query = query.lte("fecha_hora", now_lima().isoformat())
+
+    citas = query.execute().data or []
+    vencidas = [cita for cita in citas if is_cita_vencida(cita)]
+    if not vencidas:
+        return []
+
+    ids_cita = [cita["id_cita"] for cita in vencidas]
+    ids_horario = [cita.get("id_horario") for cita in vencidas if cita.get("id_horario")]
+    try:
+        res = supabase_admin.table("cita")\
+            .update({"estado": "cancelada"})\
+            .in_("id_cita", ids_cita)\
+            .execute()
+    except APIError as error:
+        if raise_errors:
+            _raise_cita_update_error(error)
+        return []
+
+    if ids_horario:
+        supabase_admin.table("horario_disponible")\
+            .update({"ocupado": False})\
+            .in_("id_horario", ids_horario)\
+            .execute()
+    for cita_id in ids_cita:
+        marcar_notificaciones_cita_leidas(cita_id)
+    return res.data or vencidas
+
 def cancelar_cita(id_cita: int):
+    auto_canceladas = cancelar_citas_vencidas(id_cita, raise_errors=True)
+    if auto_canceladas:
+        return auto_canceladas
     cita = get_cita(id_cita)
-    res = supabase_admin.table("cita")\
-        .update({"estado": "cancelada"})\
-        .eq("id_cita", id_cita)\
-        .execute()
+    if not cita:
+        raise ValueError("Cita no encontrada")
+    if cita.get("estado") == "cancelada":
+        return [cita]
+    if cita.get("estado") == "completada":
+        raise ValueError("No se puede cancelar una cita completada")
+    try:
+        res = supabase_admin.table("cita")\
+            .update({"estado": "cancelada"})\
+            .eq("id_cita", id_cita)\
+            .execute()
+    except APIError as error:
+        _raise_cita_update_error(error)
+    if not res.data:
+        raise ValueError("No se pudo cancelar la cita")
+    marcar_notificaciones_cita_leidas(id_cita)
     if cita and cita.get("id_horario"):
         liberar_horario(cita["id_horario"])
     return res.data
 
 def get_cita(id_cita: int):
-    res = supabase.table("cita")\
+    res = supabase_admin.table("cita")\
         .select("*")\
         .eq("id_cita", id_cita)\
         .execute()
@@ -212,10 +303,34 @@ def get_cita(id_cita: int):
 def cambiar_estado_cita(id_cita: int, estado: str):
     if estado not in ESTADOS_CITA:
         raise ValueError("Estado de cita no permitido")
-    res = supabase_admin.table("cita")\
-        .update({"estado": estado})\
-        .eq("id_cita", id_cita)\
-        .execute()
+    auto_canceladas = cancelar_citas_vencidas(id_cita, raise_errors=True)
+    if auto_canceladas:
+        if estado == "cancelada":
+            return auto_canceladas
+        raise ValueError("La cita ya paso de horario y fue cancelada automaticamente")
+    cita = get_cita(id_cita)
+    if not cita:
+        raise ValueError("Cita no encontrada")
+    estado_actual = cita.get("estado")
+    if estado_actual == estado:
+        return [cita]
+    if estado_actual in {"cancelada", "completada"}:
+        raise ValueError("No se puede modificar una cita cancelada o completada")
+    try:
+        res = supabase_admin.table("cita")\
+            .update({"estado": estado})\
+            .eq("id_cita", id_cita)\
+            .execute()
+    except APIError as error:
+        _raise_cita_update_error(error)
+    if not res.data:
+        raise ValueError("No se pudo actualizar la cita")
+    if estado in {"confirmada", "en_atencion"} and cita.get("id_horario"):
+        ocupar_horario(cita["id_horario"])
+    if estado == "cancelada" and cita.get("id_horario"):
+        liberar_horario(cita["id_horario"])
+    if estado in {"confirmada", "cancelada"}:
+        marcar_notificaciones_cita_leidas(id_cita)
     return res.data
 
 def liberar_horario(id_horario: int):

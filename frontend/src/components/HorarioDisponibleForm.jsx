@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { getLimaDateInputValue, getLimaTimeInputValue, isPastLimaSlot, normalizeTimeValue } from '../utils/limaTime'
+import { getLimaDateInputValue, getLimaTimeInputValue, getNextLimaTimeInputValue, isPastLimaSlot, normalizeTimeValue } from '../utils/limaTime'
 
 const inputClass = 'rounded-lg border border-slate-200 px-3 py-2 text-sm transition focus:border-[#007a68] focus:outline-none focus:ring-4 focus:ring-[#12b8a3]/15 disabled:cursor-not-allowed disabled:bg-slate-50'
 const primaryButton = 'rounded-lg bg-[#007a68] px-4 py-2 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:brightness-105 hover:shadow-lg focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#12b8a3]/20 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60'
@@ -28,13 +28,18 @@ function getErrorMessage(error, fallback) {
   return error?.message || fallback
 }
 
-export default function HorarioDisponibleForm({ doctores = [], initialDoctorId = '', onSubmit, onCreated, onCancel }) {
-  const [form, setForm] = useState({
+function getInitialForm(initialDoctorId = '') {
+  const horaInicio = getNextLimaTimeInputValue()
+  return {
     id_doctor: initialDoctorId ? String(initialDoctorId) : '',
     fecha: getLimaDateInputValue(),
-    hora_inicio: '',
-    hora_fin: '',
-  })
+    hora_inicio: horaInicio,
+    hora_fin: addMinutesToTime(horaInicio),
+  }
+}
+
+export default function HorarioDisponibleForm({ doctores = [], initialDoctorId = '', onSubmit, onCreated, onCancel }) {
+  const [form, setForm] = useState(() => getInitialForm(initialDoctorId))
   const [saving, setSaving] = useState(false)
   const [success, setSuccess] = useState('')
   const [error, setError] = useState('')
@@ -43,11 +48,22 @@ export default function HorarioDisponibleForm({ doctores = [], initialDoctorId =
   const minTime = form.fecha === today ? getLimaTimeInputValue() : undefined
 
   const updateHoraInicio = (horaInicio) => {
+    const horaInicioValida = isPastLimaSlot(form.fecha, horaInicio) ? getNextLimaTimeInputValue() : horaInicio
     setForm(current => ({
       ...current,
-      hora_inicio: horaInicio,
-      hora_fin: addMinutesToTime(horaInicio),
+      hora_inicio: horaInicioValida,
+      hora_fin: addMinutesToTime(horaInicioValida),
     }))
+  }
+
+  const updateFecha = (fecha) => {
+    setForm(current => {
+      if (fecha === getLimaDateInputValue() && (!current.hora_inicio || isPastLimaSlot(fecha, current.hora_inicio))) {
+        const horaInicio = getNextLimaTimeInputValue()
+        return { ...current, fecha, hora_inicio: horaInicio, hora_fin: addMinutesToTime(horaInicio) }
+      }
+      return { ...current, fecha }
+    })
   }
 
   const validate = () => {
@@ -87,7 +103,7 @@ export default function HorarioDisponibleForm({ doctores = [], initialDoctorId =
     try {
       const created = await onSubmit(payload)
       setSuccess('Horario disponible registrado correctamente.')
-      setForm(current => ({ ...current, fecha: getLimaDateInputValue(), hora_inicio: '', hora_fin: '' }))
+      setForm(current => ({ ...getInitialForm(current.id_doctor), id_doctor: current.id_doctor }))
       onCreated?.(created, payload)
     } catch (err) {
       setError(getErrorMessage(err, 'No se pudo registrar el horario disponible.'))
@@ -125,7 +141,7 @@ export default function HorarioDisponibleForm({ doctores = [], initialDoctorId =
         </label>
         <label className="grid gap-1 text-xs font-semibold text-slate-600">
           Fecha
-          <input type="date" className={inputClass} min={today} value={form.fecha} onChange={event => setForm(current => ({ ...current, fecha: event.target.value }))} required />
+          <input type="date" className={inputClass} min={today} value={form.fecha} onChange={event => updateFecha(event.target.value)} required />
         </label>
         <label className="grid gap-1 text-xs font-semibold text-slate-600">
           Hora inicio
