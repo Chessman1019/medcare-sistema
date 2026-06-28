@@ -20,6 +20,7 @@ import { getCodigosSugeridosFromUsuarios } from '../../utils/codigosUsuarios'
 
 const emptyRegistro = { nombre: '', apellido: '', email: '', password: '', telefono: '', dni: '', fecha_nacimiento: '', genero: 'M', seguro_medico: '', direccion: '' }
 const emptyUsuarioAdmin = { tipo_usuario: 'doctor', nombre: '', apellido: '', email: '', password: '', telefono: '', dni: '', fecha_nacimiento: '', genero: 'M', seguro_medico: '', direccion: '', cmp: '', id_especialidad: '', codigo_empleado: '', turno: 'mañana' }
+const NOTIFICATION_REFRESH_MS = 5 * 60 * 1000
 
 function formatDateTime(value) {
   if (!value) return 'Sin fecha'
@@ -45,6 +46,7 @@ export default function DashboardRecepcionista() {
   const [especialidades, setEspecialidades] = useState([])
   const [filtros, setFiltros] = useState({ estado: '', doctor: '', fecha: '' })
   const [searchTerm, setSearchTerm] = useState('')
+  const [citaNotificada, setCitaNotificada] = useState(null)
   const [agendaDoctor, setAgendaDoctor] = useState('')
   const [horariosAgenda, setHorariosAgenda] = useState([])
   const [reprogramacion, setReprogramacion] = useState(null)
@@ -109,6 +111,7 @@ export default function DashboardRecepcionista() {
 
   const citasFiltradas = useMemo(() => {
     return citas.filter(cita => {
+      if (citaNotificada?.id_cita && String(cita.id_cita) === String(citaNotificada.id_cita)) return true
       const coincideEstado = !filtros.estado || cita.estado === filtros.estado
       const coincideDoctor = !filtros.doctor || cita.doctor?.toLowerCase().includes(filtros.doctor.toLowerCase())
       const coincideFecha = !filtros.fecha || cita.fecha_hora?.startsWith(filtros.fecha)
@@ -116,29 +119,76 @@ export default function DashboardRecepcionista() {
       const coincideBusqueda = !term || [cita.paciente, cita.doctor, cita.especialidad, cita.estado, cita.dni, cita.motivo].some(f => String(f || '').toLowerCase().includes(term))
       return coincideEstado && coincideDoctor && coincideFecha && coincideBusqueda
     })
-  }, [citas, filtros, searchTerm])
+  }, [citas, filtros, searchTerm, citaNotificada])
 
   const goToTab = (nextTab, nextFilters = {}) => {
     setTab(nextTab); setFiltros(actual => ({ ...actual, ...nextFilters })); requestFocus()
   }
   const showMessage = (text) => { setMessage(text); requestFocus(); window.setTimeout(() => setMessage(''), 3500) }
-  const refreshNotificaciones = async () => {
+  const refreshNotificaciones = useCallback(async () => {
     const rolNotificaciones = isAdmin ? 'administrador' : 'recepcionista'
     const pendientesR = await getNotificacionesCitasPendientes(rolNotificaciones)
     setCitasPendientesNotif(pendientesR.data || [])
-  }
+  }, [isAdmin])
+
+  const refreshRecordatorios = useCallback(async () => {
+    try {
+      const rolNotificaciones = isAdmin ? 'administrador' : 'recepcionista'
+      const [statsR, todasR, hoyR, pendientesR] = await Promise.all([
+        getStatsCitas(),
+        getTodasCitas(),
+        getCitasHoy(),
+        getNotificacionesCitasPendientes(rolNotificaciones),
+      ])
+      setStats(statsR.data)
+      setCitas(todasR.data)
+      setCitasHoy(hoyR.data)
+      setCitasPendientesNotif(pendientesR.data || [])
+    } catch (error) {
+      console.warn('refreshRecordatorios:', error.message)
+    }
+  }, [isAdmin])
+
+  useEffect(() => {
+    const interval = window.setInterval(refreshRecordatorios, NOTIFICATION_REFRESH_MS)
+    const handleVisibility = () => {
+      if (!document.hidden) refreshRecordatorios()
+    }
+    document.addEventListener('visibilitychange', handleVisibility)
+    return () => {
+      window.clearInterval(interval)
+      document.removeEventListener('visibilitychange', handleVisibility)
+    }
+  }, [refreshRecordatorios])
+
   const refreshSoporte = async () => { const res = await getSoporteTickets(); setSoporteTickets(res.data || []) }
 
   const handleNotificacion = async (notificacion) => {
     try {
       if (!notificacion.leida) { await marcarNotificacionLeida(notificacion.id_notif); await refreshNotificaciones() }
-      goToTab('gestion', { doctor: notificacion.doctor || '', fecha: notificacion.fecha_hora?.slice(0, 10) || '' })
+      setSearchTerm('')
+      setCitaNotificada({
+        id_cita: notificacion.id_cita,
+        estado: 'pendiente',
+        doctor: notificacion.doctor || notificacion.nombre_doctor || '',
+        fecha: notificacion.fecha_hora?.slice(0, 10) || notificacion.fecha_programada?.slice(0, 10) || '',
+      })
+      goToTab('gestion', {
+        estado: 'pendiente',
+        doctor: notificacion.doctor || notificacion.nombre_doctor || '',
+        fecha: notificacion.fecha_hora?.slice(0, 10) || notificacion.fecha_programada?.slice(0, 10) || '',
+      })
     } catch (error) { showMessage(error.response?.data?.detail || 'No se pudo actualizar.') }
   }
 
   const borrarNotificacion = async (id) => {
     try { await eliminarNotificacion(id); await refreshNotificaciones() }
     catch (error) { showMessage(error.response?.data?.detail || 'No se pudo eliminar la notificación.') }
+  }
+
+  const marcarNotificacionVista = async (id) => {
+    try { await marcarNotificacionLeida(id); await refreshNotificaciones() }
+    catch (error) { showMessage(error.response?.data?.detail || 'No se pudo marcar la notificación como vista.') }
   }
 
   const registrarSoporteInterno = async () => {
@@ -243,6 +293,7 @@ export default function DashboardRecepcionista() {
     actionLabel: item.leida ? 'Leída · Ir a gestión' : 'No leída · Ir a gestión',
     read: item.leida,
     onClick: () => handleNotificacion(item),
+    onMarkRead: () => marcarNotificacionVista(item.id_notif),
     onDelete: () => borrarNotificacion(item.id_notif),
   })) : [
     { title: `${stats.pendientes ?? 0} citas pendientes`, description: 'Valida solicitudes nuevas.', time: 'Ahora', actionLabel: 'Ir a gestión', onClick: () => goToTab('gestion', { estado: 'pendiente' }) },
@@ -309,6 +360,7 @@ export default function DashboardRecepcionista() {
         )}
         {tab === 'gestion' && (
           <RecepGestion citasFiltradas={citasFiltradas} doctores={doctores}
+            citaNotificada={citaNotificada}
             reprogramacion={reprogramacion} setReprogramacion={setReprogramacion}
             actionLoading={actionLoading} onCambiarEstado={cambiarEstado}
             onAbrirReprogramacion={abrirReprogramacion} onGuardarReprogramacion={guardarReprogramacion}

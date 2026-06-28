@@ -5,7 +5,7 @@ import { useAuth } from '../../context/AuthContext'
 import {
   cancelarCita, crearCita, getCitasPaciente, getDoctoresPorEspecialidad,
   getEspecialidades, getHistorial, getHorarios, getNotificacionesPaciente,
-  enviarSoporte, marcarNotificacionEnviada, reprogramarCita, getSoporteTickets,
+  eliminarNotificacion, enviarSoporte, marcarNotificacionLeida, reprogramarCita, getSoporteTickets,
 } from '../../services/api'
 import PacienteInicio from './PacienteInicio'
 import PacienteAgendar from './PacienteAgendar'
@@ -124,9 +124,19 @@ export default function DashboardPaciente() {
 
   const handleNotificacion = async (notificacion) => {
     try {
-      if (!notificacion.enviada) { await marcarNotificacionEnviada(notificacion.id_notif); await refreshNotificaciones() }
+      if (!(notificacion.leida ?? notificacion.enviada)) { await marcarNotificacionLeida(notificacion.id_notif); await refreshNotificaciones() }
       handleSelectTab('citas')
     } catch (e) { setError(getErrorMessage(e, 'No se pudo actualizar la notificación.')) }
+  }
+
+  const marcarNotificacionVista = async (id) => {
+    try { await marcarNotificacionLeida(id); await refreshNotificaciones() }
+    catch (e) { setError(getErrorMessage(e, 'No se pudo marcar la notificación como vista.')) }
+  }
+
+  const borrarNotificacion = async (id) => {
+    try { await eliminarNotificacion(id); await refreshNotificaciones() }
+    catch (e) { setError(getErrorMessage(e, 'No se pudo eliminar la notificación.')) }
   }
 
   const handleEnviarSoporte = async (contexto, mensaje = supportMessage) => {
@@ -219,13 +229,20 @@ export default function DashboardPaciente() {
     { key: 'soporte',    icon: 'support_agent',   label: 'Soporte',          detail: `${soporteTickets.length} solicitudes` },
   ]
 
-  const notificationItems = notificaciones.length ? notificaciones.slice(0, 6).map(item => ({
-    title: item.tipo?.replaceAll('_', ' ') || 'Notificación',
-    description: item.mensaje,
-    time: formatDate(item.fecha_programada),
-    actionLabel: item.enviada ? 'Ver citas' : 'Marcar como vista',
-    onClick: () => handleNotificacion(item),
-  })) : [
+  const notificationItems = notificaciones.length ? notificaciones.slice(0, 6).map(item => {
+    const read = item.leida ?? item.enviada
+    return {
+      key: item.id_notif,
+      title: item.tipo?.replaceAll('_', ' ') || 'Notificación',
+      description: item.mensaje,
+      time: formatDate(item.fecha_programada),
+      actionLabel: read ? 'Ver citas' : 'No leída · Ver citas',
+      read,
+      onClick: () => handleNotificacion(item),
+      onMarkRead: () => marcarNotificacionVista(item.id_notif),
+      onDelete: () => borrarNotificacion(item.id_notif),
+    }
+  }) : [
     {
       title: activeAppointments ? `${activeAppointments} citas activas` : 'Sin citas activas',
       description: activeAppointments ? 'Puedes revisar, cancelar o reprogramar tus citas.' : 'Agenda una nueva cita.',
@@ -240,6 +257,8 @@ export default function DashboardPaciente() {
       onClick: () => openInicioPanel('notificaciones')
     }] : []),
   ]
+
+  const unreadNotificationCount = notificaciones.filter(item => !(item.leida ?? item.enviada)).length
 
   const helpItems = [
     { title: 'Soporte del paciente', description: 'Pide ayuda para horarios o reprogramaciones.', actionLabel: 'Solicitar apoyo', onClick: () => openInicioPanel('soporte') },
@@ -267,6 +286,7 @@ export default function DashboardPaciente() {
       searchPlaceholder="Buscar mis citas, doctores o estados..."
       onSearchChange={setSearchTerm}
       notificationItems={notificationItems}
+      notificationCount={unreadNotificationCount}
       helpItems={helpItems}
       appItems={appItems}
     >

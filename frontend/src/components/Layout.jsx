@@ -39,22 +39,45 @@ function HeaderDropdown({ title, icon, items = [], emptyText, onClose }) {
                 </>
               )
               return (
-                <div key={item.key || item.title} className={`flex items-start gap-2 rounded-xl border p-3 transition hover:-translate-y-0.5 hover:border-[#12b8a3]/35 hover:shadow-sm ${itemClass}`}>
+                <div key={item.key || item.title} className={`rounded-xl border p-3 transition hover:-translate-y-0.5 hover:border-[#12b8a3]/35 hover:shadow-sm ${itemClass}`}>
                   <button type="button"
                     onClick={() => { item.onClick?.(); onClose() }}
-                    className="min-w-0 flex-1 p-1 text-left focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#12b8a3]/20">
+                    className="w-full min-w-0 p-1 text-left focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#12b8a3]/20">
                     {body}
                   </button>
-                  {item.onDelete && (
-                    <button type="button"
-                      onClick={(event) => {
-                        event.stopPropagation()
-                        setDeleteItem(item)
-                      }}
-                      className="shrink-0 rounded-lg p-1.5 text-[#93000a] transition hover:bg-[#fff0ef] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#ba1a1a]/15"
-                      aria-label="Eliminar notificación">
-                      <span className="material-symbols-outlined text-[18px]">delete</span>
-                    </button>
+                  {(item.onMarkRead || item.onDelete) && (
+                    <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-[#d8e3fb] pt-3">
+                      {item.onMarkRead && !item.read && (
+                        <button type="button"
+                          onClick={(event) => {
+                            event.stopPropagation()
+                            item.onMarkRead?.()
+                          }}
+                          className="inline-flex items-center gap-1.5 rounded-lg border border-[#b7e8df] bg-white px-3 py-1.5 text-xs font-extrabold text-[#006b5d] transition hover:bg-[#e5fbf7] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#12b8a3]/20"
+                          aria-label="Marcar notificación como vista">
+                          <span className="material-symbols-outlined text-[16px]">done</span>
+                          Marcar como visto
+                        </button>
+                      )}
+                      {item.read && (
+                        <span className="inline-flex items-center gap-1.5 rounded-lg bg-[#edf2ff] px-3 py-1.5 text-xs font-extrabold text-[#52615f]">
+                          <span className="material-symbols-outlined text-[16px]">done_all</span>
+                          Vista
+                        </span>
+                      )}
+                      {item.onDelete && (
+                        <button type="button"
+                          onClick={(event) => {
+                            event.stopPropagation()
+                            setDeleteItem(item)
+                          }}
+                          className="inline-flex items-center gap-1.5 rounded-lg border border-[#ffdad6] bg-white px-3 py-1.5 text-xs font-extrabold text-[#93000a] transition hover:bg-[#fff0ef] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#ba1a1a]/15"
+                          aria-label="Eliminar notificación">
+                          <span className="material-symbols-outlined text-[16px]">delete</span>
+                          Eliminar
+                        </button>
+                      )}
+                    </div>
                   )}
                 </div>
               )
@@ -66,6 +89,7 @@ function HeaderDropdown({ title, icon, items = [], emptyText, onClose }) {
         <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/85 p-5 backdrop-blur-sm">
           <div className="w-full rounded-2xl border border-[#bdcbc7] bg-white p-5 shadow-2xl shadow-[#08284d]/12">
             <p className="font-extrabold text-[#101828]">¿Estás seguro de eliminar esta notificación?</p>
+            <p className="mt-2 text-sm text-[#52615f]">Esta acción la ocultará de tu bandeja de notificaciones.</p>
             <div className="mt-5 flex justify-end gap-3">
               <button type="button" onClick={() => setDeleteItem(null)}
                 className="rounded-xl border border-[#bdcbc7] bg-white px-4 py-2 text-sm font-extrabold text-[#223330] transition hover:bg-[#f8fbff]">
@@ -156,7 +180,7 @@ export default function Layout({
           </h1>
         </div>
 
-        <div className="flex shrink-0 items-center gap-1.5 sm:gap-3 lg:order-3 lg:gap-6">
+        <div className="flex shrink-0 items-center gap-1.5 sm:gap-3 lg:order-3 lg:ml-auto lg:gap-6">
           <div className="relative">
             <button type="button" onClick={() => toggleMenu('notifications')} className={`relative ${topButtonClass}`} aria-label="Notificaciones" aria-expanded={openMenu === 'notifications'}>
               <span className="material-symbols-outlined">notifications</span>
