@@ -7,9 +7,11 @@ from app.database import supabase, supabase_admin
 ROLES_NOTIFICACION_CITA = ("administrador", "recepcionista")
 TIPO_CITA_PENDIENTE = "cita_pendiente"
 TIPO_RECORDATORIO_CITA = "recordatorio_cita_pendiente"
+TIPO_CITA_FINALIZADA_PENDIENTE = "cita_finalizada_pendiente_gestion"
 DB_TIPOS_NOTIFICACION_CITA = {
     TIPO_CITA_PENDIENTE: "cita_creada",
     TIPO_RECORDATORIO_CITA: "recordatorio_24h",
+    TIPO_CITA_FINALIZADA_PENDIENTE: TIPO_CITA_FINALIZADA_PENDIENTE,
 }
 SCHEMA_COLUMNS_PERSISTENTES = ("leida", "leida_en", "eliminada", "eliminada_en", "rol_destino", "clave")
 
@@ -50,18 +52,24 @@ def _tipo_db(tipo: str) -> str:
     return DB_TIPOS_NOTIFICACION_CITA.get(tipo, tipo)
 
 
+def _tipos_db_notificacion_cita(incluir_finalizadas: bool = True) -> list[str]:
+    return [
+        tipo_db
+        for tipo_logico, tipo_db in DB_TIPOS_NOTIFICACION_CITA.items()
+        if incluir_finalizadas or tipo_logico != TIPO_CITA_FINALIZADA_PENDIENTE
+    ]
+
+
 def _tipo_logico(notificacion: dict) -> str:
     clave = notificacion.get("clave") or ""
-    if clave.startswith(f"{TIPO_RECORDATORIO_CITA}:"):
-        return TIPO_RECORDATORIO_CITA
-    if clave.startswith(f"{TIPO_CITA_PENDIENTE}:"):
-        return TIPO_CITA_PENDIENTE
+    for tipo_logico in DB_TIPOS_NOTIFICACION_CITA:
+        if clave.startswith(f"{tipo_logico}:"):
+            return tipo_logico
     tipo = notificacion.get("tipo")
     if notificacion.get("rol_destino") in ROLES_NOTIFICACION_CITA:
-        if tipo == DB_TIPOS_NOTIFICACION_CITA[TIPO_RECORDATORIO_CITA]:
-            return TIPO_RECORDATORIO_CITA
-        if tipo == DB_TIPOS_NOTIFICACION_CITA[TIPO_CITA_PENDIENTE]:
-            return TIPO_CITA_PENDIENTE
+        for tipo_logico, tipo_db in DB_TIPOS_NOTIFICACION_CITA.items():
+            if tipo == tipo_db:
+                return tipo_logico
     return tipo
 
 
@@ -158,22 +166,55 @@ def sincronizar_notificaciones_citas_pendientes():
                 )
 
 
+def notificar_cita_finalizada_pendiente(cita: dict, fecha_fin: datetime):
+    mensaje = (
+        "Tienes una cita finalizada pendiente de gestionar. "
+        "Puedes completarla si fue atendida o cancelarla si el paciente no asistio. "
+        f"{_descripcion_cita(cita)}"
+    )
+    for rol in ROLES_NOTIFICACION_CITA:
+        _insertar_notificacion_si_no_existe(
+            cita,
+            rol,
+            TIPO_CITA_FINALIZADA_PENDIENTE,
+            mensaje,
+            fecha_fin.isoformat(),
+        )
+
+
+def _notificacion_cita_visible(notificacion: dict, cita: dict | None) -> bool:
+    if notificacion.get("tipo") != TIPO_CITA_FINALIZADA_PENDIENTE:
+        return True
+    return (cita or {}).get("estado") == "confirmada"
+
+
+def _consultar_notificaciones_citas(rol: str | None, limit: int, tipos: list[str]):
+    query = supabase.table("notificacion")\
+        .select("*")\
+        .in_("tipo", tipos)\
+        .eq("eliminada", False)
+    if rol:
+        query = query.eq("rol_destino", rol)
+    else:
+        query = query.in_("rol_destino", list(ROLES_NOTIFICACION_CITA))
+    return query.order("leida").order("fecha_programada", desc=False).limit(limit).execute()
+
+
 def listar_notificaciones_citas(rol: str | None = None, limit: int = 50):
     try:
         sincronizar_notificaciones_citas_pendientes()
-        query = supabase.table("notificacion")\
-            .select("*")\
-            .in_("tipo", list(DB_TIPOS_NOTIFICACION_CITA.values()))\
-            .eq("eliminada", False)
-        if rol:
-            query = query.eq("rol_destino", rol)
-        else:
-            query = query.in_("rol_destino", list(ROLES_NOTIFICACION_CITA))
-        res = query.order("leida").order("fecha_programada", desc=False).limit(limit).execute()
+        res = _consultar_notificaciones_citas(rol, limit, _tipos_db_notificacion_cita())
     except APIError as error:
-        if _is_missing_column_error(error, *SCHEMA_COLUMNS_PERSISTENTES) or _is_invalid_tipo_notif_error(error):
+        if _is_missing_column_error(error, *SCHEMA_COLUMNS_PERSISTENTES):
             return []
-        raise
+        if _is_invalid_tipo_notif_error(error):
+            res = _consultar_notificaciones_citas(
+                rol,
+                limit,
+                _tipos_db_notificacion_cita(incluir_finalizadas=False),
+            )
+        else:
+            raise
     notificaciones = [
         {**notificacion, "tipo_db": notificacion.get("tipo"), "tipo": _tipo_logico(notificacion)}
         for notificacion in (res.data or [])
@@ -184,10 +225,12 @@ def listar_notificaciones_citas(rol: str | None = None, limit: int = 50):
 
     citas_res = supabase.table("v_citas_detalle").select("*").in_("id_cita", ids_cita).execute()
     citas_por_id = {cita.get("id_cita"): cita for cita in (citas_res.data or [])}
-    return [
-        {**notificacion, **(citas_por_id.get(notificacion.get("id_cita")) or {})}
-        for notificacion in notificaciones
-    ]
+    visibles = []
+    for notificacion in notificaciones:
+        cita = citas_por_id.get(notificacion.get("id_cita"))
+        if _notificacion_cita_visible(notificacion, cita):
+            visibles.append({**notificacion, **(cita or {})})
+    return visibles
 
 
 def marcar_notificacion_leida(id_notif: int):
@@ -237,12 +280,22 @@ def marcar_notificaciones_cita_leidas(id_cita: int):
             "leida": True,
             "leida_en": ahora,
             "enviada": True,
-          "enviado_en": ahora,
+            "enviado_en": ahora,
         }).eq("id_cita", id_cita)\
-          .in_("tipo", list(DB_TIPOS_NOTIFICACION_CITA.values()))\
+          .in_("tipo", _tipos_db_notificacion_cita())\
           .eq("eliminada", False)\
           .execute()
     except APIError as error:
+        if _is_invalid_tipo_notif_error(error):
+            return supabase_admin.table("notificacion").update({
+                "leida": True,
+                "leida_en": ahora,
+                "enviada": True,
+                "enviado_en": ahora,
+            }).eq("id_cita", id_cita)\
+              .in_("tipo", _tipos_db_notificacion_cita(incluir_finalizadas=False))\
+              .eq("eliminada", False)\
+              .execute()
         if not _is_missing_column_error(error, "leida", "leida_en", "eliminada"):
             raise
         return supabase_admin.table("notificacion").update({

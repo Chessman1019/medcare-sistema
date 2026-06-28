@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Layout from '../../components/Layout'
 import PortalSidebar from '../../components/PortalSidebar'
 import { useAuth } from '../../context/AuthContext'
@@ -27,6 +27,7 @@ function getErrorMessage(error, fallback) {
 
 export default function DashboardPaciente() {
   const { user } = useAuth()
+  const userId = user?.id
   const [especialidades, setEspecialidades] = useState([])
   const [doctores, setDoctores] = useState([])
   const [horarios, setHorarios] = useState([])
@@ -55,6 +56,27 @@ export default function DashboardPaciente() {
   const requestFocus = () => setFocusVersion(c => c + 1)
   const showSuccess = (message) => { setError(''); setSuccess(message); requestFocus(); window.setTimeout(() => setSuccess(''), 3200) }
 
+  const limpiarDatosDeSesion = useCallback(() => {
+    setDoctores([])
+    setHorarios([])
+    setCitas([])
+    setHistorial([])
+    setNotificaciones([])
+    setSoporteTickets([])
+    setForm({ id_especialidad: '', id_doctor: '', id_horario: '', motivo: '' })
+    setReprogramacion(null)
+    setQuickPanel(null)
+    setSearchTerm('')
+    setSuccess('')
+    setError('')
+  }, [])
+
+  useEffect(() => {
+    const handleAuthCleared = () => limpiarDatosDeSesion()
+    window.addEventListener('medcare:auth-cleared', handleAuthCleared)
+    return () => window.removeEventListener('medcare:auth-cleared', handleAuthCleared)
+  }, [limpiarDatosDeSesion])
+
   useEffect(() => {
     if (!focusVersion) return
     window.setTimeout(() => { contentRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }) }, 0)
@@ -67,15 +89,19 @@ export default function DashboardPaciente() {
 
   useEffect(() => {
     let mounted = true
+    const resetTimer = window.setTimeout(() => {
+      if (mounted) limpiarDatosDeSesion()
+    }, 0)
+
     getEspecialidades()
       .then(res => { if (mounted) setEspecialidades(res.data || []) })
       .catch(e => { if (mounted) setError(getErrorMessage(e, 'No se pudieron cargar las especialidades.')) })
-    if (user?.id) {
+    if (userId) {
       Promise.all([
-        getCitasPaciente(user.id),
-        getHistorial(user.id),
-        getNotificacionesPaciente(user.id),
-        getSoporteTickets({ id_usuario: user.id }),
+        getCitasPaciente(userId),
+        getHistorial(userId),
+        getNotificacionesPaciente(userId),
+        getSoporteTickets({ id_usuario: userId }),
       ]).then(([citasRes, historialRes, notificacionesRes, soporteRes]) => {
           if (!mounted) return
           setCitas(citasRes.data || [])
@@ -84,8 +110,11 @@ export default function DashboardPaciente() {
           setSoporteTickets(soporteRes.data || [])
         }).catch(e => { if (mounted) setError(getErrorMessage(e, 'No se pudieron cargar tus datos.')) })
     }
-    return () => { mounted = false }
-  }, [user?.id])
+    return () => {
+      mounted = false
+      window.clearTimeout(resetTimer)
+    }
+  }, [userId, limpiarDatosDeSesion])
 
   const proximaCita = useMemo(() => {
     return [...citas].filter(c => isManageable(c) && new Date(c.fecha_hora) >= new Date())

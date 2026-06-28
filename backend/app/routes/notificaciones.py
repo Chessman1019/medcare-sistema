@@ -11,6 +11,7 @@ from app.services.notificacion_service import (
 )
 
 router = APIRouter()
+ROLES_ADMINISTRATIVOS_NOTIFICACION = {"administrador", "recepcionista"}
 
 
 def _is_missing_column_error(error: APIError, *columns: str) -> bool:
@@ -18,18 +19,52 @@ def _is_missing_column_error(error: APIError, *columns: str) -> bool:
     return "Could not find" in text and "column" in text and any(column in text for column in columns)
 
 
-def _aplicar_estado_notificaciones(notificaciones: list[dict], limit: int) -> list[dict]:
+def _rol_destino_notificacion(item: dict, estado: dict) -> str | None:
+    return estado.get("rol_destino") or item.get("rol_destino")
+
+
+def _es_notificacion_visible_para_destino(
+    item: dict,
+    estado: dict,
+    *,
+    rol_destino: str | None = None,
+    excluir_roles: set[str] | None = None,
+) -> bool:
+    rol = _rol_destino_notificacion(item, estado)
+    if rol_destino is not None:
+        return rol == rol_destino
+    if excluir_roles and rol in excluir_roles:
+        return False
+    return True
+
+
+def _aplicar_estado_notificaciones(
+    notificaciones: list[dict],
+    limit: int,
+    *,
+    rol_destino: str | None = None,
+    excluir_roles: set[str] | None = None,
+) -> list[dict]:
     ids = [item.get("id_notif") for item in notificaciones if item.get("id_notif")]
     if not ids:
-        return notificaciones[:limit]
+        return [
+            item
+            for item in notificaciones
+            if _es_notificacion_visible_para_destino(
+                item,
+                {},
+                rol_destino=rol_destino,
+                excluir_roles=excluir_roles,
+            )
+        ][:limit]
 
     try:
         res = supabase_admin.table("notificacion")\
-            .select("id_notif,leida,enviada,eliminada")\
+            .select("id_notif,leida,enviada,eliminada,rol_destino")\
             .in_("id_notif", ids)\
             .execute()
     except APIError as error:
-        if not _is_missing_column_error(error, "leida", "eliminada"):
+        if not _is_missing_column_error(error, "leida", "eliminada", "rol_destino"):
             raise
         res = supabase_admin.table("notificacion")\
             .select("id_notif,enviada")\
@@ -42,36 +77,64 @@ def _aplicar_estado_notificaciones(notificaciones: list[dict], limit: int) -> li
         estado = estados.get(item.get("id_notif"), {})
         if estado.get("eliminada") or item.get("eliminada"):
             continue
+        if not _es_notificacion_visible_para_destino(
+            item,
+            estado,
+            rol_destino=rol_destino,
+            excluir_roles=excluir_roles,
+        ):
+            continue
         visibles.append({
             **item,
             "leida": estado.get("leida", item.get("leida", item.get("enviada", False))),
             "enviada": estado.get("enviada", item.get("enviada", False)),
             "eliminada": False,
+            "rol_destino": _rol_destino_notificacion(item, estado),
         })
     return visibles[:limit]
 
 
-def _listar_notificaciones(campo: str | None = None, valor: int | None = None, limit: int = 20):
+def _listar_notificaciones(
+    campo: str | None = None,
+    valor: int | None = None,
+    limit: int = 20,
+    *,
+    rol_destino: str | None = None,
+    excluir_roles: set[str] | None = None,
+):
     query = supabase.table("v_notificaciones_detalle").select("*")
     if campo and valor is not None:
         query = query.eq(campo, valor)
-    res = query.order("fecha_programada", desc=True).limit(max(limit * 3, limit)).execute()
-    return _aplicar_estado_notificaciones(res.data or [], limit)
+    res = query.order("fecha_programada", desc=True).limit(max(limit * 5, limit)).execute()
+    return _aplicar_estado_notificaciones(
+        res.data or [],
+        limit,
+        rol_destino=rol_destino,
+        excluir_roles=excluir_roles,
+    )
 
 
 @router.get("/paciente/{id_paciente}")
 def notificaciones_paciente(id_paciente: int):
-    return _listar_notificaciones("id_paciente", id_paciente)
+    return _listar_notificaciones(
+        "id_paciente",
+        id_paciente,
+        excluir_roles=ROLES_ADMINISTRATIVOS_NOTIFICACION,
+    )
 
 
 @router.get("/doctor/{id_doctor}")
 def notificaciones_doctor(id_doctor: int):
-    return _listar_notificaciones("id_doctor", id_doctor)
+    return _listar_notificaciones(
+        "id_doctor",
+        id_doctor,
+        excluir_roles=ROLES_ADMINISTRATIVOS_NOTIFICACION,
+    )
 
 
 @router.get("/admin")
 def notificaciones_admin():
-    return _listar_notificaciones()
+    return _listar_notificaciones(rol_destino="administrador")
 
 
 @router.get("/citas-pendientes")
