@@ -94,11 +94,12 @@ function clampTimeValue(value, min, max) {
   return value
 }
 
-function usePickerSurface(open, setOpen, wrapperRef) {
+function usePickerSurface(open, setOpen, wrapperRef, closeLockedRef) {
   useEffect(() => {
     if (!open) return undefined
 
     const handlePointerDown = (event) => {
+      if (closeLockedRef.current) return
       if (!wrapperRef.current?.contains(event.target)) setOpen(false)
     }
     const handleKeyDown = (event) => {
@@ -113,10 +114,10 @@ function usePickerSurface(open, setOpen, wrapperRef) {
       document.removeEventListener('touchstart', handlePointerDown)
       window.removeEventListener('keydown', handleKeyDown)
     }
-  }, [open, setOpen, wrapperRef])
+  }, [closeLockedRef, open, setOpen, wrapperRef])
 }
 
-function WheelColumn({ label, items, value, onChange }) {
+function WheelColumn({ label, items, value, onChange, onDragLockChange }) {
   const listRef = useRef(null)
   const scrollTimer = useRef(null)
   const dragState = useRef({ dragging: false, moved: false, startY: 0, startTop: 0 })
@@ -160,6 +161,7 @@ function WheelColumn({ label, items, value, onChange }) {
   const beginDrag = useCallback((clientY) => {
     if (!listRef.current) return
     window.clearTimeout(scrollTimer.current)
+    onDragLockChange?.(true)
     dragState.current = {
       dragging: true,
       moved: false,
@@ -167,7 +169,7 @@ function WheelColumn({ label, items, value, onChange }) {
       startTop: listRef.current.scrollTop,
     }
     setDragging(true)
-  }, [])
+  }, [onDragLockChange])
 
   const moveDrag = useCallback((clientY) => {
     const state = dragState.current
@@ -187,8 +189,9 @@ function WheelColumn({ label, items, value, onChange }) {
       ignoreClick.current = true
       window.setTimeout(() => { ignoreClick.current = false }, 140)
     }
+    onDragLockChange?.(false)
     commitFromScroll('smooth')
-  }, [commitFromScroll])
+  }, [commitFromScroll, onDragLockChange])
 
   const scheduleCommit = useCallback((direction = 0) => {
     window.clearTimeout(scrollTimer.current)
@@ -353,6 +356,8 @@ export function DateWheelPicker({
 }) {
   const generatedId = useId()
   const wrapperRef = useRef(null)
+  const closeLockedRef = useRef(false)
+  const unlockTimer = useRef(null)
   const [open, setOpen] = useState(false)
   const today = getLimaDateInputValue()
   const minValue = parseDateValue(min) ? min : undefined
@@ -360,7 +365,20 @@ export function DateWheelPicker({
   const fallback = parseDateValue(initialValue) ? initialValue : minValue || maxValue || today
   const selected = clampDateParts(parseDateValue(value) || parseDateValue(fallback), minValue, maxValue)
 
-  usePickerSurface(open, setOpen, wrapperRef)
+  const setDragCloseLock = useCallback((locked) => {
+    window.clearTimeout(unlockTimer.current)
+    if (locked) {
+      closeLockedRef.current = true
+      return
+    }
+    unlockTimer.current = window.setTimeout(() => {
+      closeLockedRef.current = false
+    }, 220)
+  }, [])
+
+  useEffect(() => () => window.clearTimeout(unlockTimer.current), [])
+
+  usePickerSurface(open, setOpen, wrapperRef, closeLockedRef)
 
   const years = useMemo(() => {
     const minYear = minValue ? parseDateValue(minValue).year : 1900
@@ -428,9 +446,9 @@ export function DateWheelPicker({
             </button>
           </div>
           <div className="grid grid-cols-3 gap-3 p-4">
-            <WheelColumn label="Día" items={dayItems} value={selected.day} onChange={day => updateParts({ ...selected, day })} />
-            <WheelColumn label="Mes" items={monthItems} value={selected.month} onChange={month => updateParts({ ...selected, month })} />
-            <WheelColumn label="Año" items={years} value={selected.year} onChange={year => updateParts({ ...selected, year })} />
+            <WheelColumn label="Día" items={dayItems} value={selected.day} onChange={day => updateParts({ ...selected, day })} onDragLockChange={setDragCloseLock} />
+            <WheelColumn label="Mes" items={monthItems} value={selected.month} onChange={month => updateParts({ ...selected, month })} onDragLockChange={setDragCloseLock} />
+            <WheelColumn label="Año" items={years} value={selected.year} onChange={year => updateParts({ ...selected, year })} onDragLockChange={setDragCloseLock} />
           </div>
           {clearable && value && (
             <div className="border-t border-[#edf2ff] px-4 py-3">
@@ -458,10 +476,25 @@ export function TimeWheelPicker({
 }) {
   const generatedId = useId()
   const wrapperRef = useRef(null)
+  const closeLockedRef = useRef(false)
+  const unlockTimer = useRef(null)
   const [open, setOpen] = useState(false)
   const selected = timeValueToParts(value, initialValue)
 
-  usePickerSurface(open, setOpen, wrapperRef)
+  const setDragCloseLock = useCallback((locked) => {
+    window.clearTimeout(unlockTimer.current)
+    if (locked) {
+      closeLockedRef.current = true
+      return
+    }
+    unlockTimer.current = window.setTimeout(() => {
+      closeLockedRef.current = false
+    }, 220)
+  }, [])
+
+  useEffect(() => () => window.clearTimeout(unlockTimer.current), [])
+
+  usePickerSurface(open, setOpen, wrapperRef, closeLockedRef)
 
   const updateParts = (nextParts) => {
     const nextValue = clampTimeValue(timePartsToValue(nextParts), min, max)
@@ -506,9 +539,9 @@ export function TimeWheelPicker({
             </button>
           </div>
           <div className="grid grid-cols-[1fr_1fr_1.2fr] gap-3 p-4">
-            <WheelColumn label="Hora" items={hourItems} value={selected.hour12} onChange={hour12 => updateParts({ ...selected, hour12 })} />
-            <WheelColumn label="Min" items={minuteItems} value={selected.minute} onChange={minute => updateParts({ ...selected, minute })} />
-            <WheelColumn label="Periodo" items={periodItems} value={selected.period} onChange={period => updateParts({ ...selected, period })} />
+            <WheelColumn label="Hora" items={hourItems} value={selected.hour12} onChange={hour12 => updateParts({ ...selected, hour12 })} onDragLockChange={setDragCloseLock} />
+            <WheelColumn label="Min" items={minuteItems} value={selected.minute} onChange={minute => updateParts({ ...selected, minute })} onDragLockChange={setDragCloseLock} />
+            <WheelColumn label="Periodo" items={periodItems} value={selected.period} onChange={period => updateParts({ ...selected, period })} onDragLockChange={setDragCloseLock} />
           </div>
         </div>
       )}
