@@ -5,9 +5,9 @@ import { formatTime12h, parseTimeValue } from '../utils/timeFormat'
 const ITEM_HEIGHT = 44
 const PANEL_MARGIN = 16
 const DATE_PANEL_WIDTH = 384
-const DATE_PANEL_HEIGHT = 390
+const DATE_PANEL_HEIGHT = 470
 const TIME_PANEL_WIDTH = 352
-const TIME_PANEL_HEIGHT = 350
+const TIME_PANEL_HEIGHT = 430
 const MONTHS = [
   'Enero',
   'Febrero',
@@ -54,10 +54,11 @@ function compareDateValues(left, right) {
 }
 
 function clampDateParts(parts, min, max) {
+  const month = Math.max(1, Math.min(parts.month, 12))
   const normalized = {
     year: parts.year,
-    month: parts.month,
-    day: Math.min(parts.day, getDaysInMonth(parts.year, parts.month)),
+    month,
+    day: Math.max(1, Math.min(parts.day, getDaysInMonth(parts.year, month))),
   }
   const value = datePartsToValue(normalized)
   if (min && compareDateValues(value, min) < 0) return parseDateValue(min)
@@ -168,21 +169,9 @@ function useWheelPanelPosition(open, wrapperRef, preferredWidth, preferredHeight
 
 function WheelColumn({ label, items, value, onChange }) {
   const listRef = useRef(null)
-  const scrollTimer = useRef(null)
-  const wheelUnlockTimer = useRef(null)
-  const programmaticScrollTimer = useRef(null)
-  const programmaticScroll = useRef(false)
+  const wheelResetTimer = useRef(null)
   const wheelAccumulator = useRef(0)
   const wheelTargetIndex = useRef(null)
-  const dragState = useRef({
-    dragging: false,
-    moved: false,
-    startY: 0,
-    startTop: 0,
-    tapIndex: null,
-  })
-  const ignoreClick = useRef(false)
-  const [dragging, setDragging] = useState(false)
   const currentIndex = items.findIndex(item => item.value === value)
 
   const getSelectableIndex = useCallback((index, direction = 0) => {
@@ -214,165 +203,62 @@ function WheelColumn({ label, items, value, onChange }) {
     return -1
   }, [currentIndex, items])
 
-  const scrollToIndex = useCallback((index, behavior = 'smooth') => {
+  const scrollToIndex = useCallback((index) => {
     if (!listRef.current) return
 
-    window.clearTimeout(programmaticScrollTimer.current)
-    programmaticScroll.current = true
-    listRef.current.scrollTo({ top: index * ITEM_HEIGHT, behavior })
-    programmaticScrollTimer.current = window.setTimeout(() => {
-      programmaticScroll.current = false
-    }, behavior === 'smooth' ? 360 : 80)
+    listRef.current.scrollTop = index * ITEM_HEIGHT
   }, [])
 
-  const selectIndex = useCallback((index, behavior = 'smooth', direction = 0) => {
+  const selectIndex = useCallback((index, direction = 0) => {
     const selectableIndex = getSelectableIndex(index, direction)
     if (selectableIndex < 0) return
 
-    scrollToIndex(selectableIndex, behavior)
+    wheelTargetIndex.current = selectableIndex
+    scrollToIndex(selectableIndex)
     const item = items[selectableIndex]
     if (item && item.value !== value) onChange(item.value)
   }, [getSelectableIndex, items, onChange, scrollToIndex, value])
 
-  const commitFromScroll = useCallback((behavior = 'smooth', direction = 0) => {
-    const top = listRef.current?.scrollTop || 0
-    selectIndex(Math.round(top / ITEM_HEIGHT), behavior, direction)
-  }, [selectIndex])
-
-  const beginDrag = useCallback((clientY, tapIndex) => {
-    if (!listRef.current) return
-    window.clearTimeout(scrollTimer.current)
-    dragState.current = {
-      dragging: true,
-      moved: false,
-      startY: clientY,
-      startTop: listRef.current.scrollTop,
-      tapIndex,
-    }
-    setDragging(true)
-  }, [])
-
-  const moveDrag = useCallback((clientY) => {
-    const state = dragState.current
-    if (!state.dragging || !listRef.current) return
-
-    const delta = clientY - state.startY
-    if (Math.abs(delta) > 3) state.moved = true
-    listRef.current.scrollTop = state.startTop - delta
-  }, [])
-
-  const endDrag = useCallback(() => {
-    const { moved, tapIndex } = dragState.current
-    dragState.current = {
-      ...dragState.current,
-      dragging: false,
-      tapIndex: null,
-    }
-    setDragging(false)
-
-    if (moved) {
-      ignoreClick.current = true
-      window.setTimeout(() => { ignoreClick.current = false }, 140)
-      commitFromScroll('smooth')
-    } else if (Number.isInteger(tapIndex) && items[tapIndex] && !items[tapIndex].disabled) {
-      selectIndex(tapIndex)
-    } else {
-      commitFromScroll('smooth')
-    }
-  }, [commitFromScroll, items, selectIndex])
-
-  const scheduleCommit = useCallback((direction = 0) => {
-    window.clearTimeout(scrollTimer.current)
-    scrollTimer.current = window.setTimeout(() => commitFromScroll('smooth', direction), 70)
-  }, [commitFromScroll])
-
-  useEffect(() => {
+  useLayoutEffect(() => {
     const index = items.findIndex(item => item.value === value)
     if (index < 0) return
     wheelTargetIndex.current = index
-    scrollToIndex(index, 'smooth')
+    scrollToIndex(index)
   }, [items, scrollToIndex, value])
 
   useEffect(() => () => {
-    window.clearTimeout(scrollTimer.current)
-    window.clearTimeout(wheelUnlockTimer.current)
-    window.clearTimeout(programmaticScrollTimer.current)
+    window.clearTimeout(wheelResetTimer.current)
   }, [])
-
-  useEffect(() => {
-    if (!dragging) return undefined
-
-    const handleMouseMove = (event) => {
-      event.preventDefault()
-      moveDrag(event.clientY)
-    }
-    const handleMouseUp = (event) => {
-      event.preventDefault()
-      endDrag()
-    }
-    const handleBlur = () => endDrag()
-
-    window.addEventListener('mousemove', handleMouseMove)
-    window.addEventListener('mouseup', handleMouseUp)
-    window.addEventListener('blur', handleBlur)
-
-    return () => {
-      window.removeEventListener('mousemove', handleMouseMove)
-      window.removeEventListener('mouseup', handleMouseUp)
-      window.removeEventListener('blur', handleBlur)
-    }
-  }, [dragging, endDrag, moveDrag])
-
-  const handleScroll = () => {
-    if (dragState.current.dragging) return
-    if (programmaticScroll.current) return
-    scheduleCommit()
-  }
 
   const handleWheel = (event) => {
     if (!listRef.current) return
     event.preventDefault()
     event.stopPropagation()
-    window.clearTimeout(wheelUnlockTimer.current)
+    window.clearTimeout(wheelResetTimer.current)
 
     const deltaUnit = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? ITEM_HEIGHT : 1
     const delta = event.deltaY * deltaUnit
     if (!delta) return
 
     wheelAccumulator.current += delta
-    if (Math.abs(wheelAccumulator.current) >= ITEM_HEIGHT * 0.7) {
+    if (Math.abs(wheelAccumulator.current) >= 20) {
       const direction = Math.sign(wheelAccumulator.current)
       const baseIndex = Number.isInteger(wheelTargetIndex.current) ? wheelTargetIndex.current : currentIndex
       const nextIndex = getAdjacentIndex(direction, baseIndex)
 
       wheelAccumulator.current = 0
-      if (nextIndex >= 0) {
-        wheelTargetIndex.current = nextIndex
-        selectIndex(nextIndex, 'smooth', direction)
-      }
+      if (nextIndex >= 0) selectIndex(nextIndex, direction)
     }
 
-    wheelUnlockTimer.current = window.setTimeout(() => {
+    wheelResetTimer.current = window.setTimeout(() => {
       wheelAccumulator.current = 0
       wheelTargetIndex.current = null
-    }, 240)
-  }
-
-  const getOptionIndexFromEvent = (event) => {
-    const option = event.target.closest?.('[data-wheel-option-index]')
-    if (!option) return null
-    const index = Number(option.dataset.wheelOptionIndex)
-    return Number.isInteger(index) ? index : null
+    }, 180)
   }
 
   const handleMouseDown = (event) => {
-    if (event.button !== 0) return
-    if (!listRef.current) return
-
-    event.preventDefault()
     event.stopPropagation()
-    listRef.current.focus({ preventScroll: true })
-    beginDrag(event.clientY, getOptionIndexFromEvent(event))
+    listRef.current?.focus({ preventScroll: true })
   }
 
   const handleKeyDown = (event) => {
@@ -381,37 +267,44 @@ function WheelColumn({ label, items, value, onChange }) {
 
     if (event.key === 'ArrowDown') {
       event.preventDefault()
-      selectIndex(currentIndex + 1, 'smooth', 1)
+      selectIndex(currentIndex + 1, 1)
     }
     if (event.key === 'ArrowUp') {
       event.preventDefault()
-      selectIndex(currentIndex - 1, 'smooth', -1)
+      selectIndex(currentIndex - 1, -1)
     }
     if (event.key === 'PageDown') {
       event.preventDefault()
-      selectIndex(currentIndex + 5, 'smooth', 1)
+      selectIndex(currentIndex + 5, 1)
     }
     if (event.key === 'PageUp') {
       event.preventDefault()
-      selectIndex(currentIndex - 5, 'smooth', -1)
+      selectIndex(currentIndex - 5, -1)
+    }
+    if (event.key === 'Home') {
+      event.preventDefault()
+      selectIndex(0, 1)
+    }
+    if (event.key === 'End') {
+      event.preventDefault()
+      selectIndex(items.length - 1, -1)
+    }
+    if (event.key === 'Enter') {
+      event.preventDefault()
     }
   }
 
-  const handleOptionClick = (event, item, index) => {
-    if (ignoreClick.current || item.disabled) {
-      event.preventDefault()
-      event.stopPropagation()
-      return
-    }
+  const handleOptionClick = (event) => {
+    event.preventDefault()
     event.stopPropagation()
-    selectIndex(index)
+    listRef.current?.focus({ preventScroll: true })
   }
 
   const handleStepClick = (event, direction) => {
     event.preventDefault()
     event.stopPropagation()
     const nextIndex = getAdjacentIndex(direction)
-    if (nextIndex >= 0) selectIndex(nextIndex, 'smooth', direction)
+    if (nextIndex >= 0) selectIndex(nextIndex, direction)
   }
 
   const previousIndex = getAdjacentIndex(-1)
@@ -433,11 +326,10 @@ function WheelColumn({ label, items, value, onChange }) {
         <div className="medcare-wheel-selection" aria-hidden="true" />
         <div
           ref={listRef}
-          onScroll={handleScroll}
           onWheel={handleWheel}
           onMouseDown={handleMouseDown}
           onKeyDown={handleKeyDown}
-          className={`medcare-wheel-list ${dragging ? 'is-dragging' : ''}`}
+          className="medcare-wheel-list"
           role="listbox"
           aria-label={label}
           tabIndex={0}
@@ -449,7 +341,7 @@ function WheelColumn({ label, items, value, onChange }) {
               data-wheel-option-index={index}
               aria-disabled={item.disabled || undefined}
               className={`medcare-wheel-option ${item.value === value ? 'is-active' : ''} ${item.disabled ? 'is-disabled' : ''}`}
-              onClick={event => handleOptionClick(event, item, index)}
+              onClick={handleOptionClick}
               role="option"
               aria-selected={item.value === value}
               tabIndex={-1}
@@ -534,6 +426,35 @@ export function DateWheelPicker({
   }
 
   const displayValue = formatDateDisplay(value)
+  const maxDay = getDaysInMonth(selected.year, selected.month)
+  const yearMin = years[0]?.value || 1900
+  const yearMax = years[years.length - 1]?.value || new Date().getFullYear() + 5
+
+  const handleManualDay = (event) => {
+    const day = Number(event.target.value)
+    if (!Number.isInteger(day) || day < 1 || day > 31) return
+    updateParts({ ...selected, day })
+  }
+
+  const handleManualMonth = (event) => {
+    const month = Number(event.target.value)
+    if (!Number.isInteger(month) || month < 1 || month > 12) return
+    updateParts({ ...selected, month })
+  }
+
+  const handleManualYear = (event) => {
+    const year = Number(event.target.value)
+    if (!Number.isInteger(year) || year < 1) return
+    updateParts({ ...selected, year })
+  }
+
+  const stopPickerInteraction = (event) => {
+    event.stopPropagation()
+  }
+
+  const stopEnterSubmit = (event) => {
+    if (event.key === 'Enter') event.preventDefault()
+  }
 
   return (
     <div ref={wrapperRef} className={`relative ${className}`}>
@@ -570,6 +491,53 @@ export function DateWheelPicker({
             <WheelColumn label="Día" items={dayItems} value={selected.day} onChange={day => updateParts({ ...selected, day })} />
             <WheelColumn label="Mes" items={monthItems} value={selected.month} onChange={month => updateParts({ ...selected, month })} />
             <WheelColumn label="Año" items={years} value={selected.year} onChange={year => updateParts({ ...selected, year })} />
+          </div>
+          <div className="medcare-wheel-manual">
+            <label className="medcare-wheel-field">
+              <span>Día</span>
+              <input
+                type="number"
+                min="1"
+                max={maxDay}
+                value={selected.day}
+                onChange={handleManualDay}
+                onPointerDown={stopPickerInteraction}
+                onClick={stopPickerInteraction}
+                onWheel={stopPickerInteraction}
+                onKeyDown={stopEnterSubmit}
+                className="medcare-wheel-manual-control"
+              />
+            </label>
+            <label className="medcare-wheel-field">
+              <span>Mes</span>
+              <select
+                value={selected.month}
+                onChange={handleManualMonth}
+                onPointerDown={stopPickerInteraction}
+                onClick={stopPickerInteraction}
+                onWheel={stopPickerInteraction}
+                className="medcare-wheel-manual-control"
+              >
+                {monthItems.map(item => (
+                  <option key={item.value} value={item.value} disabled={item.disabled}>{item.label}</option>
+                ))}
+              </select>
+            </label>
+            <label className="medcare-wheel-field">
+              <span>Año</span>
+              <input
+                type="number"
+                min={yearMin}
+                max={yearMax}
+                value={selected.year}
+                onChange={handleManualYear}
+                onPointerDown={stopPickerInteraction}
+                onClick={stopPickerInteraction}
+                onWheel={stopPickerInteraction}
+                onKeyDown={stopEnterSubmit}
+                className="medcare-wheel-manual-control"
+              />
+            </label>
           </div>
           {clearable && value && (
             <div className="border-t border-[#edf2ff] px-4 py-3">
@@ -619,6 +587,30 @@ export function TimeWheelPicker({
     { value: 'PM', label: 'P. M.' },
   ]
 
+  const handleManualHour = (event) => {
+    const hour12 = Number(event.target.value)
+    if (!Number.isInteger(hour12) || hour12 < 1 || hour12 > 12) return
+    updateParts({ ...selected, hour12 })
+  }
+
+  const handleManualMinute = (event) => {
+    const minute = Number(event.target.value)
+    if (!Number.isInteger(minute) || minute < 0 || minute > 59) return
+    updateParts({ ...selected, minute })
+  }
+
+  const handleManualPeriod = (event) => {
+    updateParts({ ...selected, period: event.target.value })
+  }
+
+  const stopPickerInteraction = (event) => {
+    event.stopPropagation()
+  }
+
+  const stopEnterSubmit = (event) => {
+    if (event.key === 'Enter') event.preventDefault()
+  }
+
   return (
     <div ref={wrapperRef} className={`relative ${className}`}>
       <button
@@ -654,6 +646,51 @@ export function TimeWheelPicker({
             <WheelColumn label="Hora" items={hourItems} value={selected.hour12} onChange={hour12 => updateParts({ ...selected, hour12 })} />
             <WheelColumn label="Min" items={minuteItems} value={selected.minute} onChange={minute => updateParts({ ...selected, minute })} />
             <WheelColumn label="Periodo" items={periodItems} value={selected.period} onChange={period => updateParts({ ...selected, period })} />
+          </div>
+          <div className="medcare-wheel-manual medcare-wheel-manual-time">
+            <label className="medcare-wheel-field">
+              <span>Hora</span>
+              <input
+                type="number"
+                min="1"
+                max="12"
+                value={selected.hour12}
+                onChange={handleManualHour}
+                onPointerDown={stopPickerInteraction}
+                onClick={stopPickerInteraction}
+                onWheel={stopPickerInteraction}
+                onKeyDown={stopEnterSubmit}
+                className="medcare-wheel-manual-control"
+              />
+            </label>
+            <label className="medcare-wheel-field">
+              <span>Min</span>
+              <input
+                type="number"
+                min="0"
+                max="59"
+                value={selected.minute}
+                onChange={handleManualMinute}
+                onPointerDown={stopPickerInteraction}
+                onClick={stopPickerInteraction}
+                onWheel={stopPickerInteraction}
+                onKeyDown={stopEnterSubmit}
+                className="medcare-wheel-manual-control"
+              />
+            </label>
+            <label className="medcare-wheel-field">
+              <span>Periodo</span>
+              <select
+                value={selected.period}
+                onChange={handleManualPeriod}
+                onPointerDown={stopPickerInteraction}
+                onClick={stopPickerInteraction}
+                onWheel={stopPickerInteraction}
+                className="medcare-wheel-manual-control"
+              >
+                {periodItems.map(item => <option key={item.value} value={item.value}>{item.label}</option>)}
+              </select>
+            </label>
           </div>
         </div>
       )}
