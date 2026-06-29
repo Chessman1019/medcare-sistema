@@ -1,6 +1,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import FormError from '../components/FormError'
 import {
   login,
   restablecerContrasena,
@@ -8,6 +9,8 @@ import {
   verificarCodigoRecuperacion,
 } from '../services/api'
 import { useAuth } from '../context/AuthContext'
+import { useFormValidation } from '../hooks/useFormValidation'
+import { validateLoginForm } from '../utils/formValidation'
 
 const CAROUSEL = [
   'https://images.unsplash.com/photo-1538108149393-fbbd81895907?w=1600&q=90',
@@ -42,6 +45,7 @@ export default function Login() {
   const [loading, setLoading] = useState(false)
   const { loginUser } = useAuth()
   const navigate = useNavigate()
+  const { fieldErrors, applyErrors, clearFieldError } = useFormValidation()
 
   useEffect(() => {
     timerRef.current = setInterval(() => {
@@ -56,8 +60,15 @@ export default function Login() {
 
   const handleSubmit = async (event) => {
     event.preventDefault()
-    setLoading(true)
     setError('')
+
+    const validation = validateLoginForm(form)
+    if (!validation.valid) {
+      applyErrors(validation.errors)
+      return
+    }
+
+    setLoading(true)
     try {
       const res = await login(form)
       const { access_token, rol, id_usuario, nombre, apellido } = res.data
@@ -155,6 +166,18 @@ export default function Login() {
     transition: 'border-color 0.2s, box-shadow 0.2s, background 0.2s',
     boxSizing: 'border-box',
   }
+
+  const invalidInputStyle = {
+    borderColor: '#e07a72',
+    background: '#fff9f8',
+    boxShadow: '0 0 0 4px rgba(255, 180, 171, 0.28)',
+  }
+
+  const loginInputStyle = (field, extra = {}) => ({
+    ...inputStyle,
+    ...extra,
+    ...(fieldErrors[field] ? invalidInputStyle : {}),
+  })
 
   const focusIn = (e) => {
     e.target.style.borderColor = '#006b5d'
@@ -320,7 +343,7 @@ export default function Login() {
             )}
 
             {/* Formulario */}
-            <form onSubmit={handleSubmit}>
+            <form noValidate onSubmit={handleSubmit}>
 
               {/* Email */}
               <div style={{ position: 'relative', marginBottom: 14 }}>
@@ -329,15 +352,21 @@ export default function Login() {
                   fontSize: 20, color: '#9ab8b2', pointerEvents: 'none',
                 }}>person</span>
                 <input
-                  style={{ ...inputStyle, paddingLeft: 44 }}
-                  type="email"
+                  style={loginInputStyle('email', { paddingLeft: 44 })}
+                  data-field="email"
+                  type="text"
+                  inputMode="email"
+                  autoComplete="email"
                   placeholder="Correo electrónico"
                   value={form.email}
-                  onChange={(e) => setForm({ ...form, email: e.target.value })}
+                  onChange={(e) => {
+                    setForm({ ...form, email: e.target.value })
+                    clearFieldError('email')
+                  }}
                   onFocus={focusIn}
                   onBlur={focusOut}
-                  required
                 />
+                <FormError message={fieldErrors.email} />
               </div>
 
               {/* Contraseña */}
@@ -347,15 +376,20 @@ export default function Login() {
                   fontSize: 20, color: '#9ab8b2', pointerEvents: 'none',
                 }}>lock</span>
                 <input
-                  style={{ ...inputStyle, paddingLeft: 44, paddingRight: 48 }}
+                  style={loginInputStyle('password', { paddingLeft: 44, paddingRight: 48 })}
+                  data-field="password"
                   type={showPassword ? 'text' : 'password'}
+                  autoComplete="current-password"
                   placeholder="Contraseña"
                   value={form.password}
-                  onChange={(e) => setForm({ ...form, password: e.target.value })}
+                  onChange={(e) => {
+                    setForm({ ...form, password: e.target.value })
+                    clearFieldError('password')
+                  }}
                   onFocus={focusIn}
                   onBlur={focusOut}
-                  required
                 />
+                <FormError message={fieldErrors.password} />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}

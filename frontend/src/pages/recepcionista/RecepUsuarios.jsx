@@ -1,9 +1,12 @@
 import { useMemo, useState } from 'react'
+import FormError from '../../components/FormError'
 import MedCareSelect from '../../components/MedCareSelect'
-import { PasswordField, PasswordStrength, isPasswordValid } from '../../components/PasswordControls'
+import { PasswordField, PasswordStrength } from '../../components/PasswordControls'
 import SeguroMedicoField from '../../components/SeguroMedicoField'
 import CodigoSugeridoField from '../../components/CodigoSugeridoField'
 import { DateWheelPicker } from '../../components/WheelPickers'
+import { useFormValidation } from '../../hooks/useFormValidation'
+import { validateUserCreationForm } from '../../utils/formValidation'
 import { dniInputProps, formatDniInput, formatPhoneInput, phoneInputProps } from '../../utils/numericFields'
 import { getLimaDateInputValue } from '../../utils/limaTime'
 
@@ -23,7 +26,11 @@ const generoOptions = [
 export default function RecepUsuarios({ usuarios, usuarioAdmin, setUsuarioAdmin, especialidades, codigosSugeridos = {}, actionLoading, onCrearUsuario, onShowMessage }) {
   const [filtros, setFiltros] = useState({ busqueda: '', rol: '', estado: '' })
   const maxBirthDate = getLimaDateInputValue()
-  const updateField = (field, value) => setUsuarioAdmin(c => ({ ...c, [field]: value }))
+  const { fieldErrors, applyErrors, clearFieldError, inputClass: fieldInputClass } = useFormValidation()
+  const updateField = (field, value) => {
+    setUsuarioAdmin(c => ({ ...c, [field]: value }))
+    clearFieldError(field)
+  }
   const updateRole = (rol) => setUsuarioAdmin(current => ({
     ...current,
     tipo_usuario: rol,
@@ -35,12 +42,9 @@ export default function RecepUsuarios({ usuarios, usuarioAdmin, setUsuarioAdmin,
 
   const handleSubmit = (event) => {
     event.preventDefault()
-    if (usuarioAdmin.tipo_usuario === 'paciente' && !usuarioAdmin.fecha_nacimiento) {
-      onShowMessage('Selecciona la fecha de nacimiento.')
-      return
-    }
-    if (!isPasswordValid(usuarioAdmin.password)) {
-      onShowMessage('La contraseña debe tener mínimo 6 caracteres, letras y números.')
+    const validation = validateUserCreationForm(usuarioAdmin, usuarioAdmin.tipo_usuario)
+    if (!validation.valid) {
+      applyErrors(validation.errors)
       return
     }
     onCrearUsuario(event)
@@ -75,12 +79,12 @@ export default function RecepUsuarios({ usuarios, usuarioAdmin, setUsuarioAdmin,
         <p className="mt-2 text-lg text-[#52615f]">{usuariosFiltrados.length} de {usuarios.length} usuarios registrados.</p>
       </div>
 
-      <form onSubmit={handleSubmit} className="medcare-card p-6 space-y-5">
+      <form noValidate onSubmit={handleSubmit} className="medcare-card p-6 space-y-5">
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
           <label className="block text-sm font-bold text-[#223330]">
             Rol
             <MedCareSelect
-              className={inputClass}
+              className={fieldInputClass('tipo_usuario', inputClass)}
               value={usuarioAdmin.tipo_usuario}
               onChange={e => updateRole(e.target.value)}
               options={[
@@ -90,18 +94,37 @@ export default function RecepUsuarios({ usuarios, usuarioAdmin, setUsuarioAdmin,
               ]}
             />
           </label>
-          <label className="block text-sm font-bold text-[#223330]">Nombre<input className={inputClass} value={usuarioAdmin.nombre} onChange={e => updateField('nombre', e.target.value)} required /></label>
-          <label className="block text-sm font-bold text-[#223330]">Apellido<input className={inputClass} value={usuarioAdmin.apellido} onChange={e => updateField('apellido', e.target.value)} required /></label>
-          <label className="block text-sm font-bold text-[#223330]">Correo<input type="email" className={inputClass} value={usuarioAdmin.email} onChange={e => updateField('email', e.target.value)} required /></label>
+          <label className="block text-sm font-bold text-[#223330]">
+            Nombre
+            <input data-field="nombre" className={fieldInputClass('nombre', inputClass)} value={usuarioAdmin.nombre} onChange={e => updateField('nombre', e.target.value)} />
+            <FormError message={fieldErrors.nombre} />
+          </label>
+          <label className="block text-sm font-bold text-[#223330]">
+            Apellido
+            <input data-field="apellido" className={fieldInputClass('apellido', inputClass)} value={usuarioAdmin.apellido} onChange={e => updateField('apellido', e.target.value)} />
+            <FormError message={fieldErrors.apellido} />
+          </label>
+          <label className="block text-sm font-bold text-[#223330]">
+            Correo
+            <input data-field="email" type="text" inputMode="email" autoComplete="email" className={fieldInputClass('email', inputClass)} value={usuarioAdmin.email} onChange={e => updateField('email', e.target.value)} />
+            <FormError message={fieldErrors.email} />
+          </label>
 
           <div className="md:col-span-2 xl:col-span-2">
-            <PasswordField label="Contraseña temporal" value={usuarioAdmin.password}
+            <PasswordField label="Contraseña temporal" data-field="password" value={usuarioAdmin.password}
               onChange={e => updateField('password', e.target.value)}
-              placeholder="••••••••" autoComplete="new-password" required minLength={6} />
+              placeholder="••••••••" autoComplete="new-password"
+              inputClassName={inputClass.replace(' mt-1', '')}
+              error={Boolean(fieldErrors.password)} />
+            <FormError message={fieldErrors.password} />
             <PasswordStrength password={usuarioAdmin.password} className="mt-3" />
           </div>
-          <label className="block text-sm font-bold text-[#223330]">Teléfono<input className={inputClass} {...phoneInputProps}
-            value={usuarioAdmin.telefono} onChange={e => updateField('telefono', formatPhoneInput(e.target.value))} /></label>
+          <label className="block text-sm font-bold text-[#223330]">
+            Teléfono
+            <input data-field="telefono" className={fieldInputClass('telefono', inputClass)} {...phoneInputProps}
+              value={usuarioAdmin.telefono} onChange={e => updateField('telefono', formatPhoneInput(e.target.value))} />
+            <FormError message={fieldErrors.telefono} />
+          </label>
 
           {usuarioAdmin.tipo_usuario === 'doctor' && (<>
             <CodigoSugeridoField
@@ -109,28 +132,31 @@ export default function RecepUsuarios({ usuarios, usuarioAdmin, setUsuarioAdmin,
               value={usuarioAdmin.cmp}
               onChange={(value) => updateField('cmp', value)}
               suggested={codigosSugeridos.cmp}
-              inputClassName={inputClass}
+              inputClassName={fieldInputClass('cmp', inputClass)}
             />
+            <FormError message={fieldErrors.cmp} />
             <label className="block text-sm font-bold text-[#223330]">Especialidad
               <MedCareSelect
-                className={inputClass}
+                className={fieldInputClass('id_especialidad', inputClass)}
                 value={usuarioAdmin.id_especialidad}
                 onChange={e => updateField('id_especialidad', e.target.value)}
-                required
+                error={Boolean(fieldErrors.id_especialidad)}
                 options={[
                   { value: '', label: 'Selecciona especialidad' },
                   ...especialidades.map(i => ({ value: i.id_especialidad, label: i.nombre })),
                 ]}
               />
+              <FormError message={fieldErrors.id_especialidad} />
             </label>
             <label className="block text-sm font-bold text-[#223330]">Turno
               <MedCareSelect
-                className={inputClass}
+                className={fieldInputClass('turno', inputClass)}
                 value={usuarioAdmin.turno}
                 onChange={e => updateField('turno', e.target.value)}
-                required
+                error={Boolean(fieldErrors.turno)}
                 options={turnoOptions}
               />
+              <FormError message={fieldErrors.turno} />
             </label>
           </>)}
 
@@ -140,22 +166,28 @@ export default function RecepUsuarios({ usuarios, usuarioAdmin, setUsuarioAdmin,
               value={usuarioAdmin.codigo_empleado}
               onChange={(value) => updateField('codigo_empleado', value)}
               suggested={codigosSugeridos.codigo_empleado}
-              inputClassName={inputClass}
+              inputClassName={fieldInputClass('codigo_empleado', inputClass)}
             />
+            <FormError message={fieldErrors.codigo_empleado} />
             <label className="block text-sm font-bold text-[#223330]">Turno
               <MedCareSelect
-                className={inputClass}
+                className={fieldInputClass('turno', inputClass)}
                 value={usuarioAdmin.turno}
                 onChange={e => updateField('turno', e.target.value)}
-                required
+                error={Boolean(fieldErrors.turno)}
                 options={turnoOptions}
               />
+              <FormError message={fieldErrors.turno} />
             </label>
           </>)}
 
           {usuarioAdmin.tipo_usuario === 'paciente' && (<>
-            <label className="block text-sm font-bold text-[#223330]">DNI<input className={inputClass} {...dniInputProps}
-              value={usuarioAdmin.dni} onChange={e => updateField('dni', formatDniInput(e.target.value))} required /></label>
+            <label className="block text-sm font-bold text-[#223330]">
+              DNI
+              <input data-field="dni" className={fieldInputClass('dni', inputClass)} {...dniInputProps}
+                value={usuarioAdmin.dni} onChange={e => updateField('dni', formatDniInput(e.target.value))} />
+              <FormError message={fieldErrors.dni} />
+            </label>
             <label className="block text-sm font-bold text-[#223330]">Fecha nacimiento
               <DateWheelPicker
                 value={usuarioAdmin.fecha_nacimiento}
@@ -163,17 +195,19 @@ export default function RecepUsuarios({ usuarios, usuarioAdmin, setUsuarioAdmin,
                 min="1900-01-01"
                 max={maxBirthDate}
                 initialValue="1990-01-01"
-                inputClassName={inputClass}
+                inputClassName={fieldInputClass('fecha_nacimiento', inputClass)}
               />
+              <FormError message={fieldErrors.fecha_nacimiento} />
             </label>
             <label className="block text-sm font-bold text-[#223330]">Género
               <MedCareSelect
-                className={inputClass}
+                className={fieldInputClass('genero', inputClass)}
                 value={usuarioAdmin.genero}
                 onChange={e => updateField('genero', e.target.value)}
-                required
+                error={Boolean(fieldErrors.genero)}
                 options={generoOptions}
               />
+              <FormError message={fieldErrors.genero} />
             </label>
             <SeguroMedicoField
               value={usuarioAdmin.seguro_medico}

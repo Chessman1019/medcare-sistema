@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import FormAlert from './FormAlert'
 import MedCareSelect from './MedCareSelect'
 import { DateWheelPicker, TimeWheelPicker } from './WheelPickers'
 import { getLimaDateInputValue, getLimaTimeInputValue, getNextLimaTimeInputValue, isPastLimaSlot, normalizeTimeValue } from '../utils/limaTime'
@@ -129,7 +130,7 @@ export default function HorarioDisponibleForm({ doctores = [], initialDoctorId =
       </div>
 
       {success && <div className="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-700">{success}</div>}
-      {error && <div className="mb-4 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-700">{error}</div>}
+      {error && <FormAlert message={error} className="mb-4" />}
 
       <div className="grid grid-cols-1 gap-3 lg:grid-cols-[1.3fr_1fr_1fr_1fr_auto]">
         <label className="grid gap-1 text-xs font-semibold text-slate-600">

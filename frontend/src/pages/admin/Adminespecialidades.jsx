@@ -1,5 +1,9 @@
 import { useState } from 'react'
 import axios from 'axios'
+import FormAlert from '../../components/FormAlert'
+import FormError from '../../components/FormError'
+import { useFormValidation } from '../../hooks/useFormValidation'
+import { validateName } from '../../utils/formValidation'
 
 const API = axios.create({ baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8000/api' })
 API.interceptors.request.use(c => { const t = localStorage.getItem('token'); if (t) c.headers.Authorization = `Bearer ${t}`; return c })
@@ -15,6 +19,7 @@ export default function AdminEspecialidades({ especialidades, doctores, onRefres
   const [saving, setSaving] = useState(false)
   const [msg, setMsg] = useState('')
   const [error, setError] = useState('')
+  const { fieldErrors, applyErrors, clearFieldError, inputClass: fieldInputClass } = useFormValidation()
 
   const showMsg = (t) => { setMsg(t); setTimeout(() => setMsg(''), 3000) }
   const showError = (t) => { setError(t); setTimeout(() => setError(''), 3000) }
@@ -33,7 +38,12 @@ export default function AdminEspecialidades({ especialidades, doctores, onRefres
 
   const guardar = async (e) => {
     e.preventDefault()
-    if (!form.nombre.trim()) return showError('El nombre es obligatorio.')
+    setError('')
+    const nombreError = validateName(form.nombre, 'El nombre')
+    if (nombreError) {
+      applyErrors({ nombre: nombreError })
+      return
+    }
     setSaving(true)
     try {
       if (editing) {
@@ -66,16 +76,17 @@ export default function AdminEspecialidades({ especialidades, doctores, onRefres
       </div>
 
       {msg && <div className="rounded-xl border border-[#b7e8df] bg-[#e5fbf7] px-4 py-3 text-sm font-bold text-[#006b5d]">✓ {msg}</div>}
-      {error && <div className="rounded-xl border border-[#ffb4ab] bg-[#fff0ef] px-4 py-3 text-sm font-bold text-[#93000a]">{error}</div>}
+      {error && <FormAlert message={error} />}
 
       {/* Formulario */}
       {showForm && (
         <div className="medcare-card p-6">
           <h3 className="font-extrabold text-[#101828] mb-4">{editing ? 'Editar especialidad' : 'Nueva especialidad'}</h3>
-          <form onSubmit={guardar} className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <form noValidate onSubmit={guardar} className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <label className="block text-sm font-bold text-[#223330]">
               Nombre
-              <input className={inputClass} value={form.nombre} onChange={e => setForm(f => ({ ...f, nombre: e.target.value }))} required autoComplete="off" />
+              <input data-field="nombre" className={fieldInputClass('nombre', inputClass)} value={form.nombre} onChange={e => { setForm(f => ({ ...f, nombre: e.target.value })); clearFieldError('nombre') }} autoComplete="off" />
+              <FormError message={fieldErrors.nombre} />
             </label>
             <label className="block text-sm font-bold text-[#223330]">
               Descripción

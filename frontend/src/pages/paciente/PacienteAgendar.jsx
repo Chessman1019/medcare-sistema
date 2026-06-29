@@ -1,5 +1,8 @@
 import { formatTime12h } from '../../utils/timeFormat'
+import FormError from '../../components/FormError'
 import MedCareSelect from '../../components/MedCareSelect'
+import { useFormValidation } from '../../hooks/useFormValidation'
+import { validateAppointmentForm } from '../../utils/formValidation'
 
 const dateFormatter = new Intl.DateTimeFormat('es-PE', {
   day: '2-digit',
@@ -99,10 +102,21 @@ function getHorarioDetails(horario) {
 }
 
 export default function PacienteAgendar({ form, setForm, especialidades, doctores, horarios, loading, loadingOptions, loadingHorarios, onEspecialidad, onDoctor, onSubmit }) {
+  const { fieldErrors, applyErrors, clearFieldError, inputClass } = useFormValidation()
   const selectedEspecialidad = especialidades.find(i => String(i.id_especialidad) === String(form.id_especialidad))
   const selectedDoctor = doctores.find(i => String(i.id_usuario) === String(form.id_doctor))
   const selectedHorario = horarios.find(i => String(i.id_horario) === String(form.id_horario))
   const selectedHorarioDetails = getHorarioDetails(selectedHorario)
+
+  const handleSubmit = (event) => {
+    event.preventDefault()
+    const validation = validateAppointmentForm(form)
+    if (!validation.valid) {
+      applyErrors(validation.errors)
+      return
+    }
+    onSubmit(event)
+  }
 
   return (
     <div className="grid grid-cols-1 gap-5 lg:gap-7 xl:grid-cols-[1fr_420px]">
@@ -131,36 +145,44 @@ export default function PacienteAgendar({ form, setForm, especialidades, doctore
           })}
         </div>
 
-        <form onSubmit={onSubmit} className="grid grid-cols-1 gap-7 lg:grid-cols-2">
+        <form noValidate onSubmit={handleSubmit} className="grid grid-cols-1 gap-7 lg:grid-cols-2">
           <section className="medcare-card p-5 sm:p-7">
             <h3 className="text-2xl font-extrabold text-[#101828]">Selecciona especialista</h3>
             <div className="mt-6 space-y-5">
               <label className="block text-sm font-bold text-[#223330]">
                 Especialidad
                 <MedCareSelect
-                  className="medcare-input mt-2"
-                  onChange={onEspecialidad}
+                  className={inputClass('id_especialidad', 'medcare-input mt-2')}
+                  onChange={(event) => {
+                    clearFieldError('id_especialidad')
+                    onEspecialidad(event)
+                  }}
                   value={form.id_especialidad}
-                  required
+                  error={Boolean(fieldErrors.id_especialidad)}
                   options={[
                     { value: '', label: 'Selecciona una especialidad' },
                     ...especialidades.map(i => ({ value: i.id_especialidad, label: i.nombre })),
                   ]}
                 />
+                <FormError message={fieldErrors.id_especialidad} />
               </label>
               <label className="block text-sm font-bold text-[#223330]">
                 Doctor
                 <MedCareSelect
-                  className="medcare-input mt-2 disabled:cursor-not-allowed"
-                  onChange={onDoctor}
+                  className={inputClass('id_doctor', 'medcare-input mt-2 disabled:cursor-not-allowed')}
+                  onChange={(event) => {
+                    clearFieldError('id_doctor')
+                    onDoctor(event)
+                  }}
                   value={form.id_doctor}
-                  required
                   disabled={!doctores.length || loadingOptions}
+                  error={Boolean(fieldErrors.id_doctor)}
                   options={[
                     { value: '', label: loadingOptions ? 'Cargando doctores...' : 'Selecciona un doctor' },
                     ...doctores.map(d => ({ value: d.id_usuario, label: `Dr. ${doctorFullName(d)}` })),
                   ]}
                 />
+                <FormError message={fieldErrors.id_doctor} />
               </label>
               <label className="block text-sm font-bold text-[#223330]">
                 Motivo de consulta
