@@ -77,10 +77,16 @@ export function PasswordField({
   onChange,
   className = '',
   inputClassName = 'medcare-input',
+  error = false,
+  required: _required,
+  minLength: _minLength,
+  maxLength: _maxLength,
+  pattern: _pattern,
   ...inputProps
 }) {
   const [visible, setVisible] = useState(false)
   const inputId = inputProps.id || inputProps.name || `password-${label?.replace(/\s+/g, '-').toLowerCase()}`
+  const resolvedInputClass = `${inputClassName}${error ? ' medcare-input-invalid' : ''}`
 
   return (
     <div className={`block text-sm font-bold text-[#223330] ${className}`}>
@@ -89,10 +95,11 @@ export function PasswordField({
         <input
           {...inputProps}
           id={inputId}
+          data-field={inputProps['data-field']}
           type={visible ? 'text' : 'password'}
           value={value}
           onChange={onChange}
-          className={`${inputClassName} pr-12`}
+          className={`${resolvedInputClass} pr-12`}
         />
         <button
           type="button"

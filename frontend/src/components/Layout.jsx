@@ -35,6 +35,16 @@ function HeaderDropdown({ title, icon, items = [], emptyText, onClose }) {
                     {item.time && <span className="shrink-0 text-xs font-bold text-[#52615f]">{item.time}</span>}
                   </div>
                   {item.description && <p className="mt-1 text-sm leading-5 text-[#52615f]">{item.description}</p>}
+                  {item.details?.length > 0 && (
+                    <dl className="mt-3 space-y-1.5 text-sm leading-5 text-[#52615f]">
+                      {item.details.map((detail) => (
+                        <div key={`${item.key || item.title}-${detail.label}`} className="grid grid-cols-[7rem_minmax(0,1fr)] gap-2">
+                          <dt className="font-extrabold text-[#223330]">{detail.label}:</dt>
+                          <dd className="min-w-0 text-[#52615f]">{detail.value}</dd>
+                        </div>
+                      ))}
+                    </dl>
+                  )}
                   {item.actionLabel && <p className="mt-3 text-sm font-extrabold text-[#006b5d]">{item.actionLabel}</p>}
                 </>
               )

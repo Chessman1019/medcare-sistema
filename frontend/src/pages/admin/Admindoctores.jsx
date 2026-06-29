@@ -1,5 +1,6 @@
 
 import { useMemo, useState } from 'react'
+import MedCareSelect from '../../components/MedCareSelect'
 import { actualizarDoctor, toggleDisponibleDoctor } from '../../services/api'
 import { formatPhoneInput, phoneInputProps } from '../../utils/numericFields'
 
@@ -140,33 +141,53 @@ export default function AdminDoctores({ doctores, especialidades = [], onRefresh
           </div>
           <div>
             <label className="mb-1 block text-xs font-bold text-[#223330]">Especialidad</label>
-            <select className="medcare-input" value={filtros.especialidad} onChange={e => setFiltros({ ...filtros, especialidad: e.target.value })}>
-              <option value="">Todas</option>
-              {especialidadesFiltro.map(esp => <option key={esp.id_especialidad} value={esp.nombre}>{esp.nombre}</option>)}
-            </select>
+            <MedCareSelect
+              className="medcare-input"
+              value={filtros.especialidad}
+              onChange={e => setFiltros({ ...filtros, especialidad: e.target.value })}
+              options={[
+                { value: '', label: 'Todas' },
+                ...especialidadesFiltro.map(esp => ({ value: esp.nombre, label: esp.nombre })),
+              ]}
+            />
           </div>
           <div>
             <label className="mb-1 block text-xs font-bold text-[#223330]">Turno</label>
-            <select className="medcare-input" value={filtros.turno} onChange={e => setFiltros({ ...filtros, turno: e.target.value })}>
-              <option value="">Todos</option>
-              {turnos.map(turno => <option key={turno} value={turno}>{turno}</option>)}
-            </select>
+            <MedCareSelect
+              className="medcare-input"
+              value={filtros.turno}
+              onChange={e => setFiltros({ ...filtros, turno: e.target.value })}
+              options={[
+                { value: '', label: 'Todos' },
+                ...turnos.map(turno => ({ value: turno, label: turno })),
+              ]}
+            />
           </div>
           <div>
             <label className="mb-1 block text-xs font-bold text-[#223330]">Disponibilidad</label>
-            <select className="medcare-input" value={filtros.disponibilidad} onChange={e => setFiltros({ ...filtros, disponibilidad: e.target.value })}>
-              <option value="">Todas</option>
-              <option value="disponible">Disponible</option>
-              <option value="ocupado">Ocupado</option>
-            </select>
+            <MedCareSelect
+              className="medcare-input"
+              value={filtros.disponibilidad}
+              onChange={e => setFiltros({ ...filtros, disponibilidad: e.target.value })}
+              options={[
+                { value: '', label: 'Todas' },
+                { value: 'disponible', label: 'Disponible' },
+                { value: 'ocupado', label: 'Ocupado' },
+              ]}
+            />
           </div>
           <div>
             <label className="mb-1 block text-xs font-bold text-[#223330]">Estado</label>
-            <select className="medcare-input" value={filtros.estado} onChange={e => setFiltros({ ...filtros, estado: e.target.value })}>
-              <option value="">Todos</option>
-              <option value="activo">Activo</option>
-              <option value="inactivo">Inactivo</option>
-            </select>
+            <MedCareSelect
+              className="medcare-input"
+              value={filtros.estado}
+              onChange={e => setFiltros({ ...filtros, estado: e.target.value })}
+              options={[
+                { value: '', label: 'Todos' },
+                { value: 'activo', label: 'Activo' },
+                { value: 'inactivo', label: 'Inactivo' },
+              ]}
+            />
           </div>
         </div>
         <button type="button" onClick={limpiarFiltros} className="mt-3 text-xs font-bold text-[#006b5d] hover:underline">
@@ -280,22 +301,28 @@ export default function AdminDoctores({ doctores, especialidades = [], onRefresh
                   ))}
                   <label className="block text-sm font-bold text-[#223330]">
                     Especialidad
-                    <select className={inputClass} value={form.id_especialidad}
-                      onChange={e => setForm(f => ({ ...f, id_especialidad: e.target.value }))}>
-                      <option value="">Sin especialidad</option>
-                      {especialidades.map(esp => (
-                        <option key={esp.id_especialidad} value={esp.id_especialidad}>{esp.nombre}</option>
-                      ))}
-                    </select>
+                    <MedCareSelect
+                      className={inputClass}
+                      value={form.id_especialidad}
+                      onChange={e => setForm(f => ({ ...f, id_especialidad: e.target.value }))}
+                      options={[
+                        { value: '', label: 'Sin especialidad' },
+                        ...especialidades.map(esp => ({ value: esp.id_especialidad, label: esp.nombre })),
+                      ]}
+                    />
                   </label>
                   <label className="block text-sm font-bold text-[#223330]">
                     Turno
-                    <select className={inputClass} value={form.turno}
-                      onChange={e => setForm(f => ({ ...f, turno: e.target.value }))}>
-                      <option value="mañana">Mañana</option>
-                      <option value="tarde">Tarde</option>
-                      <option value="noche">Noche</option>
-                    </select>
+                    <MedCareSelect
+                      className={inputClass}
+                      value={form.turno}
+                      onChange={e => setForm(f => ({ ...f, turno: e.target.value }))}
+                      options={[
+                        { value: 'mañana', label: 'Mañana' },
+                        { value: 'tarde', label: 'Tarde' },
+                        { value: 'noche', label: 'Noche' },
+                      ]}
+                    />
                   </label>
                   <div className="flex gap-2 pt-2">
                     <button type="submit" disabled={saving} className={`flex-1 ${primaryButton}`}>

@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import MedCareSelect from '../../components/MedCareSelect'
 
 export default function AdminPacientes({ pacientes, onRefresh }) {
   const [filtros, setFiltros] = useState({ busqueda: '', genero: '', seguro: '', estado: '' })
@@ -59,25 +60,40 @@ export default function AdminPacientes({ pacientes, onRefresh }) {
           </div>
           <div>
             <label className="mb-1 block text-xs font-bold text-[#223330]">Género</label>
-            <select className="medcare-input" value={filtros.genero} onChange={e => setFiltros({ ...filtros, genero: e.target.value })}>
-              <option value="">Todos</option>
-              {generos.map(genero => <option key={genero} value={genero}>{genero}</option>)}
-            </select>
+            <MedCareSelect
+              className="medcare-input"
+              value={filtros.genero}
+              onChange={e => setFiltros({ ...filtros, genero: e.target.value })}
+              options={[
+                { value: '', label: 'Todos' },
+                ...generos.map(genero => ({ value: genero, label: genero })),
+              ]}
+            />
           </div>
           <div>
             <label className="mb-1 block text-xs font-bold text-[#223330]">Seguro</label>
-            <select className="medcare-input" value={filtros.seguro} onChange={e => setFiltros({ ...filtros, seguro: e.target.value })}>
-              <option value="">Todos</option>
-              {seguros.map(seguro => <option key={seguro} value={seguro.toLocaleLowerCase('es-PE')}>{seguro}</option>)}
-            </select>
+            <MedCareSelect
+              className="medcare-input"
+              value={filtros.seguro}
+              onChange={e => setFiltros({ ...filtros, seguro: e.target.value })}
+              options={[
+                { value: '', label: 'Todos' },
+                ...seguros.map(seguro => ({ value: seguro.toLocaleLowerCase('es-PE'), label: seguro })),
+              ]}
+            />
           </div>
           <div>
             <label className="mb-1 block text-xs font-bold text-[#223330]">Estado</label>
-            <select className="medcare-input" value={filtros.estado} onChange={e => setFiltros({ ...filtros, estado: e.target.value })}>
-              <option value="">Todos</option>
-              <option value="activo">Activo</option>
-              <option value="inactivo">Inactivo</option>
-            </select>
+            <MedCareSelect
+              className="medcare-input"
+              value={filtros.estado}
+              onChange={e => setFiltros({ ...filtros, estado: e.target.value })}
+              options={[
+                { value: '', label: 'Todos' },
+                { value: 'activo', label: 'Activo' },
+                { value: 'inactivo', label: 'Inactivo' },
+              ]}
+            />
           </div>
         </div>
         <button type="button" onClick={limpiarFiltros} className="mt-3 text-xs font-bold text-[#006b5d] hover:underline">

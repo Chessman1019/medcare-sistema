@@ -17,17 +17,15 @@ import RecepRegistro from './RecepRegistro'
 import RecepUsuarios from './RecepUsuarios'
 import RecepSoporte from './RecepSoporte'
 import { getCodigosSugeridosFromUsuarios } from '../../utils/codigosUsuarios'
+import {
+  buildAppointmentNotificationDetails,
+  getAppointmentNotificationTime,
+} from '../../utils/appointmentNotifications'
 
 const emptyRegistro = { nombre: '', apellido: '', email: '', password: '', telefono: '', dni: '', fecha_nacimiento: '', genero: 'M', seguro_medico: '', direccion: '' }
 const emptyUsuarioAdmin = { tipo_usuario: 'doctor', nombre: '', apellido: '', email: '', password: '', telefono: '', dni: '', fecha_nacimiento: '', genero: 'M', seguro_medico: '', direccion: '', cmp: '', id_especialidad: '', codigo_empleado: '', turno: 'mañana' }
 const NOTIFICATION_REFRESH_MS = 60 * 1000
 
-function formatDateTime(value) {
-  if (!value) return 'Sin fecha'
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return value
-  return date.toLocaleString('es-PE', { dateStyle: 'medium', timeStyle: 'short' })
-}
 function todayInputValue() { return new Date().toISOString().slice(0, 10) }
 
 function getNotificationTitle(tipo) {
@@ -297,13 +295,8 @@ export default function DashboardRecepcionista() {
   const notificationItems = citasPendientesNotif.length ? citasPendientesNotif.slice(0, 8).map(item => ({
     key: item.id_notif,
     title: getNotificationTitle(item.tipo),
-    description: item.mensaje || [
-      item.paciente || item.nombre_paciente || 'Paciente sin registrar',
-      item.fecha_hora ? formatDateTime(item.fecha_hora) : 'Sin fecha',
-      item.especialidad,
-      item.doctor || item.nombre_doctor ? `Dr. ${item.doctor || item.nombre_doctor}` : '',
-    ].filter(Boolean).join(' · '),
-    time: item.fecha_programada ? formatDateTime(item.fecha_programada) : '',
+    details: buildAppointmentNotificationDetails(item),
+    time: getAppointmentNotificationTime(item),
     actionLabel: item.leida ? 'Leída · Ir a gestión' : 'No leída · Ir a gestión',
     read: item.leida,
     onClick: () => handleNotificacion(item),

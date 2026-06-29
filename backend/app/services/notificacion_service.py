@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, time, timedelta, timezone
 
 from postgrest.exceptions import APIError
 
@@ -42,6 +42,77 @@ def _parse_datetime(value) -> datetime | None:
     if parsed.tzinfo is None:
         return parsed.replace(tzinfo=timezone.utc)
     return parsed
+
+
+def _parse_date(value) -> date:
+    if isinstance(value, date) and not isinstance(value, datetime):
+        return value
+    return date.fromisoformat(str(value)[:10])
+
+
+def _parse_time(value) -> time:
+    if isinstance(value, time):
+        return value.replace(tzinfo=None)
+    text = str(value).strip()
+    if "+" in text:
+        text = text.split("+", 1)[0]
+    if "-" in text[1:]:
+        text = text.rsplit("-", 1)[0]
+    return time.fromisoformat(text)
+
+
+def _duracion_cita(cita: dict) -> int:
+    try:
+        return max(int(cita.get("duracion_min") or 30), 0)
+    except (TypeError, ValueError):
+        return 30
+
+
+def _fecha_fin_cita(cita: dict) -> datetime | None:
+    fecha_hora = _parse_datetime(cita.get("fecha_hora"))
+    if not fecha_hora:
+        return None
+
+    if cita.get("hora_fin"):
+        try:
+            fecha_base = _parse_date(cita.get("fecha_horario") or fecha_hora.date())
+            fecha_fin = datetime.combine(fecha_base, _parse_time(cita["hora_fin"]), tzinfo=fecha_hora.tzinfo)
+            if fecha_fin <= fecha_hora:
+                fecha_fin += timedelta(days=1)
+            return fecha_fin
+        except (TypeError, ValueError):
+            pass
+
+    return fecha_hora + timedelta(minutes=_duracion_cita(cita))
+
+
+def _citas_con_fecha_fin(citas: list[dict]) -> list[dict]:
+    ids_horario = sorted({cita.get("id_horario") for cita in citas if cita.get("id_horario")})
+    horarios = {}
+    if ids_horario:
+        try:
+            res = supabase_admin.table("horario_disponible")\
+                .select("id_horario,fecha,hora_fin")\
+                .in_("id_horario", ids_horario)\
+                .execute()
+            horarios = {item.get("id_horario"): item for item in (res.data or [])}
+        except APIError:
+            horarios = {}
+
+    resultado = []
+    for cita in citas:
+        horario = horarios.get(cita.get("id_horario"), {})
+        cita_con_horario = {
+            **cita,
+            "fecha_horario": cita.get("fecha_horario") or horario.get("fecha"),
+            "hora_fin": cita.get("hora_fin") or horario.get("hora_fin"),
+        }
+        fecha_fin = _fecha_fin_cita(cita_con_horario)
+        resultado.append({
+            **cita_con_horario,
+            "fecha_fin": fecha_fin.isoformat() if fecha_fin else None,
+        })
+    return resultado
 
 
 def _fecha_programada(cita: dict) -> str | None:
@@ -224,7 +295,7 @@ def listar_notificaciones_citas(rol: str | None = None, limit: int = 50):
         return notificaciones
 
     citas_res = supabase.table("v_citas_detalle").select("*").in_("id_cita", ids_cita).execute()
-    citas_por_id = {cita.get("id_cita"): cita for cita in (citas_res.data or [])}
+    citas_por_id = {cita.get("id_cita"): cita for cita in _citas_con_fecha_fin(citas_res.data or [])}
     visibles = []
     for notificacion in notificaciones:
         cita = citas_por_id.get(notificacion.get("id_cita"))
