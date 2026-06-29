@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import MedCareSelect from '../../components/MedCareSelect'
 import { getSoporteTickets, actualizarSoporteTicket } from '../../services/api'
 
 const estadoClass = {
@@ -72,15 +73,18 @@ export default function AdminSoporte() {
                     <h2 className="text-4xl font-extrabold tracking-tight text-[#101828]">Soporte</h2>
                     <p className="mt-2 text-lg text-[#52615f]">{tickets.length} tickets registrados</p>
                 </div>
-                <select
+                <MedCareSelect
                     className="rounded-xl border border-[#bdcbc7] px-4 py-2.5 text-sm font-bold text-[#223330] focus:border-[#007a68] focus:outline-none focus:ring-4 focus:ring-[#12b8a3]/15 max-w-xs"
-                    value={filtroEstado} onChange={e => setFiltroEstado(e.target.value)}>
-                    <option value="">Todos los estados</option>
-                    <option value="abierto">Abiertos</option>
-                    <option value="en_revision">En revisión</option>
-                    <option value="resuelto">Resueltos</option>
-                    <option value="cerrado">Cerrados</option>
-                </select>
+                    value={filtroEstado}
+                    onChange={e => setFiltroEstado(e.target.value)}
+                    options={[
+                        { value: '', label: 'Todos los estados' },
+                        { value: 'abierto', label: 'Abiertos' },
+                        { value: 'en_revision', label: 'En revisión' },
+                        { value: 'resuelto', label: 'Resueltos' },
+                        { value: 'cerrado', label: 'Cerrados' },
+                    ]}
+                />
             </div>
 
             {/* KPIs */}

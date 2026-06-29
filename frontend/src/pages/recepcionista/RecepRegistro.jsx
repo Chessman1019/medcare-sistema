@@ -1,4 +1,5 @@
 import { PasswordField, PasswordStrength, isPasswordValid } from '../../components/PasswordControls'
+import MedCareSelect from '../../components/MedCareSelect'
 import SeguroMedicoField from '../../components/SeguroMedicoField'
 import { DateWheelPicker } from '../../components/WheelPickers'
 import { dniInputProps, formatDniInput, formatPhoneInput, phoneInputProps } from '../../utils/numericFields'
@@ -81,12 +82,16 @@ export default function RecepRegistro({ registro, setRegistro, pacientes, action
           </div>
           <label className="block text-sm font-bold text-[#223330]">
             Género
-            <select className={inputClass} value={registro.genero}
-              onChange={e => setRegistro({ ...registro, genero: e.target.value })}>
-              <option value="M">Masculino</option>
-              <option value="F">Femenino</option>
-              <option value="Otro">Otro</option>
-            </select>
+            <MedCareSelect
+              className={inputClass}
+              value={registro.genero}
+              onChange={e => setRegistro({ ...registro, genero: e.target.value })}
+              options={[
+                { value: 'M', label: 'Masculino' },
+                { value: 'F', label: 'Femenino' },
+                { value: 'Otro', label: 'Otro' },
+              ]}
+            />
           </label>
         </div>
         <button type="submit" disabled={actionLoading === 'registro'}

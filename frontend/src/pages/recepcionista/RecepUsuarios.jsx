@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import MedCareSelect from '../../components/MedCareSelect'
 import { PasswordField, PasswordStrength, isPasswordValid } from '../../components/PasswordControls'
 import SeguroMedicoField from '../../components/SeguroMedicoField'
 import CodigoSugeridoField from '../../components/CodigoSugeridoField'
@@ -8,6 +9,16 @@ import { getLimaDateInputValue } from '../../utils/limaTime'
 
 const inputClass = 'rounded-xl border border-[#bdcbc7] px-3 py-2.5 text-sm transition focus:border-[#007a68] focus:outline-none focus:ring-4 focus:ring-[#12b8a3]/15 w-full mt-1 disabled:cursor-not-allowed disabled:bg-[#f8fbff]'
 const roleLabels = { paciente: 'Paciente', doctor: 'Médico', recepcionista: 'Recepcionista', administrador: 'Administrador' }
+const turnoOptions = [
+  { value: 'mañana', label: 'Mañana' },
+  { value: 'tarde', label: 'Tarde' },
+  { value: 'noche', label: 'Noche' },
+]
+const generoOptions = [
+  { value: 'M', label: 'Masculino' },
+  { value: 'F', label: 'Femenino' },
+  { value: 'Otro', label: 'Otro' },
+]
 
 export default function RecepUsuarios({ usuarios, usuarioAdmin, setUsuarioAdmin, especialidades, codigosSugeridos = {}, actionLoading, onCrearUsuario, onShowMessage }) {
   const [filtros, setFiltros] = useState({ busqueda: '', rol: '', estado: '' })
@@ -68,12 +79,16 @@ export default function RecepUsuarios({ usuarios, usuarioAdmin, setUsuarioAdmin,
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
           <label className="block text-sm font-bold text-[#223330]">
             Rol
-            <select className={inputClass} value={usuarioAdmin.tipo_usuario}
-              onChange={e => updateRole(e.target.value)}>
-              <option value="doctor">Médico</option>
-              <option value="recepcionista">Recepcionista</option>
-              <option value="paciente">Paciente</option>
-            </select>
+            <MedCareSelect
+              className={inputClass}
+              value={usuarioAdmin.tipo_usuario}
+              onChange={e => updateRole(e.target.value)}
+              options={[
+                { value: 'doctor', label: 'Médico' },
+                { value: 'recepcionista', label: 'Recepcionista' },
+                { value: 'paciente', label: 'Paciente' },
+              ]}
+            />
           </label>
           <label className="block text-sm font-bold text-[#223330]">Nombre<input className={inputClass} value={usuarioAdmin.nombre} onChange={e => updateField('nombre', e.target.value)} required /></label>
           <label className="block text-sm font-bold text-[#223330]">Apellido<input className={inputClass} value={usuarioAdmin.apellido} onChange={e => updateField('apellido', e.target.value)} required /></label>
@@ -97,15 +112,25 @@ export default function RecepUsuarios({ usuarios, usuarioAdmin, setUsuarioAdmin,
               inputClassName={inputClass}
             />
             <label className="block text-sm font-bold text-[#223330]">Especialidad
-              <select className={inputClass} value={usuarioAdmin.id_especialidad} onChange={e => updateField('id_especialidad', e.target.value)} required>
-                <option value="">Selecciona especialidad</option>
-                {especialidades.map(i => <option key={i.id_especialidad} value={i.id_especialidad}>{i.nombre}</option>)}
-              </select>
+              <MedCareSelect
+                className={inputClass}
+                value={usuarioAdmin.id_especialidad}
+                onChange={e => updateField('id_especialidad', e.target.value)}
+                required
+                options={[
+                  { value: '', label: 'Selecciona especialidad' },
+                  ...especialidades.map(i => ({ value: i.id_especialidad, label: i.nombre })),
+                ]}
+              />
             </label>
             <label className="block text-sm font-bold text-[#223330]">Turno
-              <select className={inputClass} value={usuarioAdmin.turno} onChange={e => updateField('turno', e.target.value)} required>
-                <option value="mañana">Mañana</option><option value="tarde">Tarde</option><option value="noche">Noche</option>
-              </select>
+              <MedCareSelect
+                className={inputClass}
+                value={usuarioAdmin.turno}
+                onChange={e => updateField('turno', e.target.value)}
+                required
+                options={turnoOptions}
+              />
             </label>
           </>)}
 
@@ -118,9 +143,13 @@ export default function RecepUsuarios({ usuarios, usuarioAdmin, setUsuarioAdmin,
               inputClassName={inputClass}
             />
             <label className="block text-sm font-bold text-[#223330]">Turno
-              <select className={inputClass} value={usuarioAdmin.turno} onChange={e => updateField('turno', e.target.value)} required>
-                <option value="mañana">Mañana</option><option value="tarde">Tarde</option><option value="noche">Noche</option>
-              </select>
+              <MedCareSelect
+                className={inputClass}
+                value={usuarioAdmin.turno}
+                onChange={e => updateField('turno', e.target.value)}
+                required
+                options={turnoOptions}
+              />
             </label>
           </>)}
 
@@ -138,9 +167,13 @@ export default function RecepUsuarios({ usuarios, usuarioAdmin, setUsuarioAdmin,
               />
             </label>
             <label className="block text-sm font-bold text-[#223330]">Género
-              <select className={inputClass} value={usuarioAdmin.genero} onChange={e => updateField('genero', e.target.value)} required>
-                <option value="M">Masculino</option><option value="F">Femenino</option><option value="Otro">Otro</option>
-              </select>
+              <MedCareSelect
+                className={inputClass}
+                value={usuarioAdmin.genero}
+                onChange={e => updateField('genero', e.target.value)}
+                required
+                options={generoOptions}
+              />
             </label>
             <SeguroMedicoField
               value={usuarioAdmin.seguro_medico}
@@ -169,18 +202,28 @@ export default function RecepUsuarios({ usuarios, usuarioAdmin, setUsuarioAdmin,
           </div>
           <div>
             <label className="mb-1 block text-xs font-bold text-[#223330]">Rol</label>
-            <select className="medcare-input" value={filtros.rol} onChange={e => setFiltros({ ...filtros, rol: e.target.value })}>
-              <option value="">Todos</option>
-              {rolesFiltro.map(rol => <option key={rol} value={rol}>{roleLabels[rol] || rol}</option>)}
-            </select>
+            <MedCareSelect
+              className="medcare-input"
+              value={filtros.rol}
+              onChange={e => setFiltros({ ...filtros, rol: e.target.value })}
+              options={[
+                { value: '', label: 'Todos' },
+                ...rolesFiltro.map(rol => ({ value: rol, label: roleLabels[rol] || rol })),
+              ]}
+            />
           </div>
           <div>
             <label className="mb-1 block text-xs font-bold text-[#223330]">Estado</label>
-            <select className="medcare-input" value={filtros.estado} onChange={e => setFiltros({ ...filtros, estado: e.target.value })}>
-              <option value="">Todos</option>
-              <option value="activo">Activo</option>
-              <option value="inactivo">Inactivo</option>
-            </select>
+            <MedCareSelect
+              className="medcare-input"
+              value={filtros.estado}
+              onChange={e => setFiltros({ ...filtros, estado: e.target.value })}
+              options={[
+                { value: '', label: 'Todos' },
+                { value: 'activo', label: 'Activo' },
+                { value: 'inactivo', label: 'Inactivo' },
+              ]}
+            />
           </div>
         </div>
         <button type="button" onClick={limpiarFiltros} className="mt-3 text-xs font-bold text-[#006b5d] hover:underline">

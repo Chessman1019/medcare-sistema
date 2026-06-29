@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import MedCareSelect from '../../components/MedCareSelect'
 import { getConfiguracion, actualizarConfiguracion, getEspecialidades, crearUsuario, getUsuarios, getCodigosSugeridos } from '../../services/api'
 import { PasswordField, PasswordStrength, isPasswordValid } from '../../components/PasswordControls'
 import SeguroMedicoField from '../../components/SeguroMedicoField'
@@ -10,6 +11,16 @@ import { getLimaDateInputValue } from '../../utils/limaTime'
 
 const inputClass = 'rounded-lg border border-[#bdcbc7] px-3 py-2 text-sm transition focus:border-[#007a68] focus:outline-none focus:ring-4 focus:ring-[#12b8a3]/15 disabled:cursor-not-allowed disabled:bg-slate-50 w-full mt-1'
 const primaryButton = 'medcare-primary-button px-6 py-3 disabled:opacity-60'
+const turnoOptions = [
+  { value: 'mañana', label: 'Mañana' },
+  { value: 'tarde', label: 'Tarde' },
+  { value: 'noche', label: 'Noche' },
+]
+const generoOptions = [
+  { value: 'M', label: 'Masculino' },
+  { value: 'F', label: 'Femenino' },
+  { value: 'Otro', label: 'Otro' },
+]
 
 const roleLabels = { paciente: 'Paciente', doctor: 'Médico', recepcionista: 'Recepcionista', administrador: 'Administrador' }
 
@@ -217,11 +228,16 @@ export default function AdminConfiguracion() {
             <form onSubmit={crearNuevoUsuario} autoComplete="off">
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
                 <label className="text-sm font-bold text-[#223330]">Rol
-                  <select className={inputClass} value={nuevoUsuario.tipo_usuario} onChange={e => updateRole(e.target.value)}>
-                    <option value="paciente">Paciente</option>
-                    <option value="doctor">Médico</option>
-                    <option value="recepcionista">Recepcionista</option>
-                  </select>
+                  <MedCareSelect
+                    className={inputClass}
+                    value={nuevoUsuario.tipo_usuario}
+                    onChange={e => updateRole(e.target.value)}
+                    options={[
+                      { value: 'paciente', label: 'Paciente' },
+                      { value: 'doctor', label: 'Médico' },
+                      { value: 'recepcionista', label: 'Recepcionista' },
+                    ]}
+                  />
                 </label>
 
                 <label className="text-sm font-bold text-[#223330]">Nombre
@@ -252,15 +268,25 @@ export default function AdminConfiguracion() {
                     inputClassName={inputClass}
                   />
                   <label className="text-sm font-bold text-[#223330]">Especialidad
-                    <select className={inputClass} value={nuevoUsuario.id_especialidad} onChange={e => update('id_especialidad', e.target.value)} required>
-                      <option value="">Selecciona especialidad</option>
-                      {especialidades.map(i => <option key={i.id_especialidad} value={i.id_especialidad}>{i.nombre}</option>)}
-                    </select>
+                    <MedCareSelect
+                      className={inputClass}
+                      value={nuevoUsuario.id_especialidad}
+                      onChange={e => update('id_especialidad', e.target.value)}
+                      required
+                      options={[
+                        { value: '', label: 'Selecciona especialidad' },
+                        ...especialidades.map(i => ({ value: i.id_especialidad, label: i.nombre })),
+                      ]}
+                    />
                   </label>
                   <label className="text-sm font-bold text-[#223330]">Turno
-                    <select className={inputClass} value={nuevoUsuario.turno} onChange={e => update('turno', e.target.value)} required>
-                      <option value="mañana">Mañana</option><option value="tarde">Tarde</option><option value="noche">Noche</option>
-                    </select>
+                    <MedCareSelect
+                      className={inputClass}
+                      value={nuevoUsuario.turno}
+                      onChange={e => update('turno', e.target.value)}
+                      required
+                      options={turnoOptions}
+                    />
                   </label>
                 </>)}
 
@@ -273,9 +299,13 @@ export default function AdminConfiguracion() {
                     inputClassName={inputClass}
                   />
                   <label className="text-sm font-bold text-[#223330]">Turno
-                    <select className={inputClass} value={nuevoUsuario.turno} onChange={e => update('turno', e.target.value)} required>
-                      <option value="mañana">Mañana</option><option value="tarde">Tarde</option><option value="noche">Noche</option>
-                    </select>
+                    <MedCareSelect
+                      className={inputClass}
+                      value={nuevoUsuario.turno}
+                      onChange={e => update('turno', e.target.value)}
+                      required
+                      options={turnoOptions}
+                    />
                   </label>
                 </>)}
 
@@ -295,9 +325,13 @@ export default function AdminConfiguracion() {
                     />
                   </label>
                   <label className="text-sm font-bold text-[#223330]">Género
-                    <select className={inputClass} value={nuevoUsuario.genero} onChange={e => update('genero', e.target.value)} required>
-                      <option value="M">Masculino</option><option value="F">Femenino</option><option value="Otro">Otro</option>
-                    </select>
+                    <MedCareSelect
+                      className={inputClass}
+                      value={nuevoUsuario.genero}
+                      onChange={e => update('genero', e.target.value)}
+                      required
+                      options={generoOptions}
+                    />
                   </label>
                   <SeguroMedicoField
                     value={nuevoUsuario.seguro_medico}

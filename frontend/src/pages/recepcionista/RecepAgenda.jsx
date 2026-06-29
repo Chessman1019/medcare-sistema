@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import HorarioDisponibleForm from '../../components/HorarioDisponibleForm'
+import MedCareSelect from '../../components/MedCareSelect'
 import { DateWheelPicker } from '../../components/WheelPickers'
 import { formatTime12h } from '../../utils/timeFormat'
 
@@ -51,16 +52,20 @@ export default function RecepAgenda({ citasFiltradas, filtros, setFiltros, docto
               />
               <input className={inputClass} placeholder="Buscar doctor" value={filtros.doctor}
                 onChange={e => setFiltros({ ...filtros, doctor: e.target.value })} />
-              <select className={inputClass} value={filtros.estado}
-                onChange={e => setFiltros({ ...filtros, estado: e.target.value })}>
-                <option value="">Todos los estados</option>
-                <option value="pendiente">Pendiente</option>
-                <option value="confirmada">Confirmada</option>
-                <option value="reprogramada">Reprogramada</option>
-                <option value="en_atencion">En atención</option>
-                <option value="completada">Completada</option>
-                <option value="cancelada">Cancelada</option>
-              </select>
+              <MedCareSelect
+                className={inputClass}
+                value={filtros.estado}
+                onChange={e => setFiltros({ ...filtros, estado: e.target.value })}
+                options={[
+                  { value: '', label: 'Todos los estados' },
+                  { value: 'pendiente', label: 'Pendiente' },
+                  { value: 'confirmada', label: 'Confirmada' },
+                  { value: 'reprogramada', label: 'Reprogramada' },
+                  { value: 'en_atencion', label: 'En atención' },
+                  { value: 'completada', label: 'Completada' },
+                  { value: 'cancelada', label: 'Cancelada' },
+                ]}
+              />
             </div>
           </div>
           <div className="divide-y divide-[#bdcbc7]">
@@ -103,13 +108,18 @@ export default function RecepAgenda({ citasFiltradas, filtros, setFiltros, docto
                 Agregar más fechas y horas disponibles
               </button>
             </div>
-            <select className={`w-full ${inputClass}`} value={agendaDoctor}
-              onChange={e => onCargarDisponibilidad(e.target.value)}>
-              <option value="">Selecciona doctor</option>
-              {doctores.map(doctor => (
-                <option key={doctor.id_usuario} value={doctor.id_usuario}>Dr. {doctorLabel(doctor)}</option>
-              ))}
-            </select>
+            <MedCareSelect
+              className={`w-full ${inputClass}`}
+              value={agendaDoctor}
+              onChange={e => onCargarDisponibilidad(e.target.value)}
+              options={[
+                { value: '', label: 'Selecciona doctor' },
+                ...doctores.map(doctor => ({
+                  value: doctor.id_usuario,
+                  label: `Dr. ${doctorLabel(doctor)}`,
+                })),
+              ]}
+            />
             <div className="mt-4 space-y-2">
               {horariosAgenda.length === 0 ? (
                 <p className="rounded-xl bg-[#edf2ff] p-4 text-sm text-[#52615f]">Sin horarios libres.</p>

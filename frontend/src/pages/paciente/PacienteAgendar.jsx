@@ -1,4 +1,5 @@
 import { formatTime12h } from '../../utils/timeFormat'
+import MedCareSelect from '../../components/MedCareSelect'
 
 const dateFormatter = new Intl.DateTimeFormat('es-PE', {
   day: '2-digit',
@@ -136,17 +137,30 @@ export default function PacienteAgendar({ form, setForm, especialidades, doctore
             <div className="mt-6 space-y-5">
               <label className="block text-sm font-bold text-[#223330]">
                 Especialidad
-                <select className="medcare-input mt-2" onChange={onEspecialidad} value={form.id_especialidad} required>
-                  <option value="">Selecciona una especialidad</option>
-                  {especialidades.map(i => <option key={i.id_especialidad} value={i.id_especialidad}>{i.nombre}</option>)}
-                </select>
+                <MedCareSelect
+                  className="medcare-input mt-2"
+                  onChange={onEspecialidad}
+                  value={form.id_especialidad}
+                  required
+                  options={[
+                    { value: '', label: 'Selecciona una especialidad' },
+                    ...especialidades.map(i => ({ value: i.id_especialidad, label: i.nombre })),
+                  ]}
+                />
               </label>
               <label className="block text-sm font-bold text-[#223330]">
                 Doctor
-                <select className="medcare-input mt-2 disabled:cursor-not-allowed" onChange={onDoctor} value={form.id_doctor} required disabled={!doctores.length || loadingOptions}>
-                  <option value="">{loadingOptions ? 'Cargando doctores...' : 'Selecciona un doctor'}</option>
-                  {doctores.map(d => <option key={d.id_usuario} value={d.id_usuario}>Dr. {doctorFullName(d)}</option>)}
-                </select>
+                <MedCareSelect
+                  className="medcare-input mt-2 disabled:cursor-not-allowed"
+                  onChange={onDoctor}
+                  value={form.id_doctor}
+                  required
+                  disabled={!doctores.length || loadingOptions}
+                  options={[
+                    { value: '', label: loadingOptions ? 'Cargando doctores...' : 'Selecciona un doctor' },
+                    ...doctores.map(d => ({ value: d.id_usuario, label: `Dr. ${doctorFullName(d)}` })),
+                  ]}
+                />
               </label>
               <label className="block text-sm font-bold text-[#223330]">
                 Motivo de consulta

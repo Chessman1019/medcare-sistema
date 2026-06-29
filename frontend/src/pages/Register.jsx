@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { registrarPaciente } from '../services/api'
 import Layout from '../components/Layout'
+import MedCareSelect from '../components/MedCareSelect'
 import { isPasswordValid, PasswordField, PasswordStrength } from '../components/PasswordControls'
 import SeguroMedicoField from '../components/SeguroMedicoField'
 import { DateWheelPicker } from '../components/WheelPickers'
@@ -152,11 +153,16 @@ export default function Register() {
                   </label>
                   <label className="block text-sm font-bold text-[#223330]">
                     Género
-                    <select className="medcare-input mt-2" {...bind('genero')}>
-                      <option value="M">Masculino</option>
-                      <option value="F">Femenino</option>
-                      <option value="Otro">Otro</option>
-                    </select>
+                    <MedCareSelect
+                      className="medcare-input mt-2"
+                      value={form.genero}
+                      onChange={bind('genero').onChange}
+                      options={[
+                        { value: 'M', label: 'Masculino' },
+                        { value: 'F', label: 'Femenino' },
+                        { value: 'Otro', label: 'Otro' },
+                      ]}
+                    />
                   </label>
                 </div>
 

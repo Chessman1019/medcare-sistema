@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import MedCareSelect from './MedCareSelect'
 import { DateWheelPicker, TimeWheelPicker } from './WheelPickers'
 import { getLimaDateInputValue, getLimaTimeInputValue, getNextLimaTimeInputValue, isPastLimaSlot, normalizeTimeValue } from '../utils/limaTime'
 
@@ -133,12 +134,20 @@ export default function HorarioDisponibleForm({ doctores = [], initialDoctorId =
       <div className="grid grid-cols-1 gap-3 lg:grid-cols-[1.3fr_1fr_1fr_1fr_auto]">
         <label className="grid gap-1 text-xs font-semibold text-slate-600">
           Doctor
-          <select className={inputClass} value={form.id_doctor} onChange={event => setForm(current => ({ ...current, id_doctor: event.target.value }))} required disabled={!doctores.length}>
-            <option value="">{doctores.length ? 'Selecciona doctor' : 'No hay doctores disponibles'}</option>
-            {doctores.map(doctor => (
-              <option key={doctor.id_usuario} value={doctor.id_usuario}>Dr. {doctorLabel(doctor)}</option>
-            ))}
-          </select>
+          <MedCareSelect
+            className={inputClass}
+            value={form.id_doctor}
+            onChange={event => setForm(current => ({ ...current, id_doctor: event.target.value }))}
+            required
+            disabled={!doctores.length}
+            options={[
+              { value: '', label: doctores.length ? 'Selecciona doctor' : 'No hay doctores disponibles' },
+              ...doctores.map(doctor => ({
+                value: doctor.id_usuario,
+                label: `Dr. ${doctorLabel(doctor)}`,
+              })),
+            ]}
+          />
         </label>
         <label className="grid gap-1 text-xs font-semibold text-slate-600">
           Fecha

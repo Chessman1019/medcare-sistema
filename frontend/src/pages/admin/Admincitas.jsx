@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import HorarioDisponibleForm from '../../components/HorarioDisponibleForm'
+import MedCareSelect from '../../components/MedCareSelect'
 import { DateWheelPicker } from '../../components/WheelPickers'
 
 const statusClass = {
@@ -156,20 +157,30 @@ export default function AdminCitas({ citas, doctores = [], especialidades, citaN
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <div>
             <label className="block text-xs font-bold text-[#223330] mb-1">Estado</label>
-            <select className="medcare-input" value={filtros.estado} onChange={e => aplicarFiltros({ ...filtros, estado: e.target.value })}>
-              <option value="">Todos</option>
-              <option value="pendiente">Pendiente</option>
-              <option value="confirmada">Confirmada</option>
-              <option value="cancelada">Cancelada</option>
-              <option value="completada">Completada</option>
-            </select>
+            <MedCareSelect
+              className="medcare-input"
+              value={filtros.estado}
+              onChange={e => aplicarFiltros({ ...filtros, estado: e.target.value })}
+              options={[
+                { value: '', label: 'Todos' },
+                { value: 'pendiente', label: 'Pendiente' },
+                { value: 'confirmada', label: 'Confirmada' },
+                { value: 'cancelada', label: 'Cancelada' },
+                { value: 'completada', label: 'Completada' },
+              ]}
+            />
           </div>
           <div>
             <label className="block text-xs font-bold text-[#223330] mb-1">Especialidad</label>
-            <select className="medcare-input" value={filtros.especialidad} onChange={e => aplicarFiltros({ ...filtros, especialidad: e.target.value })}>
-              <option value="">Todas</option>
-              {especialidades.map(e => <option key={e.id_especialidad} value={e.nombre}>{e.nombre}</option>)}
-            </select>
+            <MedCareSelect
+              className="medcare-input"
+              value={filtros.especialidad}
+              onChange={e => aplicarFiltros({ ...filtros, especialidad: e.target.value })}
+              options={[
+                { value: '', label: 'Todas' },
+                ...especialidades.map(e => ({ value: e.nombre, label: e.nombre })),
+              ]}
+            />
           </div>
           <div>
             <label className="block text-xs font-bold text-[#223330] mb-1">Doctor</label>
