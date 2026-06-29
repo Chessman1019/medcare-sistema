@@ -170,6 +170,10 @@ function WheelColumn({ label, items, value, onChange }) {
   const listRef = useRef(null)
   const scrollTimer = useRef(null)
   const wheelUnlockTimer = useRef(null)
+  const programmaticScrollTimer = useRef(null)
+  const programmaticScroll = useRef(false)
+  const wheelAccumulator = useRef(0)
+  const wheelTargetIndex = useRef(null)
   const dragState = useRef({
     dragging: false,
     moved: false,
@@ -197,11 +201,11 @@ function WheelColumn({ label, items, value, onChange }) {
     return -1
   }, [items])
 
-  const getAdjacentIndex = useCallback((direction) => {
+  const getAdjacentIndex = useCallback((direction, fromIndex = currentIndex) => {
     if (!items.length) return -1
 
-    const start = currentIndex >= 0
-      ? currentIndex + direction
+    const start = fromIndex >= 0
+      ? fromIndex + direction
       : direction > 0 ? 0 : items.length - 1
 
     for (let index = start; index >= 0 && index < items.length; index += direction) {
@@ -211,7 +215,14 @@ function WheelColumn({ label, items, value, onChange }) {
   }, [currentIndex, items])
 
   const scrollToIndex = useCallback((index, behavior = 'smooth') => {
-    listRef.current?.scrollTo({ top: index * ITEM_HEIGHT, behavior })
+    if (!listRef.current) return
+
+    window.clearTimeout(programmaticScrollTimer.current)
+    programmaticScroll.current = true
+    listRef.current.scrollTo({ top: index * ITEM_HEIGHT, behavior })
+    programmaticScrollTimer.current = window.setTimeout(() => {
+      programmaticScroll.current = false
+    }, behavior === 'smooth' ? 360 : 80)
   }, [])
 
   const selectIndex = useCallback((index, behavior = 'smooth', direction = 0) => {
@@ -277,13 +288,15 @@ function WheelColumn({ label, items, value, onChange }) {
 
   useEffect(() => {
     const index = items.findIndex(item => item.value === value)
-    if (index < 0 || !listRef.current) return
-    listRef.current.scrollTo({ top: index * ITEM_HEIGHT, behavior: 'smooth' })
-  }, [items, value])
+    if (index < 0) return
+    wheelTargetIndex.current = index
+    scrollToIndex(index, 'smooth')
+  }, [items, scrollToIndex, value])
 
   useEffect(() => () => {
     window.clearTimeout(scrollTimer.current)
     window.clearTimeout(wheelUnlockTimer.current)
+    window.clearTimeout(programmaticScrollTimer.current)
   }, [])
 
   useEffect(() => {
@@ -312,6 +325,7 @@ function WheelColumn({ label, items, value, onChange }) {
 
   const handleScroll = () => {
     if (dragState.current.dragging) return
+    if (programmaticScroll.current) return
     scheduleCommit()
   }
 
@@ -323,11 +337,24 @@ function WheelColumn({ label, items, value, onChange }) {
 
     const deltaUnit = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? ITEM_HEIGHT : 1
     const delta = event.deltaY * deltaUnit
-    const direction = Math.sign(delta)
-    listRef.current.scrollTop += direction * Math.min(Math.abs(delta), ITEM_HEIGHT)
-    scheduleCommit(direction)
+    if (!delta) return
+
+    wheelAccumulator.current += delta
+    if (Math.abs(wheelAccumulator.current) >= ITEM_HEIGHT * 0.7) {
+      const direction = Math.sign(wheelAccumulator.current)
+      const baseIndex = Number.isInteger(wheelTargetIndex.current) ? wheelTargetIndex.current : currentIndex
+      const nextIndex = getAdjacentIndex(direction, baseIndex)
+
+      wheelAccumulator.current = 0
+      if (nextIndex >= 0) {
+        wheelTargetIndex.current = nextIndex
+        selectIndex(nextIndex, 'smooth', direction)
+      }
+    }
+
     wheelUnlockTimer.current = window.setTimeout(() => {
-      commitFromScroll('smooth', direction)
+      wheelAccumulator.current = 0
+      wheelTargetIndex.current = null
     }, 240)
   }
 
