@@ -98,20 +98,22 @@ function usePickerSurface(open, setOpen, wrapperRef, closeLockedRef) {
   useEffect(() => {
     if (!open) return undefined
 
-    const handlePointerDown = (event) => {
+    const handleOutsideClick = (event) => {
       if (closeLockedRef.current) return
-      if (!wrapperRef.current?.contains(event.target)) setOpen(false)
+
+      const wrapper = wrapperRef.current
+      const path = typeof event.composedPath === 'function' ? event.composedPath() : []
+      const isInsidePicker = wrapper && (wrapper.contains(event.target) || path.includes(wrapper))
+      if (!isInsidePicker) setOpen(false)
     }
     const handleKeyDown = (event) => {
       if (event.key === 'Escape') setOpen(false)
     }
 
-    document.addEventListener('mousedown', handlePointerDown)
-    document.addEventListener('touchstart', handlePointerDown)
+    document.addEventListener('click', handleOutsideClick)
     window.addEventListener('keydown', handleKeyDown)
     return () => {
-      document.removeEventListener('mousedown', handlePointerDown)
-      document.removeEventListener('touchstart', handlePointerDown)
+      document.removeEventListener('click', handleOutsideClick)
       window.removeEventListener('keydown', handleKeyDown)
     }
   }, [closeLockedRef, open, setOpen, wrapperRef])
@@ -120,6 +122,7 @@ function usePickerSurface(open, setOpen, wrapperRef, closeLockedRef) {
 function WheelColumn({ label, items, value, onChange, onDragLockChange }) {
   const listRef = useRef(null)
   const scrollTimer = useRef(null)
+  const wheelUnlockTimer = useRef(null)
   const dragState = useRef({ dragging: false, moved: false, startY: 0, startTop: 0 })
   const ignoreClick = useRef(false)
   const [dragging, setDragging] = useState(false)
@@ -204,7 +207,10 @@ function WheelColumn({ label, items, value, onChange, onDragLockChange }) {
     listRef.current.scrollTo({ top: index * ITEM_HEIGHT, behavior: 'smooth' })
   }, [items, value])
 
-  useEffect(() => () => window.clearTimeout(scrollTimer.current), [])
+  useEffect(() => () => {
+    window.clearTimeout(scrollTimer.current)
+    window.clearTimeout(wheelUnlockTimer.current)
+  }, [])
 
   useEffect(() => {
     if (!dragging) return undefined
@@ -251,12 +257,17 @@ function WheelColumn({ label, items, value, onChange, onDragLockChange }) {
     if (!listRef.current) return
     event.preventDefault()
     event.stopPropagation()
+    onDragLockChange?.(true)
+    window.clearTimeout(wheelUnlockTimer.current)
 
     const deltaUnit = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? ITEM_HEIGHT : 1
     const delta = event.deltaY * deltaUnit
     const direction = Math.sign(delta)
     listRef.current.scrollTop += direction * Math.min(Math.abs(delta), ITEM_HEIGHT)
     scheduleCommit(direction)
+    wheelUnlockTimer.current = window.setTimeout(() => {
+      onDragLockChange?.(false)
+    }, 240)
   }
 
   const handleMouseDown = (event) => {
@@ -376,6 +387,12 @@ export function DateWheelPicker({
     }, 220)
   }, [])
 
+  const keepPickerOpen = useCallback((event) => {
+    event.stopPropagation()
+    setDragCloseLock(true)
+    setDragCloseLock(false)
+  }, [setDragCloseLock])
+
   useEffect(() => () => window.clearTimeout(unlockTimer.current), [])
 
   usePickerSurface(open, setOpen, wrapperRef, closeLockedRef)
@@ -435,7 +452,22 @@ export function DateWheelPicker({
       </button>
 
       {open && (
-        <div className="medcare-wheel-panel" role="dialog" aria-labelledby={generatedId}>
+        <div
+          className="medcare-wheel-panel"
+          role="dialog"
+          aria-labelledby={generatedId}
+          onClick={keepPickerOpen}
+          onMouseDown={keepPickerOpen}
+          onMouseMove={keepPickerOpen}
+          onMouseUp={keepPickerOpen}
+          onPointerDown={keepPickerOpen}
+          onPointerMove={keepPickerOpen}
+          onPointerUp={keepPickerOpen}
+          onTouchStart={keepPickerOpen}
+          onTouchMove={keepPickerOpen}
+          onTouchEnd={keepPickerOpen}
+          onWheel={keepPickerOpen}
+        >
           <div className="flex items-center justify-between gap-3 border-b border-[#edf2ff] px-4 py-3">
             <div>
               <p className="text-xs font-extrabold uppercase text-[#006b5d]">Fecha</p>
@@ -492,6 +524,12 @@ export function TimeWheelPicker({
     }, 220)
   }, [])
 
+  const keepPickerOpen = useCallback((event) => {
+    event.stopPropagation()
+    setDragCloseLock(true)
+    setDragCloseLock(false)
+  }, [setDragCloseLock])
+
   useEffect(() => () => window.clearTimeout(unlockTimer.current), [])
 
   usePickerSurface(open, setOpen, wrapperRef, closeLockedRef)
@@ -528,7 +566,22 @@ export function TimeWheelPicker({
       </button>
 
       {open && (
-        <div className="medcare-wheel-panel medcare-wheel-panel-time" role="dialog" aria-labelledby={generatedId}>
+        <div
+          className="medcare-wheel-panel medcare-wheel-panel-time"
+          role="dialog"
+          aria-labelledby={generatedId}
+          onClick={keepPickerOpen}
+          onMouseDown={keepPickerOpen}
+          onMouseMove={keepPickerOpen}
+          onMouseUp={keepPickerOpen}
+          onPointerDown={keepPickerOpen}
+          onPointerMove={keepPickerOpen}
+          onPointerUp={keepPickerOpen}
+          onTouchStart={keepPickerOpen}
+          onTouchMove={keepPickerOpen}
+          onTouchEnd={keepPickerOpen}
+          onWheel={keepPickerOpen}
+        >
           <div className="flex items-center justify-between gap-3 border-b border-[#edf2ff] px-4 py-3">
             <div>
               <p className="text-xs font-extrabold uppercase text-[#006b5d]">Hora</p>
