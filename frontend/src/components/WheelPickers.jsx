@@ -1,4 +1,4 @@
-import { useEffect, useId, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
 import { getLimaDateInputValue } from '../utils/limaTime'
 import { formatTime12h, parseTimeValue } from '../utils/timeFormat'
 
@@ -106,9 +106,11 @@ function usePickerSurface(open, setOpen, wrapperRef) {
     }
 
     document.addEventListener('mousedown', handlePointerDown)
+    document.addEventListener('touchstart', handlePointerDown)
     window.addEventListener('keydown', handleKeyDown)
     return () => {
       document.removeEventListener('mousedown', handlePointerDown)
+      document.removeEventListener('touchstart', handlePointerDown)
       window.removeEventListener('keydown', handleKeyDown)
     }
   }, [open, setOpen, wrapperRef])
@@ -117,6 +119,81 @@ function usePickerSurface(open, setOpen, wrapperRef) {
 function WheelColumn({ label, items, value, onChange }) {
   const listRef = useRef(null)
   const scrollTimer = useRef(null)
+  const dragState = useRef({ dragging: false, moved: false, startY: 0, startTop: 0 })
+  const ignoreClick = useRef(false)
+  const [dragging, setDragging] = useState(false)
+
+  const getSelectableIndex = useCallback((index, direction = 0) => {
+    if (!items.length) return -1
+    const clampedIndex = Math.max(0, Math.min(index, items.length - 1))
+    if (!items[clampedIndex]?.disabled) return clampedIndex
+
+    const preferredDirection = direction || 1
+    for (let offset = 1; offset < items.length; offset += 1) {
+      const first = clampedIndex + (offset * preferredDirection)
+      if (items[first] && !items[first].disabled) return first
+
+      const second = clampedIndex - (offset * preferredDirection)
+      if (items[second] && !items[second].disabled) return second
+    }
+    return -1
+  }, [items])
+
+  const scrollToIndex = useCallback((index, behavior = 'smooth') => {
+    listRef.current?.scrollTo({ top: index * ITEM_HEIGHT, behavior })
+  }, [])
+
+  const selectIndex = useCallback((index, behavior = 'smooth', direction = 0) => {
+    const selectableIndex = getSelectableIndex(index, direction)
+    if (selectableIndex < 0) return
+
+    scrollToIndex(selectableIndex, behavior)
+    const item = items[selectableIndex]
+    if (item && item.value !== value) onChange(item.value)
+  }, [getSelectableIndex, items, onChange, scrollToIndex, value])
+
+  const commitFromScroll = useCallback((behavior = 'smooth', direction = 0) => {
+    const top = listRef.current?.scrollTop || 0
+    selectIndex(Math.round(top / ITEM_HEIGHT), behavior, direction)
+  }, [selectIndex])
+
+  const beginDrag = useCallback((clientY) => {
+    if (!listRef.current) return
+    window.clearTimeout(scrollTimer.current)
+    dragState.current = {
+      dragging: true,
+      moved: false,
+      startY: clientY,
+      startTop: listRef.current.scrollTop,
+    }
+    setDragging(true)
+  }, [])
+
+  const moveDrag = useCallback((clientY) => {
+    const state = dragState.current
+    if (!state.dragging || !listRef.current) return
+
+    const delta = clientY - state.startY
+    if (Math.abs(delta) > 3) state.moved = true
+    listRef.current.scrollTop = state.startTop - delta
+  }, [])
+
+  const endDrag = useCallback(() => {
+    const moved = dragState.current.moved
+    dragState.current.dragging = false
+    setDragging(false)
+
+    if (moved) {
+      ignoreClick.current = true
+      window.setTimeout(() => { ignoreClick.current = false }, 140)
+    }
+    commitFromScroll('smooth')
+  }, [commitFromScroll])
+
+  const scheduleCommit = useCallback((direction = 0) => {
+    window.clearTimeout(scrollTimer.current)
+    scrollTimer.current = window.setTimeout(() => commitFromScroll('smooth', direction), 70)
+  }, [commitFromScroll])
 
   useEffect(() => {
     const index = items.findIndex(item => item.value === value)
@@ -126,13 +203,103 @@ function WheelColumn({ label, items, value, onChange }) {
 
   useEffect(() => () => window.clearTimeout(scrollTimer.current), [])
 
+  useEffect(() => {
+    if (!dragging) return undefined
+
+    const handleMouseMove = (event) => {
+      event.preventDefault()
+      moveDrag(event.clientY)
+    }
+    const handleMouseUp = (event) => {
+      event.preventDefault()
+      endDrag()
+    }
+    const handleTouchMove = (event) => {
+      if (!event.touches[0]) return
+      event.preventDefault()
+      moveDrag(event.touches[0].clientY)
+    }
+    const handleTouchEnd = (event) => {
+      event.preventDefault()
+      endDrag()
+    }
+
+    window.addEventListener('mousemove', handleMouseMove)
+    window.addEventListener('mouseup', handleMouseUp)
+    window.addEventListener('touchmove', handleTouchMove, { passive: false })
+    window.addEventListener('touchend', handleTouchEnd)
+    window.addEventListener('touchcancel', handleTouchEnd)
+
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove)
+      window.removeEventListener('mouseup', handleMouseUp)
+      window.removeEventListener('touchmove', handleTouchMove)
+      window.removeEventListener('touchend', handleTouchEnd)
+      window.removeEventListener('touchcancel', handleTouchEnd)
+    }
+  }, [dragging, moveDrag, endDrag])
+
   const handleScroll = () => {
-    window.clearTimeout(scrollTimer.current)
-    scrollTimer.current = window.setTimeout(() => {
-      const index = Math.round((listRef.current?.scrollTop || 0) / ITEM_HEIGHT)
-      const item = items[Math.max(0, Math.min(index, items.length - 1))]
-      if (item && !item.disabled && item.value !== value) onChange(item.value)
-    }, 80)
+    if (dragState.current.dragging) return
+    scheduleCommit()
+  }
+
+  const handleWheel = (event) => {
+    if (!listRef.current) return
+    event.preventDefault()
+    event.stopPropagation()
+
+    const deltaUnit = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? ITEM_HEIGHT : 1
+    const delta = event.deltaY * deltaUnit
+    const direction = Math.sign(delta)
+    listRef.current.scrollTop += direction * Math.min(Math.abs(delta), ITEM_HEIGHT)
+    scheduleCommit(direction)
+  }
+
+  const handleMouseDown = (event) => {
+    if (event.button !== 0) return
+    event.preventDefault()
+    beginDrag(event.clientY)
+  }
+
+  const handleTouchStart = (event) => {
+    if (!event.touches[0]) return
+    beginDrag(event.touches[0].clientY)
+  }
+
+  const handleKeyDown = (event) => {
+    const currentIndex = items.findIndex(item => item.value === value)
+    if (currentIndex < 0) return
+
+    if (event.key === 'ArrowDown') {
+      event.preventDefault()
+      selectIndex(currentIndex + 1, 'smooth', 1)
+    }
+    if (event.key === 'ArrowUp') {
+      event.preventDefault()
+      selectIndex(currentIndex - 1, 'smooth', -1)
+    }
+    if (event.key === 'PageDown') {
+      event.preventDefault()
+      selectIndex(currentIndex + 5, 'smooth', 1)
+    }
+    if (event.key === 'PageUp') {
+      event.preventDefault()
+      selectIndex(currentIndex - 5, 'smooth', -1)
+    }
+  }
+
+  const handleOptionClick = (event, item, index) => {
+    if (ignoreClick.current || item.disabled) {
+      event.preventDefault()
+      event.stopPropagation()
+      return
+    }
+    selectIndex(index)
+  }
+
+  const handleOptionMouseDown = (event) => {
+    event.preventDefault()
   }
 
   return (
@@ -143,18 +310,23 @@ function WheelColumn({ label, items, value, onChange }) {
         <div
           ref={listRef}
           onScroll={handleScroll}
-          className="medcare-wheel-list"
+          onWheel={handleWheel}
+          onMouseDown={handleMouseDown}
+          onTouchStart={handleTouchStart}
+          onKeyDown={handleKeyDown}
+          className={`medcare-wheel-list ${dragging ? 'is-dragging' : ''}`}
           role="listbox"
           aria-label={label}
           tabIndex={0}
         >
-          {items.map(item => (
+          {items.map((item, index) => (
             <button
               type="button"
               key={item.value}
               disabled={item.disabled}
               className={`medcare-wheel-option ${item.value === value ? 'is-active' : ''}`}
-              onClick={() => !item.disabled && onChange(item.value)}
+              onMouseDown={handleOptionMouseDown}
+              onClick={event => handleOptionClick(event, item, index)}
               role="option"
               aria-selected={item.value === value}
             >
@@ -249,16 +421,16 @@ export function DateWheelPicker({
           <div className="flex items-center justify-between gap-3 border-b border-[#edf2ff] px-4 py-3">
             <div>
               <p className="text-xs font-extrabold uppercase text-[#006b5d]">Fecha</p>
-              <p className="text-sm font-bold text-[#101828]">{displayValue || 'Elige dia, mes y anio'}</p>
+              <p className="text-sm font-bold text-[#101828]">{displayValue || 'Elige día, mes y año'}</p>
             </div>
             <button type="button" className="rounded-lg p-2 text-[#52615f] transition hover:bg-[#f4fffc]" onClick={() => setOpen(false)} aria-label="Cerrar selector de fecha">
               <span className="material-symbols-outlined text-[18px]">close</span>
             </button>
           </div>
           <div className="grid grid-cols-3 gap-3 p-4">
-            <WheelColumn label="Dia" items={dayItems} value={selected.day} onChange={day => updateParts({ ...selected, day })} />
+            <WheelColumn label="Día" items={dayItems} value={selected.day} onChange={day => updateParts({ ...selected, day })} />
             <WheelColumn label="Mes" items={monthItems} value={selected.month} onChange={month => updateParts({ ...selected, month })} />
-            <WheelColumn label="Anio" items={years} value={selected.year} onChange={year => updateParts({ ...selected, year })} />
+            <WheelColumn label="Año" items={years} value={selected.year} onChange={year => updateParts({ ...selected, year })} />
           </div>
           {clearable && value && (
             <div className="border-t border-[#edf2ff] px-4 py-3">

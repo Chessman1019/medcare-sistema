@@ -183,8 +183,16 @@ canvas {
   height: 100%;
   overflow-y: auto;
   padding-block: 3.5rem;
+  cursor: grab;
+  overscroll-behavior: contain;
   scroll-snap-type: y mandatory;
   scrollbar-width: none;
+  touch-action: none;
+  user-select: none;
+}
+
+.medcare-wheel-list.is-dragging {
+  cursor: grabbing;
 }
 
 .medcare-wheel-list::-webkit-scrollbar {
@@ -202,6 +210,7 @@ canvas {
   border: 0;
   background: transparent;
   color: rgba(82, 97, 95, 0.68);
+  cursor: inherit;
   font: inherit;
   font-size: 1rem;
   font-weight: 800;
