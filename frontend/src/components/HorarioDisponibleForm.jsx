@@ -116,7 +116,7 @@ export default function HorarioDisponibleForm({ doctores = [], initialDoctorId =
   }
 
   return (
-    <form onSubmit={handleSubmit} className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+    <form noValidate onSubmit={handleSubmit} className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
       <div className="mb-4 flex items-start justify-between gap-3">
         <div>
           <h3 className="font-semibold text-slate-900">Agregar más fechas y horas disponibles</h3>
@@ -139,7 +139,6 @@ export default function HorarioDisponibleForm({ doctores = [], initialDoctorId =
             className={inputClass}
             value={form.id_doctor}
             onChange={event => setForm(current => ({ ...current, id_doctor: event.target.value }))}
-            required
             disabled={!doctores.length}
             options={[
               { value: '', label: doctores.length ? 'Selecciona doctor' : 'No hay doctores disponibles' },

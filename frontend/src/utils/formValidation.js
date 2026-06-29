@@ -131,6 +131,56 @@ export function validateLoginForm(data) {
   ])
 }
 
+export function validateProfileForm(data) {
+  return runValidations([
+    ['nombre', validateName(data.nombre, 'El nombre')],
+    ['apellido', validateName(data.apellido, 'El apellido')],
+    ['telefono', validatePhone(data.telefono, false)],
+  ])
+}
+
+export function validatePasswordChangeForm(data) {
+  const errors = {}
+  putError(errors, 'contrasena_actual', validateRequired(data.contrasena_actual, 'La contraseña actual'))
+  putError(errors, 'nueva_contrasena', validatePassword(data.nueva_contrasena))
+  if (isEmpty(data.confirmar)) {
+    putError(errors, 'confirmar', validationMessages.required('La confirmación de contraseña'))
+  } else if (data.nueva_contrasena !== data.confirmar) {
+    putError(errors, 'confirmar', 'Las contraseñas no coinciden.')
+  }
+  return { valid: Object.keys(errors).length === 0, errors }
+}
+
+export function validateRecoveryCode(value) {
+  if (isEmpty(value)) return validationMessages.required('El código')
+  if (!/^\d{6}$/.test(String(value))) return 'El código debe tener 6 dígitos numéricos.'
+  return ''
+}
+
+export function validateHorarioForm(data) {
+  return runValidations([
+    ['id_doctor', validateSelect(data.id_doctor, 'un doctor')],
+    ['fecha', validateDate(data.fecha)],
+    ['hora_inicio', validateRequired(data.hora_inicio, 'La hora de inicio')],
+    ['hora_fin', validateRequired(data.hora_fin, 'La hora de fin')],
+  ])
+}
+
+export function validateDiagnostico(value) {
+  return validateRequired(value, 'El diagnóstico')
+}
+
+export function validatePasswordResetForm(data) {
+  const errors = {}
+  putError(errors, 'nueva_contrasena', validatePassword(data.nueva_contrasena))
+  if (isEmpty(data.confirmar)) {
+    putError(errors, 'confirmar', validationMessages.required('La confirmación de contraseña'))
+  } else if (data.nueva_contrasena !== data.confirmar) {
+    putError(errors, 'confirmar', 'Las contraseñas no coinciden.')
+  }
+  return { valid: Object.keys(errors).length === 0, errors }
+}
+
 export function validateAppointmentForm(data) {
   return runValidations([
     ['id_especialidad', validateSelect(data.id_especialidad, 'una especialidad')],

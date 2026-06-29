@@ -181,19 +181,6 @@ export default function MedCareSelect({
     window.clearTimeout(typeResetTimer.current)
   }, [])
 
-  useEffect(() => {
-    const hiddenSelect = hiddenSelectRef.current
-    if (!hiddenSelect) return undefined
-
-    const handleInvalid = (event) => {
-      event.preventDefault()
-      wrapperRef.current?.querySelector('.medcare-select-trigger')?.focus()
-    }
-
-    hiddenSelect.addEventListener('invalid', handleInvalid)
-    return () => hiddenSelect.removeEventListener('invalid', handleInvalid)
-  }, [])
-
   const resetTypeBufferSoon = () => {
     window.clearTimeout(typeResetTimer.current)
     typeResetTimer.current = window.setTimeout(() => {
@@ -328,6 +315,7 @@ export default function MedCareSelect({
         aria-expanded={open}
         aria-controls={listboxId}
         aria-label={ariaLabel}
+        aria-required={required || undefined}
         disabled={disabled}
         onClick={() => (open ? setOpen(false) : openPanel())}
         onKeyDown={handleTriggerKeyDown}
@@ -345,7 +333,6 @@ export default function MedCareSelect({
         className="medcare-select-native"
         value={stringValue}
         name={name}
-        required={required}
         disabled={disabled}
         onChange={() => {}}
       >

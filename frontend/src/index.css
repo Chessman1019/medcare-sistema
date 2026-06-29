@@ -104,7 +104,8 @@ canvas {
 
 .medcare-input-invalid,
 .medcare-input.medcare-input-invalid,
-.medcare-select-trigger.medcare-input-invalid {
+.medcare-select-trigger.medcare-input-invalid,
+textarea.medcare-input-invalid {
   border-color: #e07a72;
   background: #fff9f8;
 }

@@ -78,6 +78,10 @@ export function PasswordField({
   className = '',
   inputClassName = 'medcare-input',
   error = false,
+  required: _required,
+  minLength: _minLength,
+  maxLength: _maxLength,
+  pattern: _pattern,
   ...inputProps
 }) {
   const [visible, setVisible] = useState(false)

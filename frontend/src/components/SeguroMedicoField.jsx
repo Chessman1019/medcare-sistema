@@ -103,7 +103,6 @@ export default function SeguroMedicoField({
           className={inputClassName}
           value={selectValue}
           onChange={handleSelect}
-          required={required && !showCustomInput}
           disabled={disabled || loading}
           options={seguroOptions}
         />
@@ -129,7 +128,6 @@ export default function SeguroMedicoField({
             onChange={(event) => onChange?.(event.target.value)}
             onBlur={handleCustomBlur}
             placeholder="Ej. SIS, EsSalud, EPS..."
-            required={required}
             disabled={disabled}
             autoComplete="off"
           />
