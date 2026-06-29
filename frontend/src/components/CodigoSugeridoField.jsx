@@ -45,7 +45,6 @@ export default function CodigoSugeridoField({
             onChange={(event) => onChange?.(event.target.value)}
             onBlur={handleBlur}
             placeholder={normalizedSuggested}
-            required={required}
             disabled={disabled}
           />
           <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[#52615f]">

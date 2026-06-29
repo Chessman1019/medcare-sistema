@@ -1,4 +1,6 @@
 import { useEffect, useRef } from 'react'
+import MedCareSelect from '../../components/MedCareSelect'
+import { formatTime12h } from '../../utils/timeFormat'
 
 const estadoClass = {
   pendiente:    'bg-[#faeeda] text-[#854F0B]',
@@ -66,20 +68,28 @@ export default function RecepGestion({ citasFiltradas, doctores, citaNotificada,
             </div>
           </div>
           <div className="grid grid-cols-1 gap-3 lg:grid-cols-[1fr_1fr_auto]">
-            <select className={inputClass} value={reprogramacion.id_doctor}
-              onChange={e => onCambiarDoctorReprogramacion(e.target.value)}>
-              {doctores.map(doctor => (
-                <option key={doctor.id_usuario} value={doctor.id_usuario}>Dr. {doctorLabel(doctor)}</option>
-              ))}
-            </select>
-            <select className={inputClass} required value={reprogramacion.id_horario}
+            <MedCareSelect
+              className={inputClass}
+              value={reprogramacion.id_doctor}
+              onChange={e => onCambiarDoctorReprogramacion(e.target.value)}
+              options={doctores.map(doctor => ({
+                value: doctor.id_usuario,
+                label: `Dr. ${doctorLabel(doctor)}`,
+              }))}
+            />
+            <MedCareSelect
+              className={inputClass}
+              value={reprogramacion.id_horario}
               onChange={e => setReprogramacion({ ...reprogramacion, id_horario: e.target.value })}
-              disabled={reprogramacion.loading}>
-              <option value="">{reprogramacion.loading ? 'Cargando horarios...' : 'Nuevo horario'}</option>
-              {reprogramacion.horarios.map(h => (
-                <option key={h.id_horario} value={h.id_horario}>{h.fecha} - {h.hora_inicio} a {h.hora_fin}</option>
-              ))}
-            </select>
+              disabled={reprogramacion.loading}
+              options={[
+                { value: '', label: reprogramacion.loading ? 'Cargando horarios...' : 'Nuevo horario' },
+                ...reprogramacion.horarios.map(h => ({
+                  value: h.id_horario,
+                  label: `${h.fecha} - ${formatTime12h(h.hora_inicio) || h.hora_inicio} a ${formatTime12h(h.hora_fin) || h.hora_fin}`,
+                })),
+              ]}
+            />
             <div className="flex gap-2">
               <button type="submit" disabled={actionLoading === 'reprogramar'}
                 className="medcare-primary-button px-5 py-2.5 disabled:opacity-60">

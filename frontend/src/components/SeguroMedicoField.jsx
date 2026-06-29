@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { getSegurosMedicos } from '../services/api'
+import MedCareSelect from './MedCareSelect'
 
 const NEW_VALUE = '__nuevo_seguro_medico__'
-const selectAdornmentClass = 'pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[#52615f]'
 const helperButtonClass = 'inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-extrabold text-[#006b5d] transition hover:bg-[#e5fbf7] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#12b8a3]/20'
 
 function normalizeSeguro(value = '') {
@@ -89,28 +89,23 @@ export default function SeguroMedicoField({
     if (!hasCustomValue) onChange?.('')
   }
 
+  const seguroOptions = useMemo(() => ([
+    { value: '', label: loading ? 'Cargando seguros...' : 'Sin seguro / particular' },
+    ...seguros.map(seguro => ({ value: seguro, label: seguro })),
+    { value: NEW_VALUE, label: 'Agregar nuevo seguro médico' },
+  ]), [loading, seguros])
+
   return (
     <div className={className}>
       <label className="block text-sm font-bold text-[#223330]">
         {label}
-        <div className="relative">
-          <select
-            className={`${inputClassName} appearance-none pr-11`}
-            value={selectValue}
-            onChange={handleSelect}
-            required={required && !showCustomInput}
-            disabled={disabled || loading}
-          >
-            <option value="">{loading ? 'Cargando seguros...' : 'Sin seguro / particular'}</option>
-            {seguros.map((seguro) => (
-              <option key={seguro} value={seguro}>{seguro}</option>
-            ))}
-            <option value={NEW_VALUE}>Agregar nuevo seguro médico</option>
-          </select>
-          <span className={selectAdornmentClass}>
-            <span className="material-symbols-outlined text-[22px]">expand_more</span>
-          </span>
-        </div>
+        <MedCareSelect
+          className={inputClassName}
+          value={selectValue}
+          onChange={handleSelect}
+          disabled={disabled || loading}
+          options={seguroOptions}
+        />
       </label>
 
       {!showCustomInput && (
@@ -133,7 +128,6 @@ export default function SeguroMedicoField({
             onChange={(event) => onChange?.(event.target.value)}
             onBlur={handleCustomBlur}
             placeholder="Ej. SIS, EsSalud, EPS..."
-            required={required}
             disabled={disabled}
             autoComplete="off"
           />

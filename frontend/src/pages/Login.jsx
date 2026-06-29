@@ -1,6 +1,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import FormError from '../components/FormError'
 import {
   login,
   restablecerContrasena,
@@ -8,6 +9,8 @@ import {
   verificarCodigoRecuperacion,
 } from '../services/api'
 import { useAuth } from '../context/AuthContext'
+import { useFormValidation } from '../hooks/useFormValidation'
+import { validateEmail, validateLoginForm, validatePasswordResetForm, validateRecoveryCode } from '../utils/formValidation'
 
 const CAROUSEL = [
   'https://images.unsplash.com/photo-1538108149393-fbbd81895907?w=1600&q=90',
@@ -42,6 +45,13 @@ export default function Login() {
   const [loading, setLoading] = useState(false)
   const { loginUser } = useAuth()
   const navigate = useNavigate()
+  const { fieldErrors, applyErrors, clearFieldError } = useFormValidation()
+  const {
+    fieldErrors: recoveryFieldErrors,
+    applyErrors: applyRecoveryErrors,
+    clearFieldError: clearRecoveryFieldError,
+    clearAllErrors: clearRecoveryErrors,
+  } = useFormValidation()
 
   useEffect(() => {
     timerRef.current = setInterval(() => {
@@ -56,8 +66,15 @@ export default function Login() {
 
   const handleSubmit = async (event) => {
     event.preventDefault()
-    setLoading(true)
     setError('')
+
+    const validation = validateLoginForm(form)
+    if (!validation.valid) {
+      applyErrors(validation.errors)
+      return
+    }
+
+    setLoading(true)
     try {
       const res = await login(form)
       const { access_token, rol, id_usuario, nombre, apellido } = res.data
@@ -79,14 +96,20 @@ export default function Login() {
     setRecoveryStep('email')
     setRecoveryMessage('')
     setError('')
+    clearRecoveryErrors()
     setRecovery((cur) => ({ ...cur, email: form.email }))
   }
 
   const requestRecoveryCode = async (event) => {
     event.preventDefault()
-    setRecoveryLoading(true)
     setRecoveryMessage('')
     setError('')
+    const emailError = validateEmail(recovery.email)
+    if (emailError) {
+      applyRecoveryErrors({ email: emailError })
+      return
+    }
+    setRecoveryLoading(true)
     try {
       await solicitarRecuperacionContrasena({ email: recovery.email })
       setRecoveryStep('code')
@@ -100,9 +123,14 @@ export default function Login() {
 
   const verifyRecoveryCode = async (event) => {
     event.preventDefault()
-    setRecoveryLoading(true)
     setRecoveryMessage('')
     setError('')
+    const codeError = validateRecoveryCode(recovery.codigo)
+    if (codeError) {
+      applyRecoveryErrors({ codigo: codeError })
+      return
+    }
+    setRecoveryLoading(true)
     try {
       await verificarCodigoRecuperacion({ email: recovery.email, codigo: recovery.codigo })
       setRecoveryStep('password')
@@ -116,14 +144,14 @@ export default function Login() {
 
   const resetPassword = async (event) => {
     event.preventDefault()
-    setRecoveryLoading(true)
     setRecoveryMessage('')
     setError('')
-    if (recovery.nueva_contrasena !== recovery.confirmar) {
-      setError('Las contraseñas no coinciden.')
-      setRecoveryLoading(false)
+    const validation = validatePasswordResetForm(recovery)
+    if (!validation.valid) {
+      applyRecoveryErrors(validation.errors)
       return
     }
+    setRecoveryLoading(true)
     try {
       await restablecerContrasena({
         email: recovery.email,
@@ -134,6 +162,7 @@ export default function Login() {
       setRecovery({ email: '', codigo: '', nueva_contrasena: '', confirmar: '' })
       setRecoveryOpen(false)
       setRecoveryStep('email')
+      clearRecoveryErrors()
       setRecoveryMessage('Contraseña restablecida. Ya puedes iniciar sesión.')
     } catch (err) {
       setError(err.response?.data?.detail || 'No se pudo restablecer la contraseña.')
@@ -155,6 +184,24 @@ export default function Login() {
     transition: 'border-color 0.2s, box-shadow 0.2s, background 0.2s',
     boxSizing: 'border-box',
   }
+
+  const invalidInputStyle = {
+    borderColor: '#e07a72',
+    background: '#fff9f8',
+    boxShadow: '0 0 0 4px rgba(255, 180, 171, 0.28)',
+  }
+
+  const loginInputStyle = (field, extra = {}) => ({
+    ...inputStyle,
+    ...extra,
+    ...(fieldErrors[field] ? invalidInputStyle : {}),
+  })
+
+  const recoveryInputStyle = (field, extra = {}) => ({
+    ...inputStyle,
+    ...extra,
+    ...(recoveryFieldErrors[field] ? invalidInputStyle : {}),
+  })
 
   const focusIn = (e) => {
     e.target.style.borderColor = '#006b5d'
@@ -320,7 +367,7 @@ export default function Login() {
             )}
 
             {/* Formulario */}
-            <form onSubmit={handleSubmit}>
+            <form noValidate onSubmit={handleSubmit}>
 
               {/* Email */}
               <div style={{ position: 'relative', marginBottom: 14 }}>
@@ -329,15 +376,21 @@ export default function Login() {
                   fontSize: 20, color: '#9ab8b2', pointerEvents: 'none',
                 }}>person</span>
                 <input
-                  style={{ ...inputStyle, paddingLeft: 44 }}
-                  type="email"
+                  style={loginInputStyle('email', { paddingLeft: 44 })}
+                  data-field="email"
+                  type="text"
+                  inputMode="email"
+                  autoComplete="email"
                   placeholder="Correo electrónico"
                   value={form.email}
-                  onChange={(e) => setForm({ ...form, email: e.target.value })}
+                  onChange={(e) => {
+                    setForm({ ...form, email: e.target.value })
+                    clearFieldError('email')
+                  }}
                   onFocus={focusIn}
                   onBlur={focusOut}
-                  required
                 />
+                <FormError message={fieldErrors.email} />
               </div>
 
               {/* Contraseña */}
@@ -347,15 +400,20 @@ export default function Login() {
                   fontSize: 20, color: '#9ab8b2', pointerEvents: 'none',
                 }}>lock</span>
                 <input
-                  style={{ ...inputStyle, paddingLeft: 44, paddingRight: 48 }}
+                  style={loginInputStyle('password', { paddingLeft: 44, paddingRight: 48 })}
+                  data-field="password"
                   type={showPassword ? 'text' : 'password'}
+                  autoComplete="current-password"
                   placeholder="Contraseña"
                   value={form.password}
-                  onChange={(e) => setForm({ ...form, password: e.target.value })}
+                  onChange={(e) => {
+                    setForm({ ...form, password: e.target.value })
+                    clearFieldError('password')
+                  }}
                   onFocus={focusIn}
                   onBlur={focusOut}
-                  required
                 />
+                <FormError message={fieldErrors.password} />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
@@ -450,17 +508,23 @@ export default function Login() {
                 )}
 
                 {recoveryStep === 'email' && (
-                  <form onSubmit={requestRecoveryCode}>
+                  <form noValidate onSubmit={requestRecoveryCode}>
                     <input
-                      style={{ ...inputStyle, fontSize: 14, padding: '12px 14px', marginBottom: 12 }}
-                      type="email"
+                      style={recoveryInputStyle('email', { fontSize: 14, padding: '12px 14px', marginBottom: 4 })}
+                      data-field="email"
+                      type="text"
+                      inputMode="email"
+                      autoComplete="email"
                       value={recovery.email}
-                      onChange={(e) => setRecovery({ ...recovery, email: e.target.value })}
+                      onChange={(e) => {
+                        setRecovery({ ...recovery, email: e.target.value })
+                        clearRecoveryFieldError('email')
+                      }}
                       onFocus={focusIn}
                       onBlur={focusOut}
                       placeholder="correo@medcare.pe"
-                      required
                     />
+                    <FormError message={recoveryFieldErrors.email} className="mb-3" />
                     <button type="submit" disabled={recoveryLoading} style={{
                       width: '100%', padding: '12px', background: '#006b5d', color: '#fff',
                       border: 'none', borderRadius: 12, fontSize: 14, fontWeight: 600,
@@ -472,18 +536,22 @@ export default function Login() {
                 )}
 
                 {recoveryStep === 'code' && (
-                  <form onSubmit={verifyRecoveryCode}>
+                  <form noValidate onSubmit={verifyRecoveryCode}>
                     <input
-                      style={{ ...inputStyle, fontSize: 22, padding: '12px 14px', textAlign: 'center', letterSpacing: '0.35em', fontWeight: 700, marginBottom: 12 }}
+                      style={recoveryInputStyle('codigo', { fontSize: 22, padding: '12px 14px', textAlign: 'center', letterSpacing: '0.35em', fontWeight: 700, marginBottom: 4 })}
+                      data-field="codigo"
                       inputMode="numeric"
                       maxLength={6}
                       value={recovery.codigo}
-                      onChange={(e) => setRecovery({ ...recovery, codigo: e.target.value.replace(/\D/g, '').slice(0, 6) })}
+                      onChange={(e) => {
+                        setRecovery({ ...recovery, codigo: e.target.value.replace(/\D/g, '').slice(0, 6) })
+                        clearRecoveryFieldError('codigo')
+                      }}
                       onFocus={focusIn}
                       onBlur={focusOut}
                       placeholder="000000"
-                      required
                     />
+                    <FormError message={recoveryFieldErrors.codigo} className="mb-3" />
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                       <button type="button" onClick={requestRecoveryCode} disabled={recoveryLoading} style={{
                         padding: '11px', background: '#fff', color: '#006b5d',
@@ -501,29 +569,37 @@ export default function Login() {
                 )}
 
                 {recoveryStep === 'password' && (
-                  <form onSubmit={resetPassword}>
+                  <form noValidate onSubmit={resetPassword}>
                     <input
-                      style={{ ...inputStyle, fontSize: 14, padding: '12px 14px', marginBottom: 12 }}
+                      style={recoveryInputStyle('nueva_contrasena', { fontSize: 14, padding: '12px 14px', marginBottom: 4 })}
+                      data-field="nueva_contrasena"
                       type="password"
+                      autoComplete="new-password"
                       placeholder="Nueva contraseña"
                       value={recovery.nueva_contrasena}
-                      onChange={(e) => setRecovery({ ...recovery, nueva_contrasena: e.target.value })}
+                      onChange={(e) => {
+                        setRecovery({ ...recovery, nueva_contrasena: e.target.value })
+                        clearRecoveryFieldError('nueva_contrasena')
+                      }}
                       onFocus={focusIn}
                       onBlur={focusOut}
-                      minLength={6}
-                      required
                     />
+                    <FormError message={recoveryFieldErrors.nueva_contrasena} className="mb-3" />
                     <input
-                      style={{ ...inputStyle, fontSize: 14, padding: '12px 14px', marginBottom: 12 }}
+                      style={recoveryInputStyle('confirmar', { fontSize: 14, padding: '12px 14px', marginBottom: 4 })}
+                      data-field="confirmar"
                       type="password"
+                      autoComplete="new-password"
                       placeholder="Confirmar contraseña"
                       value={recovery.confirmar}
-                      onChange={(e) => setRecovery({ ...recovery, confirmar: e.target.value })}
+                      onChange={(e) => {
+                        setRecovery({ ...recovery, confirmar: e.target.value })
+                        clearRecoveryFieldError('confirmar')
+                      }}
                       onFocus={focusIn}
                       onBlur={focusOut}
-                      minLength={6}
-                      required
                     />
+                    <FormError message={recoveryFieldErrors.confirmar} className="mb-3" />
                     <button type="submit" disabled={recoveryLoading} style={{
                       width: '100%', padding: '12px', background: '#006b5d', color: '#fff',
                       border: 'none', borderRadius: 12, fontSize: 14, fontWeight: 600,

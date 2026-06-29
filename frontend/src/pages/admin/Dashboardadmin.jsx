@@ -17,6 +17,10 @@ import AdminEspecialidades from './AdminEspecialidades'
 import AdminEspera from './AdminEspera'
 import AdminReportes from './AdminReportes'
 import AdminConfiguracion from './AdminConfiguracion'
+import {
+    buildAppointmentNotificationDetails,
+    getAppointmentNotificationTime,
+} from '../../utils/appointmentNotifications'
 
 const NOTIFICATION_REFRESH_MS = 60 * 1000
 
@@ -210,13 +214,8 @@ export default function DashboardAdmin() {
         return citasPendientesNotif.slice(0, 10).map(n => ({
             key: n.id_notif,
             title: getNotificationTitle(n.tipo),
-            description: n.mensaje || [
-                n.paciente || n.nombre_paciente || 'Paciente sin registrar',
-                n.fecha_hora ? new Date(n.fecha_hora).toLocaleString('es-PE', { dateStyle: 'medium', timeStyle: 'short' }) : 'Sin fecha',
-                n.especialidad,
-                n.doctor || n.nombre_doctor ? `Dr. ${n.doctor || n.nombre_doctor}` : '',
-            ].filter(Boolean).join(' · '),
-            time: n.fecha_programada ? new Date(n.fecha_programada).toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' }) : '',
+            details: buildAppointmentNotificationDetails(n),
+            time: getAppointmentNotificationTime(n),
             actionLabel: n.leida ? 'Leída · Ir a Citas' : 'No leída · Ir a Citas',
             read: n.leida,
             onClick: () => abrirNotificacionCita(n),

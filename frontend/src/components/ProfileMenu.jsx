@@ -1,10 +1,12 @@
-/* eslint-disable react-hooks/set-state-in-effect */
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useAuth } from '../context/AuthContext'
 import { actualizarPerfil, cambiarContrasenaPerfil, getPerfil } from '../services/api'
-import { isPasswordValid, PasswordField, PasswordStrength } from './PasswordControls'
+import FormError from './FormError'
+import { PasswordField, PasswordStrength } from './PasswordControls'
 import SeguroMedicoField from './SeguroMedicoField'
+import { useFormValidation } from '../hooks/useFormValidation'
+import { validatePasswordChangeForm, validateProfileForm } from '../utils/formValidation'
 import { formatPhoneInput, phoneInputProps } from '../utils/numericFields'
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL
@@ -92,6 +94,7 @@ export default function ProfileMenu() {
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
+  const { fieldErrors, applyErrors, clearFieldError, inputClass: fieldInputClass, clearAllErrors } = useFormValidation()
 
   const activeRole = profile?.tipo_usuario || user?.rol
   const displayName = getDisplayName(user, profile)
@@ -186,13 +189,32 @@ export default function ProfileMenu() {
     ] : []),
   ], [activeRole, profile, user?.email, user?.telefono])
 
-  const closePanel = () => { setPanel(null); setMessage(''); setError(''); setPasswordForm({ contrasena_actual: '', nueva_contrasena: '', confirmar: '' }) }
+  const closePanel = () => { setPanel(null); setMessage(''); setError(''); clearAllErrors(); setPasswordForm({ contrasena_actual: '', nueva_contrasena: '', confirmar: '' }) }
   const handleLogout = () => { logoutUser(); window.location.href = '/login' }
-  const openPanel = (nextPanel) => { setOpen(false); setPanel(nextPanel); setMessage(''); setError('') }
+  const openPanel = (nextPanel) => { setOpen(false); setPanel(nextPanel); setMessage(''); setError(''); clearAllErrors() }
+
+  const updateProfileField = (field, value) => {
+    setForm((current) => ({ ...current, [field]: value }))
+    clearFieldError(field)
+    setError('')
+  }
+
+  const updatePasswordField = (field, value) => {
+    setPasswordForm((current) => ({ ...current, [field]: value }))
+    clearFieldError(field)
+    setError('')
+  }
 
   const saveProfile = async (event) => {
     event.preventDefault()
-    setLoading(true); setError(''); setMessage('')
+    setError('')
+    setMessage('')
+    const validation = validateProfileForm(form)
+    if (!validation.valid) {
+      applyErrors(validation.errors)
+      return
+    }
+    setLoading(true)
     try {
       const res = await actualizarPerfil({ nombre: form.nombre, apellido: form.apellido, telefono: form.telefono, direccion: form.direccion, seguro_medico: form.seguro_medico })
       const data = res.data
@@ -205,9 +227,14 @@ export default function ProfileMenu() {
 
   const savePassword = async (event) => {
     event.preventDefault()
-    setLoading(true); setError(''); setMessage('')
-    if (passwordForm.nueva_contrasena !== passwordForm.confirmar) { setError('Las contraseñas no coinciden.'); setLoading(false); return }
-    if (!isPasswordValid(passwordForm.nueva_contrasena)) { setError('La nueva contraseña debe tener mínimo 6 caracteres, letras y números.'); setLoading(false); return }
+    setError('')
+    setMessage('')
+    const validation = validatePasswordChangeForm(passwordForm)
+    if (!validation.valid) {
+      applyErrors(validation.errors)
+      return
+    }
+    setLoading(true)
     try {
       await cambiarContrasenaPerfil({ contrasena_actual: passwordForm.contrasena_actual, nueva_contrasena: passwordForm.nueva_contrasena })
       setPasswordForm({ contrasena_actual: '', nueva_contrasena: '', confirmar: '' })
@@ -271,7 +298,7 @@ export default function ProfileMenu() {
             )}
 
             {panel === 'perfil' && (
-              <form onSubmit={saveProfile} className="space-y-5">
+              <form noValidate onSubmit={saveProfile} className="space-y-5">
                 <section className="grid grid-cols-1 gap-5 xl:grid-cols-[1fr_0.85fr]">
                   <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
                     <div className="mb-5 flex items-start gap-3">
@@ -284,10 +311,22 @@ export default function ProfileMenu() {
                       </div>
                     </div>
                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                      <label className="text-sm font-medium text-slate-700">Nombre<input className={inputClass} value={form.nombre} onChange={(e) => setForm({ ...form, nombre: e.target.value })} required /></label>
-                      <label className="text-sm font-medium text-slate-700">Apellido<input className={inputClass} value={form.apellido} onChange={(e) => setForm({ ...form, apellido: e.target.value })} required /></label>
-                      <label className="text-sm font-medium text-slate-700">Teléfono<input className={inputClass} {...phoneInputProps}
-                        value={form.telefono} onChange={(e) => setForm({ ...form, telefono: formatPhoneInput(e.target.value) })} placeholder="Ej. 987654321" /></label>
+                      <label className="text-sm font-medium text-slate-700">
+                        Nombre
+                        <input data-field="nombre" className={fieldInputClass('nombre', inputClass)} value={form.nombre} onChange={(e) => updateProfileField('nombre', e.target.value)} />
+                        <FormError message={fieldErrors.nombre} />
+                      </label>
+                      <label className="text-sm font-medium text-slate-700">
+                        Apellido
+                        <input data-field="apellido" className={fieldInputClass('apellido', inputClass)} value={form.apellido} onChange={(e) => updateProfileField('apellido', e.target.value)} />
+                        <FormError message={fieldErrors.apellido} />
+                      </label>
+                      <label className="text-sm font-medium text-slate-700">
+                        Teléfono
+                        <input data-field="telefono" className={fieldInputClass('telefono', inputClass)} {...phoneInputProps}
+                          value={form.telefono} onChange={(e) => updateProfileField('telefono', formatPhoneInput(e.target.value))} placeholder="Ej. 987654321" />
+                        <FormError message={fieldErrors.telefono} />
+                      </label>
                       <label className="text-sm font-medium text-slate-700">Correo<input className={inputClass} value={profile?.email || user?.email || ''} disabled /></label>
                       {profile?.tipo_usuario === 'paciente' && (<>
                         <SeguroMedicoField
@@ -327,7 +366,7 @@ export default function ProfileMenu() {
             )}
 
             {panel === 'contrasena' && (
-              <form onSubmit={savePassword} className="grid grid-cols-1 gap-5 lg:grid-cols-[0.8fr_1fr]">
+              <form noValidate onSubmit={savePassword} className="grid grid-cols-1 gap-5 lg:grid-cols-[0.8fr_1fr]">
                 <section className="rounded-xl border border-[#bcece4] bg-[#f4fffc] p-5">
                   <span className="flex h-12 w-12 items-center justify-center rounded-full bg-white text-[#006b5d] shadow-sm">
                     <span className="material-symbols-outlined">lock_reset</span>
@@ -337,10 +376,19 @@ export default function ProfileMenu() {
                 </section>
                 <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
                   <div className="space-y-4">
-                    <PasswordField label="Contraseña actual" value={passwordForm.contrasena_actual} onChange={(e) => setPasswordForm({ ...passwordForm, contrasena_actual: e.target.value })} inputClassName="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 transition focus:border-[#007a68] focus:outline-none focus:ring-4 focus:ring-[#12b8a3]/15" autoComplete="current-password" required />
-                    <PasswordField label="Nueva contraseña" value={passwordForm.nueva_contrasena} onChange={(e) => setPasswordForm({ ...passwordForm, nueva_contrasena: e.target.value })} inputClassName="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 transition focus:border-[#007a68] focus:outline-none focus:ring-4 focus:ring-[#12b8a3]/15" autoComplete="new-password" minLength={6} required />
-                    <PasswordStrength password={passwordForm.nueva_contrasena} />
-                    <PasswordField label="Confirmar nueva contraseña" value={passwordForm.confirmar} onChange={(e) => setPasswordForm({ ...passwordForm, confirmar: e.target.value })} inputClassName="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 transition focus:border-[#007a68] focus:outline-none focus:ring-4 focus:ring-[#12b8a3]/15" autoComplete="new-password" minLength={6} required />
+                    <div>
+                      <PasswordField label="Contraseña actual" data-field="contrasena_actual" value={passwordForm.contrasena_actual} onChange={(e) => updatePasswordField('contrasena_actual', e.target.value)} inputClassName="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 transition focus:border-[#007a68] focus:outline-none focus:ring-4 focus:ring-[#12b8a3]/15" autoComplete="current-password" error={Boolean(fieldErrors.contrasena_actual)} />
+                      <FormError message={fieldErrors.contrasena_actual} />
+                    </div>
+                    <div>
+                      <PasswordField label="Nueva contraseña" data-field="nueva_contrasena" value={passwordForm.nueva_contrasena} onChange={(e) => updatePasswordField('nueva_contrasena', e.target.value)} inputClassName="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 transition focus:border-[#007a68] focus:outline-none focus:ring-4 focus:ring-[#12b8a3]/15" autoComplete="new-password" error={Boolean(fieldErrors.nueva_contrasena)} />
+                      <FormError message={fieldErrors.nueva_contrasena} />
+                      <PasswordStrength password={passwordForm.nueva_contrasena} />
+                    </div>
+                    <div>
+                      <PasswordField label="Confirmar nueva contraseña" data-field="confirmar" value={passwordForm.confirmar} onChange={(e) => updatePasswordField('confirmar', e.target.value)} inputClassName="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 transition focus:border-[#007a68] focus:outline-none focus:ring-4 focus:ring-[#12b8a3]/15" autoComplete="new-password" error={Boolean(fieldErrors.confirmar)} />
+                      <FormError message={fieldErrors.confirmar} />
+                    </div>
                   </div>
                   <div className="mt-5 flex flex-col gap-3 border-t border-slate-200 pt-5 sm:flex-row sm:justify-end">
                     <button type="button" onClick={() => openPanel('perfil')} className={secondaryButton}>Volver al perfil</button>

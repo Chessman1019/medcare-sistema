@@ -1,3 +1,7 @@
+import FormError from '../../components/FormError'
+import { useFormValidation } from '../../hooks/useFormValidation'
+import { validateDiagnostico } from '../../utils/formValidation'
+
 const inputClass = 'mt-1 w-full rounded-xl border border-[#bdcbc7] px-3 py-2.5 text-sm transition focus:border-[#007a68] focus:outline-none focus:ring-4 focus:ring-[#12b8a3]/15'
 
 function formatDateTime(value) {
@@ -8,6 +12,18 @@ function formatDateTime(value) {
 }
 
 export default function DoctorAtencion({ selected, form, setForm, historial, saving, onGuardar, onVerHistorial }) {
+  const { fieldErrors, applyErrors, clearFieldError, inputClass: fieldInputClass } = useFormValidation()
+
+  const handleSubmit = (event) => {
+    event.preventDefault()
+    const diagnosticoError = validateDiagnostico(form.diagnostico)
+    if (diagnosticoError) {
+      applyErrors({ diagnostico: diagnosticoError })
+      return
+    }
+    onGuardar(event)
+  }
+
   return (
     <div className="space-y-6">
       <div>
@@ -51,7 +67,7 @@ export default function DoctorAtencion({ selected, form, setForm, historial, sav
           </div>
 
           {/* Formulario atención */}
-          <form onSubmit={onGuardar} className="medcare-card p-6 space-y-5">
+          <form noValidate onSubmit={handleSubmit} className="medcare-card p-6 space-y-5">
             <h3 className="text-xl font-extrabold text-[#101828]">Registro de atención</h3>
 
             {historial.length > 0 && (
@@ -64,10 +80,14 @@ export default function DoctorAtencion({ selected, form, setForm, historial, sav
 
             <label className="block text-sm font-bold text-[#223330]">
               Diagnóstico *
-              <textarea required rows={3} className={inputClass}
+              <textarea data-field="diagnostico" rows={3} className={fieldInputClass('diagnostico', inputClass)}
                 value={form.diagnostico}
-                onChange={e => setForm({ ...form, diagnostico: e.target.value })}
+                onChange={e => {
+                  setForm({ ...form, diagnostico: e.target.value })
+                  clearFieldError('diagnostico')
+                }}
                 placeholder="Describe el diagnóstico..." />
+              <FormError message={fieldErrors.diagnostico} />
             </label>
             <label className="block text-sm font-bold text-[#223330]">
               Observaciones

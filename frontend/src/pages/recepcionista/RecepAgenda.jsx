@@ -1,5 +1,8 @@
 import { useState } from 'react'
 import HorarioDisponibleForm from '../../components/HorarioDisponibleForm'
+import MedCareSelect from '../../components/MedCareSelect'
+import { DateWheelPicker } from '../../components/WheelPickers'
+import { formatTime12h } from '../../utils/timeFormat'
 
 const estadoClass = {
   pendiente:    'bg-[#faeeda] text-[#854F0B]',
@@ -41,20 +44,28 @@ export default function RecepAgenda({ citasFiltradas, filtros, setFiltros, docto
         <div className="medcare-card overflow-hidden">
           <div className="border-b border-[#bdcbc7] bg-[#f8fbff] px-6 py-4">
             <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-              <input type="date" className={inputClass} value={filtros.fecha}
-                onChange={e => setFiltros({ ...filtros, fecha: e.target.value })} />
+              <DateWheelPicker
+                value={filtros.fecha}
+                onChange={fecha => setFiltros({ ...filtros, fecha })}
+                clearable
+                inputClassName={`w-full ${inputClass}`}
+              />
               <input className={inputClass} placeholder="Buscar doctor" value={filtros.doctor}
                 onChange={e => setFiltros({ ...filtros, doctor: e.target.value })} />
-              <select className={inputClass} value={filtros.estado}
-                onChange={e => setFiltros({ ...filtros, estado: e.target.value })}>
-                <option value="">Todos los estados</option>
-                <option value="pendiente">Pendiente</option>
-                <option value="confirmada">Confirmada</option>
-                <option value="reprogramada">Reprogramada</option>
-                <option value="en_atencion">En atención</option>
-                <option value="completada">Completada</option>
-                <option value="cancelada">Cancelada</option>
-              </select>
+              <MedCareSelect
+                className={inputClass}
+                value={filtros.estado}
+                onChange={e => setFiltros({ ...filtros, estado: e.target.value })}
+                options={[
+                  { value: '', label: 'Todos los estados' },
+                  { value: 'pendiente', label: 'Pendiente' },
+                  { value: 'confirmada', label: 'Confirmada' },
+                  { value: 'reprogramada', label: 'Reprogramada' },
+                  { value: 'en_atencion', label: 'En atención' },
+                  { value: 'completada', label: 'Completada' },
+                  { value: 'cancelada', label: 'Cancelada' },
+                ]}
+              />
             </div>
           </div>
           <div className="divide-y divide-[#bdcbc7]">
@@ -97,20 +108,25 @@ export default function RecepAgenda({ citasFiltradas, filtros, setFiltros, docto
                 Agregar más fechas y horas disponibles
               </button>
             </div>
-            <select className={`w-full ${inputClass}`} value={agendaDoctor}
-              onChange={e => onCargarDisponibilidad(e.target.value)}>
-              <option value="">Selecciona doctor</option>
-              {doctores.map(doctor => (
-                <option key={doctor.id_usuario} value={doctor.id_usuario}>Dr. {doctorLabel(doctor)}</option>
-              ))}
-            </select>
+            <MedCareSelect
+              className={`w-full ${inputClass}`}
+              value={agendaDoctor}
+              onChange={e => onCargarDisponibilidad(e.target.value)}
+              options={[
+                { value: '', label: 'Selecciona doctor' },
+                ...doctores.map(doctor => ({
+                  value: doctor.id_usuario,
+                  label: `Dr. ${doctorLabel(doctor)}`,
+                })),
+              ]}
+            />
             <div className="mt-4 space-y-2">
               {horariosAgenda.length === 0 ? (
                 <p className="rounded-xl bg-[#edf2ff] p-4 text-sm text-[#52615f]">Sin horarios libres.</p>
               ) : horariosAgenda.slice(0, 8).map(horario => (
                 <div key={horario.id_horario}
                   className="rounded-xl bg-[#f8fbff] px-4 py-3 text-sm font-bold text-[#223330]">
-                  {horario.fecha} · {horario.hora_inicio} a {horario.hora_fin}
+                  {horario.fecha} · {formatTime12h(horario.hora_inicio) || horario.hora_inicio} a {formatTime12h(horario.hora_fin) || horario.hora_fin}
                 </div>
               ))}
             </div>
