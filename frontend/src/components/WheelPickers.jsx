@@ -450,41 +450,21 @@ function WheelColumn({ label, items, value, onChange, manual }) {
           ))}
         </div>
         {manual && (
-          manual.type === 'select' ? (
-            <select
-              aria-label={`Editar ${label}`}
-              className="medcare-wheel-center-editor medcare-wheel-center-select"
-              value={manual.value}
-              onChange={event => manual.onChange(event.target.value)}
-              onFocus={handleEditorFocus}
-              onBlur={handleEditorBlur}
-              onKeyDown={handleEditorKeyDown}
-              onPointerDown={handleEditorPointer}
-              onMouseDown={handleEditorPointer}
-              onClick={handleEditorPointer}
-              onWheel={handleWheel}
-            >
-              {manual.options.map(option => (
-                <option key={option.value} value={option.value} disabled={option.disabled}>{option.label}</option>
-              ))}
-            </select>
-          ) : (
-            <input
-              aria-label={`Editar ${label}`}
-              className="medcare-wheel-center-editor"
-              inputMode={manual.inputMode || 'numeric'}
-              maxLength={manual.maxLength}
-              value={editorValue}
-              onChange={handleEditorChange}
-              onFocus={handleEditorFocus}
-              onBlur={handleEditorBlur}
-              onKeyDown={handleEditorKeyDown}
-              onPointerDown={handleEditorPointer}
-              onMouseDown={handleEditorPointer}
-              onClick={handleEditorPointer}
-              onWheel={handleWheel}
-            />
-          )
+          <input
+            aria-label={`Editar ${label}`}
+            className="medcare-wheel-center-editor"
+            inputMode={manual.inputMode || 'numeric'}
+            maxLength={manual.maxLength}
+            value={editorValue}
+            onChange={handleEditorChange}
+            onFocus={handleEditorFocus}
+            onBlur={handleEditorBlur}
+            onKeyDown={handleEditorKeyDown}
+            onPointerDown={handleEditorPointer}
+            onMouseDown={handleEditorPointer}
+            onClick={handleEditorPointer}
+            onWheel={handleWheel}
+          />
         )}
       </div>
       <button
@@ -569,12 +549,6 @@ export function DateWheelPicker({
     updateParts({ ...selected, day })
   }
 
-  const handleManualMonth = (rawValue) => {
-    const month = Number(rawValue)
-    if (!Number.isInteger(month) || month < 1 || month > 12) return
-    updateParts({ ...selected, month })
-  }
-
   const handleManualYear = (rawValue) => {
     const year = Number(String(rawValue).replace(/\D/g, ''))
     if (!Number.isInteger(year) || year < 1) return
@@ -625,7 +599,6 @@ export function DateWheelPicker({
               items={monthItems}
               value={selected.month}
               onChange={month => updateParts({ ...selected, month })}
-              manual={{ type: 'select', value: selected.month, onChange: handleManualMonth, options: monthItems }}
             />
             <WheelColumn
               label="Año"
@@ -695,10 +668,6 @@ export function TimeWheelPicker({
     updateParts({ ...selected, minute })
   }
 
-  const handleManualPeriod = (period) => {
-    updateParts({ ...selected, period })
-  }
-
   return (
     <div ref={wrapperRef} className={`relative ${className}`}>
       <button
@@ -750,7 +719,6 @@ export function TimeWheelPicker({
               items={periodItems}
               value={selected.period}
               onChange={period => updateParts({ ...selected, period })}
-              manual={{ type: 'select', value: selected.period, onChange: handleManualPeriod, options: periodItems }}
             />
           </div>
         </div>
