@@ -134,7 +134,43 @@ canvas {
   width: min(22rem, calc(100vw - 2rem));
 }
 
+.medcare-wheel-arrow {
+  display: flex;
+  width: 100%;
+  min-height: 2rem;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #d5dfef;
+  border-radius: 10px;
+  background: #ffffff;
+  color: var(--medcare-primary-strong);
+  cursor: pointer;
+  transition: background 140ms ease, border-color 140ms ease, color 140ms ease, transform 140ms ease;
+}
+
+.medcare-wheel-arrow:hover:not(:disabled) {
+  border-color: rgba(0, 122, 104, 0.35);
+  background: #f4fffc;
+  transform: translateY(-1px);
+}
+
+.medcare-wheel-arrow:active:not(:disabled) {
+  transform: translateY(0) scale(0.98);
+}
+
+.medcare-wheel-arrow:disabled {
+  cursor: not-allowed;
+  color: rgba(82, 97, 95, 0.28);
+  background: #f8fbff;
+}
+
+.medcare-wheel-arrow:focus-visible {
+  outline: 2px solid var(--medcare-accent);
+  outline-offset: 2px;
+}
+
 .medcare-wheel-column {
+  margin-block: 0.35rem;
   position: relative;
   height: 9.75rem;
   overflow: hidden;

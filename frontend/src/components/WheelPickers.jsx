@@ -130,6 +130,7 @@ function WheelColumn({ label, items, value, onChange }) {
   })
   const ignoreClick = useRef(false)
   const [dragging, setDragging] = useState(false)
+  const currentIndex = items.findIndex(item => item.value === value)
 
   const getSelectableIndex = useCallback((index, direction = 0) => {
     if (!items.length) return -1
@@ -146,6 +147,19 @@ function WheelColumn({ label, items, value, onChange }) {
     }
     return -1
   }, [items])
+
+  const getAdjacentIndex = useCallback((direction) => {
+    if (!items.length) return -1
+
+    const start = currentIndex >= 0
+      ? currentIndex + direction
+      : direction > 0 ? 0 : items.length - 1
+
+    for (let index = start; index >= 0 && index < items.length; index += direction) {
+      if (!items[index]?.disabled) return index
+    }
+    return -1
+  }, [currentIndex, items])
 
   const scrollToIndex = useCallback((index, behavior = 'smooth') => {
     listRef.current?.scrollTo({ top: index * ITEM_HEIGHT, behavior })
@@ -317,9 +331,28 @@ function WheelColumn({ label, items, value, onChange }) {
     selectIndex(index)
   }
 
+  const handleStepClick = (event, direction) => {
+    event.preventDefault()
+    event.stopPropagation()
+    const nextIndex = getAdjacentIndex(direction)
+    if (nextIndex >= 0) selectIndex(nextIndex, 'smooth', direction)
+  }
+
+  const previousIndex = getAdjacentIndex(-1)
+  const nextIndex = getAdjacentIndex(1)
+
   return (
     <div className="min-w-0 flex-1">
       <p className="mb-2 text-center text-[11px] font-extrabold uppercase text-[#006b5d]">{label}</p>
+      <button
+        type="button"
+        className="medcare-wheel-arrow"
+        onClick={event => handleStepClick(event, -1)}
+        disabled={previousIndex < 0}
+        aria-label={`Valor anterior de ${label}`}
+      >
+        <span className="material-symbols-outlined text-[18px]">keyboard_arrow_up</span>
+      </button>
       <div className="medcare-wheel-column">
         <div className="medcare-wheel-selection" aria-hidden="true" />
         <div
@@ -350,6 +383,15 @@ function WheelColumn({ label, items, value, onChange }) {
           ))}
         </div>
       </div>
+      <button
+        type="button"
+        className="medcare-wheel-arrow"
+        onClick={event => handleStepClick(event, 1)}
+        disabled={nextIndex < 0}
+        aria-label={`Valor siguiente de ${label}`}
+      >
+        <span className="material-symbols-outlined text-[18px]">keyboard_arrow_down</span>
+      </button>
     </div>
   )
 }
