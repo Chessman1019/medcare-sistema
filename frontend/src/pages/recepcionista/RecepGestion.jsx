@@ -79,7 +79,6 @@ export default function RecepGestion({ citasFiltradas, doctores, citaNotificada,
             />
             <MedCareSelect
               className={inputClass}
-              required
               value={reprogramacion.id_horario}
               onChange={e => setReprogramacion({ ...reprogramacion, id_horario: e.target.value })}
               disabled={reprogramacion.loading}

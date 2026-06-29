@@ -26,13 +26,12 @@ export default function PacienteCitas({ filteredCitas, reprogramacion, setReprog
       </div>
 
       {reprogramacion && (
-        <form onSubmit={onGuardarReprogramacion} className="medcare-card-soft p-6">
+        <form noValidate onSubmit={onGuardarReprogramacion} className="medcare-card-soft p-6">
           <h3 className="text-xl font-extrabold text-[#101828]">Reprogramar cita con Dr. {reprogramacion.cita.doctor}</h3>
           <p className="mt-1 text-sm text-[#52615f]">Elige un nuevo horario libre.</p>
           <div className="mt-4 flex flex-col gap-3 md:flex-row">
             <MedCareSelect
               className="medcare-input"
-              required
               value={reprogramacion.id_horario}
               onChange={e => setReprogramacion(r => ({ ...r, id_horario: e.target.value }))}
               disabled={reprogramacion.loading}
