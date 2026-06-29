@@ -94,13 +94,11 @@ function clampTimeValue(value, min, max) {
   return value
 }
 
-function usePickerSurface(open, setOpen, wrapperRef, closeLockedRef) {
+function usePickerSurface(open, setOpen, wrapperRef) {
   useEffect(() => {
     if (!open) return undefined
 
-    const handleOutsideClick = (event) => {
-      if (closeLockedRef.current) return
-
+    const handleOutsidePointerDown = (event) => {
       const wrapper = wrapperRef.current
       const path = typeof event.composedPath === 'function' ? event.composedPath() : []
       const isInsidePicker = wrapper && (wrapper.contains(event.target) || path.includes(wrapper))
@@ -110,20 +108,26 @@ function usePickerSurface(open, setOpen, wrapperRef, closeLockedRef) {
       if (event.key === 'Escape') setOpen(false)
     }
 
-    document.addEventListener('click', handleOutsideClick)
+    document.addEventListener('pointerdown', handleOutsidePointerDown, true)
     window.addEventListener('keydown', handleKeyDown)
     return () => {
-      document.removeEventListener('click', handleOutsideClick)
+      document.removeEventListener('pointerdown', handleOutsidePointerDown, true)
       window.removeEventListener('keydown', handleKeyDown)
     }
-  }, [closeLockedRef, open, setOpen, wrapperRef])
+  }, [open, setOpen, wrapperRef])
 }
 
-function WheelColumn({ label, items, value, onChange, onDragLockChange }) {
+function WheelColumn({ label, items, value, onChange }) {
   const listRef = useRef(null)
   const scrollTimer = useRef(null)
   const wheelUnlockTimer = useRef(null)
-  const dragState = useRef({ dragging: false, moved: false, startY: 0, startTop: 0 })
+  const dragState = useRef({
+    dragging: false,
+    moved: false,
+    startY: 0,
+    startTop: 0,
+    tapIndex: null,
+  })
   const ignoreClick = useRef(false)
   const [dragging, setDragging] = useState(false)
 
@@ -161,18 +165,18 @@ function WheelColumn({ label, items, value, onChange, onDragLockChange }) {
     selectIndex(Math.round(top / ITEM_HEIGHT), behavior, direction)
   }, [selectIndex])
 
-  const beginDrag = useCallback((clientY) => {
+  const beginDrag = useCallback((clientY, tapIndex) => {
     if (!listRef.current) return
     window.clearTimeout(scrollTimer.current)
-    onDragLockChange?.(true)
     dragState.current = {
       dragging: true,
       moved: false,
       startY: clientY,
       startTop: listRef.current.scrollTop,
+      tapIndex,
     }
     setDragging(true)
-  }, [onDragLockChange])
+  }, [])
 
   const moveDrag = useCallback((clientY) => {
     const state = dragState.current
@@ -184,17 +188,24 @@ function WheelColumn({ label, items, value, onChange, onDragLockChange }) {
   }, [])
 
   const endDrag = useCallback(() => {
-    const moved = dragState.current.moved
-    dragState.current.dragging = false
+    const { moved, tapIndex } = dragState.current
+    dragState.current = {
+      ...dragState.current,
+      dragging: false,
+      tapIndex: null,
+    }
     setDragging(false)
 
     if (moved) {
       ignoreClick.current = true
       window.setTimeout(() => { ignoreClick.current = false }, 140)
+      commitFromScroll('smooth')
+    } else if (Number.isInteger(tapIndex) && items[tapIndex] && !items[tapIndex].disabled) {
+      selectIndex(tapIndex)
+    } else {
+      commitFromScroll('smooth')
     }
-    onDragLockChange?.(false)
-    commitFromScroll('smooth')
-  }, [commitFromScroll, onDragLockChange])
+  }, [commitFromScroll, items, selectIndex])
 
   const scheduleCommit = useCallback((direction = 0) => {
     window.clearTimeout(scrollTimer.current)
@@ -223,30 +234,18 @@ function WheelColumn({ label, items, value, onChange, onDragLockChange }) {
       event.preventDefault()
       endDrag()
     }
-    const handleTouchMove = (event) => {
-      if (!event.touches[0]) return
-      event.preventDefault()
-      moveDrag(event.touches[0].clientY)
-    }
-    const handleTouchEnd = (event) => {
-      event.preventDefault()
-      endDrag()
-    }
+    const handleBlur = () => endDrag()
 
     window.addEventListener('mousemove', handleMouseMove)
     window.addEventListener('mouseup', handleMouseUp)
-    window.addEventListener('touchmove', handleTouchMove, { passive: false })
-    window.addEventListener('touchend', handleTouchEnd)
-    window.addEventListener('touchcancel', handleTouchEnd)
+    window.addEventListener('blur', handleBlur)
 
     return () => {
       window.removeEventListener('mousemove', handleMouseMove)
       window.removeEventListener('mouseup', handleMouseUp)
-      window.removeEventListener('touchmove', handleTouchMove)
-      window.removeEventListener('touchend', handleTouchEnd)
-      window.removeEventListener('touchcancel', handleTouchEnd)
+      window.removeEventListener('blur', handleBlur)
     }
-  }, [dragging, moveDrag, endDrag])
+  }, [dragging, endDrag, moveDrag])
 
   const handleScroll = () => {
     if (dragState.current.dragging) return
@@ -257,7 +256,6 @@ function WheelColumn({ label, items, value, onChange, onDragLockChange }) {
     if (!listRef.current) return
     event.preventDefault()
     event.stopPropagation()
-    onDragLockChange?.(true)
     window.clearTimeout(wheelUnlockTimer.current)
 
     const deltaUnit = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? ITEM_HEIGHT : 1
@@ -266,19 +264,25 @@ function WheelColumn({ label, items, value, onChange, onDragLockChange }) {
     listRef.current.scrollTop += direction * Math.min(Math.abs(delta), ITEM_HEIGHT)
     scheduleCommit(direction)
     wheelUnlockTimer.current = window.setTimeout(() => {
-      onDragLockChange?.(false)
+      commitFromScroll('smooth', direction)
     }, 240)
+  }
+
+  const getOptionIndexFromEvent = (event) => {
+    const option = event.target.closest?.('[data-wheel-option-index]')
+    if (!option) return null
+    const index = Number(option.dataset.wheelOptionIndex)
+    return Number.isInteger(index) ? index : null
   }
 
   const handleMouseDown = (event) => {
     if (event.button !== 0) return
-    event.preventDefault()
-    beginDrag(event.clientY)
-  }
+    if (!listRef.current) return
 
-  const handleTouchStart = (event) => {
-    if (!event.touches[0]) return
-    beginDrag(event.touches[0].clientY)
+    event.preventDefault()
+    event.stopPropagation()
+    listRef.current.focus({ preventScroll: true })
+    beginDrag(event.clientY, getOptionIndexFromEvent(event))
   }
 
   const handleKeyDown = (event) => {
@@ -309,11 +313,8 @@ function WheelColumn({ label, items, value, onChange, onDragLockChange }) {
       event.stopPropagation()
       return
     }
+    event.stopPropagation()
     selectIndex(index)
-  }
-
-  const handleOptionMouseDown = (event) => {
-    event.preventDefault()
   }
 
   return (
@@ -326,7 +327,6 @@ function WheelColumn({ label, items, value, onChange, onDragLockChange }) {
           onScroll={handleScroll}
           onWheel={handleWheel}
           onMouseDown={handleMouseDown}
-          onTouchStart={handleTouchStart}
           onKeyDown={handleKeyDown}
           className={`medcare-wheel-list ${dragging ? 'is-dragging' : ''}`}
           role="listbox"
@@ -337,12 +337,13 @@ function WheelColumn({ label, items, value, onChange, onDragLockChange }) {
             <button
               type="button"
               key={item.value}
-              disabled={item.disabled}
-              className={`medcare-wheel-option ${item.value === value ? 'is-active' : ''}`}
-              onMouseDown={handleOptionMouseDown}
+              data-wheel-option-index={index}
+              aria-disabled={item.disabled || undefined}
+              className={`medcare-wheel-option ${item.value === value ? 'is-active' : ''} ${item.disabled ? 'is-disabled' : ''}`}
               onClick={event => handleOptionClick(event, item, index)}
               role="option"
               aria-selected={item.value === value}
+              tabIndex={-1}
             >
               {item.label}
             </button>
@@ -367,8 +368,6 @@ export function DateWheelPicker({
 }) {
   const generatedId = useId()
   const wrapperRef = useRef(null)
-  const closeLockedRef = useRef(false)
-  const unlockTimer = useRef(null)
   const [open, setOpen] = useState(false)
   const today = getLimaDateInputValue()
   const minValue = parseDateValue(min) ? min : undefined
@@ -376,26 +375,7 @@ export function DateWheelPicker({
   const fallback = parseDateValue(initialValue) ? initialValue : minValue || maxValue || today
   const selected = clampDateParts(parseDateValue(value) || parseDateValue(fallback), minValue, maxValue)
 
-  const setDragCloseLock = useCallback((locked) => {
-    window.clearTimeout(unlockTimer.current)
-    if (locked) {
-      closeLockedRef.current = true
-      return
-    }
-    unlockTimer.current = window.setTimeout(() => {
-      closeLockedRef.current = false
-    }, 220)
-  }, [])
-
-  const keepPickerOpen = useCallback((event) => {
-    event.stopPropagation()
-    setDragCloseLock(true)
-    setDragCloseLock(false)
-  }, [setDragCloseLock])
-
-  useEffect(() => () => window.clearTimeout(unlockTimer.current), [])
-
-  usePickerSurface(open, setOpen, wrapperRef, closeLockedRef)
+  usePickerSurface(open, setOpen, wrapperRef)
 
   const years = useMemo(() => {
     const minYear = minValue ? parseDateValue(minValue).year : 1900
@@ -456,17 +436,6 @@ export function DateWheelPicker({
           className="medcare-wheel-panel"
           role="dialog"
           aria-labelledby={generatedId}
-          onClick={keepPickerOpen}
-          onMouseDown={keepPickerOpen}
-          onMouseMove={keepPickerOpen}
-          onMouseUp={keepPickerOpen}
-          onPointerDown={keepPickerOpen}
-          onPointerMove={keepPickerOpen}
-          onPointerUp={keepPickerOpen}
-          onTouchStart={keepPickerOpen}
-          onTouchMove={keepPickerOpen}
-          onTouchEnd={keepPickerOpen}
-          onWheel={keepPickerOpen}
         >
           <div className="flex items-center justify-between gap-3 border-b border-[#edf2ff] px-4 py-3">
             <div>
@@ -478,9 +447,9 @@ export function DateWheelPicker({
             </button>
           </div>
           <div className="grid grid-cols-3 gap-3 p-4">
-            <WheelColumn label="Día" items={dayItems} value={selected.day} onChange={day => updateParts({ ...selected, day })} onDragLockChange={setDragCloseLock} />
-            <WheelColumn label="Mes" items={monthItems} value={selected.month} onChange={month => updateParts({ ...selected, month })} onDragLockChange={setDragCloseLock} />
-            <WheelColumn label="Año" items={years} value={selected.year} onChange={year => updateParts({ ...selected, year })} onDragLockChange={setDragCloseLock} />
+            <WheelColumn label="Día" items={dayItems} value={selected.day} onChange={day => updateParts({ ...selected, day })} />
+            <WheelColumn label="Mes" items={monthItems} value={selected.month} onChange={month => updateParts({ ...selected, month })} />
+            <WheelColumn label="Año" items={years} value={selected.year} onChange={year => updateParts({ ...selected, year })} />
           </div>
           {clearable && value && (
             <div className="border-t border-[#edf2ff] px-4 py-3">
@@ -508,31 +477,10 @@ export function TimeWheelPicker({
 }) {
   const generatedId = useId()
   const wrapperRef = useRef(null)
-  const closeLockedRef = useRef(false)
-  const unlockTimer = useRef(null)
   const [open, setOpen] = useState(false)
   const selected = timeValueToParts(value, initialValue)
 
-  const setDragCloseLock = useCallback((locked) => {
-    window.clearTimeout(unlockTimer.current)
-    if (locked) {
-      closeLockedRef.current = true
-      return
-    }
-    unlockTimer.current = window.setTimeout(() => {
-      closeLockedRef.current = false
-    }, 220)
-  }, [])
-
-  const keepPickerOpen = useCallback((event) => {
-    event.stopPropagation()
-    setDragCloseLock(true)
-    setDragCloseLock(false)
-  }, [setDragCloseLock])
-
-  useEffect(() => () => window.clearTimeout(unlockTimer.current), [])
-
-  usePickerSurface(open, setOpen, wrapperRef, closeLockedRef)
+  usePickerSurface(open, setOpen, wrapperRef)
 
   const updateParts = (nextParts) => {
     const nextValue = clampTimeValue(timePartsToValue(nextParts), min, max)
@@ -570,17 +518,6 @@ export function TimeWheelPicker({
           className="medcare-wheel-panel medcare-wheel-panel-time"
           role="dialog"
           aria-labelledby={generatedId}
-          onClick={keepPickerOpen}
-          onMouseDown={keepPickerOpen}
-          onMouseMove={keepPickerOpen}
-          onMouseUp={keepPickerOpen}
-          onPointerDown={keepPickerOpen}
-          onPointerMove={keepPickerOpen}
-          onPointerUp={keepPickerOpen}
-          onTouchStart={keepPickerOpen}
-          onTouchMove={keepPickerOpen}
-          onTouchEnd={keepPickerOpen}
-          onWheel={keepPickerOpen}
         >
           <div className="flex items-center justify-between gap-3 border-b border-[#edf2ff] px-4 py-3">
             <div>
@@ -592,9 +529,9 @@ export function TimeWheelPicker({
             </button>
           </div>
           <div className="grid grid-cols-[1fr_1fr_1.2fr] gap-3 p-4">
-            <WheelColumn label="Hora" items={hourItems} value={selected.hour12} onChange={hour12 => updateParts({ ...selected, hour12 })} onDragLockChange={setDragCloseLock} />
-            <WheelColumn label="Min" items={minuteItems} value={selected.minute} onChange={minute => updateParts({ ...selected, minute })} onDragLockChange={setDragCloseLock} />
-            <WheelColumn label="Periodo" items={periodItems} value={selected.period} onChange={period => updateParts({ ...selected, period })} onDragLockChange={setDragCloseLock} />
+            <WheelColumn label="Hora" items={hourItems} value={selected.hour12} onChange={hour12 => updateParts({ ...selected, hour12 })} />
+            <WheelColumn label="Min" items={minuteItems} value={selected.minute} onChange={minute => updateParts({ ...selected, minute })} />
+            <WheelColumn label="Periodo" items={periodItems} value={selected.period} onChange={period => updateParts({ ...selected, period })} />
           </div>
         </div>
       )}

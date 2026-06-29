@@ -187,7 +187,7 @@ canvas {
   overscroll-behavior: contain;
   scroll-snap-type: y mandatory;
   scrollbar-width: none;
-  touch-action: none;
+  touch-action: pan-y;
   user-select: none;
 }
 
@@ -204,6 +204,7 @@ canvas {
   height: 2.75rem;
   width: 100%;
   scroll-snap-align: center;
+  scroll-snap-stop: always;
   align-items: center;
   justify-content: center;
   padding-inline: 0.35rem;
@@ -223,7 +224,9 @@ canvas {
   transform: scale(1.08);
 }
 
-.medcare-wheel-option:disabled {
+.medcare-wheel-option:disabled,
+.medcare-wheel-option.is-disabled,
+.medcare-wheel-option[aria-disabled="true"] {
   color: rgba(82, 97, 95, 0.25);
   cursor: not-allowed;
 }
