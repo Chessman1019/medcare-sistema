@@ -5,9 +5,9 @@ import { formatTime12h, parseTimeValue } from '../utils/timeFormat'
 const ITEM_HEIGHT = 44
 const PANEL_MARGIN = 16
 const DATE_PANEL_WIDTH = 384
-const DATE_PANEL_HEIGHT = 470
+const DATE_PANEL_HEIGHT = 390
 const TIME_PANEL_WIDTH = 352
-const TIME_PANEL_HEIGHT = 430
+const TIME_PANEL_HEIGHT = 350
 const MONTHS = [
   'Enero',
   'Febrero',
@@ -167,11 +167,15 @@ function useWheelPanelPosition(open, wrapperRef, preferredWidth, preferredHeight
   return panelStyle
 }
 
-function WheelColumn({ label, items, value, onChange }) {
+function WheelColumn({ label, items, value, onChange, manual }) {
   const listRef = useRef(null)
   const wheelResetTimer = useRef(null)
   const wheelAccumulator = useRef(0)
   const wheelTargetIndex = useRef(null)
+  const typeBuffer = useRef('')
+  const typeResetTimer = useRef(null)
+  const [isEditing, setIsEditing] = useState(false)
+  const [editorDraft, setEditorDraft] = useState('')
   const currentIndex = items.findIndex(item => item.value === value)
 
   const getSelectableIndex = useCallback((index, direction = 0) => {
@@ -203,6 +207,28 @@ function WheelColumn({ label, items, value, onChange }) {
     return -1
   }, [currentIndex, items])
 
+  const getTypedIndex = useCallback((text) => {
+    const normalized = text.trim().toLowerCase()
+    if (!normalized) return -1
+
+    const numeric = /^\d+$/.test(normalized) ? Number(normalized) : null
+    const exactIndex = items.findIndex(item => {
+      if (item.disabled) return false
+
+      const valueText = String(item.value).toLowerCase()
+      const labelText = String(item.label).toLowerCase()
+      const labelNumber = /^\d+$/.test(labelText) ? Number(labelText) : null
+
+      return valueText === normalized ||
+        labelText === normalized ||
+        (numeric !== null && Number(item.value) === numeric) ||
+        (numeric !== null && labelNumber === numeric)
+    })
+    if (exactIndex >= 0) return exactIndex
+
+    return items.findIndex(item => !item.disabled && String(item.label).toLowerCase().startsWith(normalized))
+  }, [items])
+
   const scrollToIndex = useCallback((index) => {
     if (!listRef.current) return
 
@@ -213,6 +239,7 @@ function WheelColumn({ label, items, value, onChange }) {
     const selectableIndex = getSelectableIndex(index, direction)
     if (selectableIndex < 0) return
 
+    setIsEditing(false)
     wheelTargetIndex.current = selectableIndex
     scrollToIndex(selectableIndex)
     const item = items[selectableIndex]
@@ -228,13 +255,28 @@ function WheelColumn({ label, items, value, onChange }) {
 
   useEffect(() => () => {
     window.clearTimeout(wheelResetTimer.current)
+    window.clearTimeout(typeResetTimer.current)
   }, [])
+
+  const resetTypeBufferSoon = () => {
+    window.clearTimeout(typeResetTimer.current)
+    typeResetTimer.current = window.setTimeout(() => {
+      typeBuffer.current = ''
+    }, 900)
+  }
+
+  const clearTypeBuffer = () => {
+    window.clearTimeout(typeResetTimer.current)
+    typeBuffer.current = ''
+  }
 
   const handleWheel = (event) => {
     if (!listRef.current) return
     event.preventDefault()
     event.stopPropagation()
     window.clearTimeout(wheelResetTimer.current)
+    setIsEditing(false)
+    clearTypeBuffer()
 
     const deltaUnit = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? ITEM_HEIGHT : 1
     const delta = event.deltaY * deltaUnit
@@ -267,30 +309,56 @@ function WheelColumn({ label, items, value, onChange }) {
 
     if (event.key === 'ArrowDown') {
       event.preventDefault()
+      clearTypeBuffer()
       selectIndex(currentIndex + 1, 1)
     }
     if (event.key === 'ArrowUp') {
       event.preventDefault()
+      clearTypeBuffer()
       selectIndex(currentIndex - 1, -1)
     }
     if (event.key === 'PageDown') {
       event.preventDefault()
+      clearTypeBuffer()
       selectIndex(currentIndex + 5, 1)
     }
     if (event.key === 'PageUp') {
       event.preventDefault()
+      clearTypeBuffer()
       selectIndex(currentIndex - 5, -1)
     }
     if (event.key === 'Home') {
       event.preventDefault()
+      clearTypeBuffer()
       selectIndex(0, 1)
     }
     if (event.key === 'End') {
       event.preventDefault()
+      clearTypeBuffer()
       selectIndex(items.length - 1, -1)
+    }
+    if (event.key === 'Backspace' || event.key === 'Delete') {
+      event.preventDefault()
+      clearTypeBuffer()
     }
     if (event.key === 'Enter') {
       event.preventDefault()
+      clearTypeBuffer()
+    }
+    if (/^[a-zA-Z0-9]$/.test(event.key)) {
+      event.preventDefault()
+      event.stopPropagation()
+      typeBuffer.current += event.key.toLowerCase()
+      const typedIndex = getTypedIndex(typeBuffer.current)
+
+      if (typedIndex >= 0) {
+        selectIndex(typedIndex)
+      } else {
+        typeBuffer.current = event.key.toLowerCase()
+        const fallbackIndex = getTypedIndex(typeBuffer.current)
+        if (fallbackIndex >= 0) selectIndex(fallbackIndex)
+      }
+      resetTypeBufferSoon()
     }
   }
 
@@ -303,12 +371,43 @@ function WheelColumn({ label, items, value, onChange }) {
   const handleStepClick = (event, direction) => {
     event.preventDefault()
     event.stopPropagation()
+    clearTypeBuffer()
     const nextIndex = getAdjacentIndex(direction)
     if (nextIndex >= 0) selectIndex(nextIndex, direction)
   }
 
+  const handleEditorFocus = (event) => {
+    setIsEditing(true)
+    setEditorDraft(String(manual?.value ?? ''))
+    window.setTimeout(() => event.target.select?.(), 0)
+  }
+
+  const handleEditorBlur = () => {
+    setIsEditing(false)
+    setEditorDraft('')
+  }
+
+  const handleEditorChange = (event) => {
+    const nextValue = event.target.value
+    setEditorDraft(nextValue)
+    manual?.onChange(nextValue)
+  }
+
+  const handleEditorKeyDown = (event) => {
+    if (['ArrowDown', 'ArrowUp', 'PageDown', 'PageUp', 'Home', 'End', 'Enter'].includes(event.key)) {
+      handleKeyDown(event)
+      return
+    }
+    event.stopPropagation()
+  }
+
+  const handleEditorPointer = (event) => {
+    event.stopPropagation()
+  }
+
   const previousIndex = getAdjacentIndex(-1)
   const nextIndex = getAdjacentIndex(1)
+  const editorValue = isEditing ? editorDraft : String(manual?.value ?? '')
 
   return (
     <div className="min-w-0 flex-1">
@@ -329,7 +428,7 @@ function WheelColumn({ label, items, value, onChange }) {
           onWheel={handleWheel}
           onMouseDown={handleMouseDown}
           onKeyDown={handleKeyDown}
-          className="medcare-wheel-list"
+          className={`medcare-wheel-list ${manual ? 'has-center-editor' : ''}`}
           role="listbox"
           aria-label={label}
           tabIndex={0}
@@ -350,6 +449,43 @@ function WheelColumn({ label, items, value, onChange }) {
             </button>
           ))}
         </div>
+        {manual && (
+          manual.type === 'select' ? (
+            <select
+              aria-label={`Editar ${label}`}
+              className="medcare-wheel-center-editor medcare-wheel-center-select"
+              value={manual.value}
+              onChange={event => manual.onChange(event.target.value)}
+              onFocus={handleEditorFocus}
+              onBlur={handleEditorBlur}
+              onKeyDown={handleEditorKeyDown}
+              onPointerDown={handleEditorPointer}
+              onMouseDown={handleEditorPointer}
+              onClick={handleEditorPointer}
+              onWheel={handleWheel}
+            >
+              {manual.options.map(option => (
+                <option key={option.value} value={option.value} disabled={option.disabled}>{option.label}</option>
+              ))}
+            </select>
+          ) : (
+            <input
+              aria-label={`Editar ${label}`}
+              className="medcare-wheel-center-editor"
+              inputMode={manual.inputMode || 'numeric'}
+              maxLength={manual.maxLength}
+              value={editorValue}
+              onChange={handleEditorChange}
+              onFocus={handleEditorFocus}
+              onBlur={handleEditorBlur}
+              onKeyDown={handleEditorKeyDown}
+              onPointerDown={handleEditorPointer}
+              onMouseDown={handleEditorPointer}
+              onClick={handleEditorPointer}
+              onWheel={handleWheel}
+            />
+          )
+        )}
       </div>
       <button
         type="button"
@@ -426,34 +562,23 @@ export function DateWheelPicker({
   }
 
   const displayValue = formatDateDisplay(value)
-  const maxDay = getDaysInMonth(selected.year, selected.month)
-  const yearMin = years[0]?.value || 1900
-  const yearMax = years[years.length - 1]?.value || new Date().getFullYear() + 5
 
-  const handleManualDay = (event) => {
-    const day = Number(event.target.value)
+  const handleManualDay = (rawValue) => {
+    const day = Number(String(rawValue).replace(/\D/g, ''))
     if (!Number.isInteger(day) || day < 1 || day > 31) return
     updateParts({ ...selected, day })
   }
 
-  const handleManualMonth = (event) => {
-    const month = Number(event.target.value)
+  const handleManualMonth = (rawValue) => {
+    const month = Number(rawValue)
     if (!Number.isInteger(month) || month < 1 || month > 12) return
     updateParts({ ...selected, month })
   }
 
-  const handleManualYear = (event) => {
-    const year = Number(event.target.value)
+  const handleManualYear = (rawValue) => {
+    const year = Number(String(rawValue).replace(/\D/g, ''))
     if (!Number.isInteger(year) || year < 1) return
     updateParts({ ...selected, year })
-  }
-
-  const stopPickerInteraction = (event) => {
-    event.stopPropagation()
-  }
-
-  const stopEnterSubmit = (event) => {
-    if (event.key === 'Enter') event.preventDefault()
   }
 
   return (
@@ -488,56 +613,27 @@ export function DateWheelPicker({
             </button>
           </div>
           <div className="medcare-wheel-grid medcare-wheel-grid-date">
-            <WheelColumn label="Día" items={dayItems} value={selected.day} onChange={day => updateParts({ ...selected, day })} />
-            <WheelColumn label="Mes" items={monthItems} value={selected.month} onChange={month => updateParts({ ...selected, month })} />
-            <WheelColumn label="Año" items={years} value={selected.year} onChange={year => updateParts({ ...selected, year })} />
-          </div>
-          <div className="medcare-wheel-manual">
-            <label className="medcare-wheel-field">
-              <span>Día</span>
-              <input
-                type="number"
-                min="1"
-                max={maxDay}
-                value={selected.day}
-                onChange={handleManualDay}
-                onPointerDown={stopPickerInteraction}
-                onClick={stopPickerInteraction}
-                onWheel={stopPickerInteraction}
-                onKeyDown={stopEnterSubmit}
-                className="medcare-wheel-manual-control"
-              />
-            </label>
-            <label className="medcare-wheel-field">
-              <span>Mes</span>
-              <select
-                value={selected.month}
-                onChange={handleManualMonth}
-                onPointerDown={stopPickerInteraction}
-                onClick={stopPickerInteraction}
-                onWheel={stopPickerInteraction}
-                className="medcare-wheel-manual-control"
-              >
-                {monthItems.map(item => (
-                  <option key={item.value} value={item.value} disabled={item.disabled}>{item.label}</option>
-                ))}
-              </select>
-            </label>
-            <label className="medcare-wheel-field">
-              <span>Año</span>
-              <input
-                type="number"
-                min={yearMin}
-                max={yearMax}
-                value={selected.year}
-                onChange={handleManualYear}
-                onPointerDown={stopPickerInteraction}
-                onClick={stopPickerInteraction}
-                onWheel={stopPickerInteraction}
-                onKeyDown={stopEnterSubmit}
-                className="medcare-wheel-manual-control"
-              />
-            </label>
+            <WheelColumn
+              label="Día"
+              items={dayItems}
+              value={selected.day}
+              onChange={day => updateParts({ ...selected, day })}
+              manual={{ type: 'input', value: selected.day, onChange: handleManualDay, maxLength: 2 }}
+            />
+            <WheelColumn
+              label="Mes"
+              items={monthItems}
+              value={selected.month}
+              onChange={month => updateParts({ ...selected, month })}
+              manual={{ type: 'select', value: selected.month, onChange: handleManualMonth, options: monthItems }}
+            />
+            <WheelColumn
+              label="Año"
+              items={years}
+              value={selected.year}
+              onChange={year => updateParts({ ...selected, year })}
+              manual={{ type: 'input', value: selected.year, onChange: handleManualYear, maxLength: 4 }}
+            />
           </div>
           {clearable && value && (
             <div className="border-t border-[#edf2ff] px-4 py-3">
@@ -587,28 +683,20 @@ export function TimeWheelPicker({
     { value: 'PM', label: 'P. M.' },
   ]
 
-  const handleManualHour = (event) => {
-    const hour12 = Number(event.target.value)
+  const handleManualHour = (rawValue) => {
+    const hour12 = Number(String(rawValue).replace(/\D/g, ''))
     if (!Number.isInteger(hour12) || hour12 < 1 || hour12 > 12) return
     updateParts({ ...selected, hour12 })
   }
 
-  const handleManualMinute = (event) => {
-    const minute = Number(event.target.value)
+  const handleManualMinute = (rawValue) => {
+    const minute = Number(String(rawValue).replace(/\D/g, ''))
     if (!Number.isInteger(minute) || minute < 0 || minute > 59) return
     updateParts({ ...selected, minute })
   }
 
-  const handleManualPeriod = (event) => {
-    updateParts({ ...selected, period: event.target.value })
-  }
-
-  const stopPickerInteraction = (event) => {
-    event.stopPropagation()
-  }
-
-  const stopEnterSubmit = (event) => {
-    if (event.key === 'Enter') event.preventDefault()
+  const handleManualPeriod = (period) => {
+    updateParts({ ...selected, period })
   }
 
   return (
@@ -643,54 +731,27 @@ export function TimeWheelPicker({
             </button>
           </div>
           <div className="medcare-wheel-grid medcare-wheel-grid-time">
-            <WheelColumn label="Hora" items={hourItems} value={selected.hour12} onChange={hour12 => updateParts({ ...selected, hour12 })} />
-            <WheelColumn label="Min" items={minuteItems} value={selected.minute} onChange={minute => updateParts({ ...selected, minute })} />
-            <WheelColumn label="Periodo" items={periodItems} value={selected.period} onChange={period => updateParts({ ...selected, period })} />
-          </div>
-          <div className="medcare-wheel-manual medcare-wheel-manual-time">
-            <label className="medcare-wheel-field">
-              <span>Hora</span>
-              <input
-                type="number"
-                min="1"
-                max="12"
-                value={selected.hour12}
-                onChange={handleManualHour}
-                onPointerDown={stopPickerInteraction}
-                onClick={stopPickerInteraction}
-                onWheel={stopPickerInteraction}
-                onKeyDown={stopEnterSubmit}
-                className="medcare-wheel-manual-control"
-              />
-            </label>
-            <label className="medcare-wheel-field">
-              <span>Min</span>
-              <input
-                type="number"
-                min="0"
-                max="59"
-                value={selected.minute}
-                onChange={handleManualMinute}
-                onPointerDown={stopPickerInteraction}
-                onClick={stopPickerInteraction}
-                onWheel={stopPickerInteraction}
-                onKeyDown={stopEnterSubmit}
-                className="medcare-wheel-manual-control"
-              />
-            </label>
-            <label className="medcare-wheel-field">
-              <span>Periodo</span>
-              <select
-                value={selected.period}
-                onChange={handleManualPeriod}
-                onPointerDown={stopPickerInteraction}
-                onClick={stopPickerInteraction}
-                onWheel={stopPickerInteraction}
-                className="medcare-wheel-manual-control"
-              >
-                {periodItems.map(item => <option key={item.value} value={item.value}>{item.label}</option>)}
-              </select>
-            </label>
+            <WheelColumn
+              label="Hora"
+              items={hourItems}
+              value={selected.hour12}
+              onChange={hour12 => updateParts({ ...selected, hour12 })}
+              manual={{ type: 'input', value: selected.hour12, onChange: handleManualHour, maxLength: 2 }}
+            />
+            <WheelColumn
+              label="Min"
+              items={minuteItems}
+              value={selected.minute}
+              onChange={minute => updateParts({ ...selected, minute })}
+              manual={{ type: 'input', value: selected.minute, onChange: handleManualMinute, maxLength: 2 }}
+            />
+            <WheelColumn
+              label="Periodo"
+              items={periodItems}
+              value={selected.period}
+              onChange={period => updateParts({ ...selected, period })}
+              manual={{ type: 'select', value: selected.period, onChange: handleManualPeriod, options: periodItems }}
+            />
           </div>
         </div>
       )}
