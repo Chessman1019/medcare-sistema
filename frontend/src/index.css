@@ -102,6 +102,75 @@ canvas {
   box-shadow: 0 0 0 4px rgba(18, 184, 163, 0.14);
 }
 
+.medcare-input-invalid,
+.medcare-input.medcare-input-invalid,
+.medcare-select-trigger.medcare-input-invalid {
+  border-color: #e07a72;
+  background: #fff9f8;
+}
+
+.medcare-input-invalid:focus,
+.medcare-input.medcare-input-invalid:focus,
+.medcare-select-trigger.medcare-input-invalid:focus-visible {
+  border-color: #d05850;
+  box-shadow: 0 0 0 4px rgba(255, 180, 171, 0.28);
+}
+
+.medcare-form-error {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.4rem;
+  margin-top: 0.45rem;
+  color: #93000a;
+  font-size: 0.82rem;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.medcare-form-error-icon {
+  flex-shrink: 0;
+  margin-top: 0.05rem;
+  font-size: 16px;
+  color: #d05850;
+}
+
+.medcare-form-alert {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.55rem;
+  border-radius: 12px;
+  padding: 0.85rem 1rem;
+  font-size: 0.92rem;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.medcare-form-alert-icon {
+  flex-shrink: 0;
+  margin-top: 0.05rem;
+  font-size: 18px;
+}
+
+.medcare-form-alert-error {
+  border: 1px solid #ffdad6;
+  background: #fff0ef;
+  color: #93000a;
+}
+
+.medcare-form-alert-error .medcare-form-alert-icon {
+  color: #d05850;
+}
+
+.medcare-form-alert-success {
+  border: 1px solid #b7e8df;
+  background: #e5fbf7;
+  color: #006b5d;
+}
+
+.medcare-form-alert-success .medcare-form-alert-icon {
+  color: #007a68;
+}
+
 .medcare-select {
   position: relative;
   width: 100%;

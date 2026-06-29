@@ -89,6 +89,7 @@ export default function MedCareSelect({
   name,
   'aria-label': ariaLabel,
   placeholder,
+  error = false,
 }) {
   const generatedId = useId()
   const triggerId = id || generatedId
@@ -322,7 +323,7 @@ export default function MedCareSelect({
       <button
         type="button"
         id={triggerId}
-        className={`medcare-select-trigger ${className} ${isPlaceholder ? 'is-placeholder' : ''} ${open ? 'is-open' : ''}`}
+        className={`medcare-select-trigger ${className} ${isPlaceholder ? 'is-placeholder' : ''} ${open ? 'is-open' : ''} ${error ? 'medcare-input-invalid' : ''}`}
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-controls={listboxId}
