@@ -1,8 +1,13 @@
-import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { getLimaDateInputValue } from '../utils/limaTime'
 import { formatTime12h, parseTimeValue } from '../utils/timeFormat'
 
 const ITEM_HEIGHT = 44
+const PANEL_MARGIN = 16
+const DATE_PANEL_WIDTH = 384
+const DATE_PANEL_HEIGHT = 390
+const TIME_PANEL_WIDTH = 352
+const TIME_PANEL_HEIGHT = 350
 const MONTHS = [
   'Enero',
   'Febrero',
@@ -115,6 +120,50 @@ function usePickerSurface(open, setOpen, wrapperRef) {
       window.removeEventListener('keydown', handleKeyDown)
     }
   }, [open, setOpen, wrapperRef])
+}
+
+function useWheelPanelPosition(open, wrapperRef, preferredWidth, preferredHeight) {
+  const [panelStyle, setPanelStyle] = useState(null)
+
+  const updatePosition = useCallback(() => {
+    const wrapper = wrapperRef.current
+    if (!wrapper) return
+
+    const rect = wrapper.getBoundingClientRect()
+    const viewportWidth = document.documentElement.clientWidth || window.innerWidth
+    const viewportHeight = document.documentElement.clientHeight || window.innerHeight
+    const availableWidth = Math.max(220, viewportWidth - PANEL_MARGIN * 2)
+    const panelWidth = Math.min(preferredWidth, availableWidth)
+    const maxLeft = viewportWidth - panelWidth - PANEL_MARGIN
+    const left = Math.max(PANEL_MARGIN, Math.min(rect.left, maxLeft))
+    const belowTop = rect.bottom + 8
+    const aboveTop = rect.top - preferredHeight - 8
+    const top = belowTop + preferredHeight > viewportHeight - PANEL_MARGIN && aboveTop >= PANEL_MARGIN
+      ? aboveTop
+      : Math.max(PANEL_MARGIN, Math.min(belowTop, viewportHeight - PANEL_MARGIN - Math.min(preferredHeight, viewportHeight - PANEL_MARGIN * 2)))
+
+    setPanelStyle({
+      left: `${left}px`,
+      top: `${top}px`,
+      width: `${panelWidth}px`,
+      maxHeight: `${Math.max(260, viewportHeight - top - PANEL_MARGIN)}px`,
+    })
+  }, [preferredHeight, preferredWidth, wrapperRef])
+
+  useLayoutEffect(() => {
+    if (!open) return undefined
+
+    updatePosition()
+    window.addEventListener('resize', updatePosition)
+    window.addEventListener('scroll', updatePosition, true)
+
+    return () => {
+      window.removeEventListener('resize', updatePosition)
+      window.removeEventListener('scroll', updatePosition, true)
+    }
+  }, [open, updatePosition])
+
+  return panelStyle
 }
 
 function WheelColumn({ label, items, value, onChange }) {
@@ -418,6 +467,7 @@ export function DateWheelPicker({
   const selected = clampDateParts(parseDateValue(value) || parseDateValue(fallback), minValue, maxValue)
 
   usePickerSurface(open, setOpen, wrapperRef)
+  const panelStyle = useWheelPanelPosition(open, wrapperRef, DATE_PANEL_WIDTH, DATE_PANEL_HEIGHT)
 
   const years = useMemo(() => {
     const minYear = minValue ? parseDateValue(minValue).year : 1900
@@ -476,6 +526,7 @@ export function DateWheelPicker({
       {open && (
         <div
           className="medcare-wheel-panel"
+          style={panelStyle || undefined}
           role="dialog"
           aria-labelledby={generatedId}
         >
@@ -488,7 +539,7 @@ export function DateWheelPicker({
               <span className="material-symbols-outlined text-[18px]">close</span>
             </button>
           </div>
-          <div className="grid grid-cols-3 gap-3 p-4">
+          <div className="medcare-wheel-grid medcare-wheel-grid-date">
             <WheelColumn label="Día" items={dayItems} value={selected.day} onChange={day => updateParts({ ...selected, day })} />
             <WheelColumn label="Mes" items={monthItems} value={selected.month} onChange={month => updateParts({ ...selected, month })} />
             <WheelColumn label="Año" items={years} value={selected.year} onChange={year => updateParts({ ...selected, year })} />
@@ -523,6 +574,7 @@ export function TimeWheelPicker({
   const selected = timeValueToParts(value, initialValue)
 
   usePickerSurface(open, setOpen, wrapperRef)
+  const panelStyle = useWheelPanelPosition(open, wrapperRef, TIME_PANEL_WIDTH, TIME_PANEL_HEIGHT)
 
   const updateParts = (nextParts) => {
     const nextValue = clampTimeValue(timePartsToValue(nextParts), min, max)
@@ -558,6 +610,7 @@ export function TimeWheelPicker({
       {open && (
         <div
           className="medcare-wheel-panel medcare-wheel-panel-time"
+          style={panelStyle || undefined}
           role="dialog"
           aria-labelledby={generatedId}
         >
@@ -570,7 +623,7 @@ export function TimeWheelPicker({
               <span className="material-symbols-outlined text-[18px]">close</span>
             </button>
           </div>
-          <div className="grid grid-cols-[1fr_1fr_1.2fr] gap-3 p-4">
+          <div className="medcare-wheel-grid medcare-wheel-grid-time">
             <WheelColumn label="Hora" items={hourItems} value={selected.hour12} onChange={hour12 => updateParts({ ...selected, hour12 })} />
             <WheelColumn label="Min" items={minuteItems} value={selected.minute} onChange={minute => updateParts({ ...selected, minute })} />
             <WheelColumn label="Periodo" items={periodItems} value={selected.period} onChange={period => updateParts({ ...selected, period })} />
