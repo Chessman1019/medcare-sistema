@@ -21,6 +21,11 @@ export default function AdminEspecialidades({ especialidades, doctores, onRefres
   const [error, setError] = useState('')
   const { fieldErrors, applyErrors, clearFieldError, inputClass: fieldInputClass } = useFormValidation()
 
+  // ── Estado para asignar doctor ──
+  const [showAsignar, setShowAsignar] = useState(false)
+  const [asignarForm, setAsignarForm] = useState({ id_usuario: '', id_especialidad: '' })
+  const [asignando, setAsignando] = useState(false)
+
   const showMsg = (t) => { setMsg(t); setTimeout(() => setMsg(''), 3000) }
   const showError = (t) => { setError(t); setTimeout(() => setError(''), 3000) }
 
@@ -60,6 +65,41 @@ export default function AdminEspecialidades({ especialidades, doctores, onRefres
     } finally { setSaving(false) }
   }
 
+  // ── Abrir modal de asignación ──
+  const abrirAsignar = () => {
+    setAsignarForm({ id_usuario: '', id_especialidad: '' })
+    setShowAsignar(true)
+  }
+
+  // ── Guardar asignación de especialidad a doctor ──
+  const guardarAsignacion = async (e) => {
+    e.preventDefault()
+    setError('')
+    if (!asignarForm.id_usuario) {
+      showError('Selecciona un doctor.')
+      return
+    }
+    if (!asignarForm.id_especialidad) {
+      showError('Selecciona una especialidad.')
+      return
+    }
+    setAsignando(true)
+    try {
+      await API.put(`/usuarios/doctores/${asignarForm.id_usuario}`, {
+        id_especialidad: Number(asignarForm.id_especialidad),
+      })
+      showMsg('Especialidad asignada correctamente.')
+      setShowAsignar(false)
+      onRefresh?.()
+    } catch (err) {
+      showError(err.response?.data?.detail || 'No se pudo asignar la especialidad.')
+    } finally {
+      setAsignando(false)
+    }
+  }
+
+  const doctorSeleccionado = doctores.find(d => String(d.id_usuario) === String(asignarForm.id_usuario))
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
@@ -67,18 +107,26 @@ export default function AdminEspecialidades({ especialidades, doctores, onRefres
           <h2 className="text-4xl font-extrabold tracking-tight text-[#101828]">Especialidades</h2>
           <p className="mt-2 text-lg text-[#52615f]">{especialidades.length} especialidades disponibles</p>
         </div>
-        <button type="button" onClick={abrirNueva} className={primaryButton}>
-          <span className="flex items-center gap-2">
-            <span className="material-symbols-outlined text-[16px]">add</span>
-            Nueva especialidad
-          </span>
-        </button>
+        <div className="flex gap-3">
+          <button type="button" onClick={abrirAsignar} className={secondaryButton}>
+            <span className="flex items-center gap-2">
+              <span className="material-symbols-outlined text-[16px]">person_add</span>
+              Asignar doctor
+            </span>
+          </button>
+          <button type="button" onClick={abrirNueva} className={primaryButton}>
+            <span className="flex items-center gap-2">
+              <span className="material-symbols-outlined text-[16px]">add</span>
+              Nueva especialidad
+            </span>
+          </button>
+        </div>
       </div>
 
       {msg && <div className="rounded-xl border border-[#b7e8df] bg-[#e5fbf7] px-4 py-3 text-sm font-bold text-[#006b5d]">✓ {msg}</div>}
       {error && <FormAlert message={error} />}
 
-      {/* Formulario */}
+      {/* Formulario de especialidad */}
       {showForm && (
         <div className="medcare-card p-6">
           <h3 className="font-extrabold text-[#101828] mb-4">{editing ? 'Editar especialidad' : 'Nueva especialidad'}</h3>
@@ -97,6 +145,62 @@ export default function AdminEspecialidades({ especialidades, doctores, onRefres
                 {saving ? 'Guardando...' : editing ? 'Guardar cambios' : 'Crear especialidad'}
               </button>
               <button type="button" onClick={() => setShowForm(false)} className={secondaryButton}>Cancelar</button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* Formulario de asignar doctor a especialidad */}
+      {showAsignar && (
+        <div className="medcare-card p-6">
+          <h3 className="font-extrabold text-[#101828] mb-4">Asignar especialidad a un doctor</h3>
+          <form noValidate onSubmit={guardarAsignacion} className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <label className="block text-sm font-bold text-[#223330]">
+              Doctor
+              <select
+                className={inputClass}
+                value={asignarForm.id_usuario}
+                onChange={e => setAsignarForm(f => ({ ...f, id_usuario: e.target.value }))}
+              >
+                <option value="">Selecciona un doctor</option>
+                {doctores.map(d => (
+                  <option key={d.id_usuario} value={d.id_usuario}>
+                    {d.nombre} {d.apellido} {d.doctor?.especialidad?.nombre ? `— actual: ${d.doctor.especialidad.nombre}` : '— sin especialidad'}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="block text-sm font-bold text-[#223330]">
+              Nueva especialidad
+              <select
+                className={inputClass}
+                value={asignarForm.id_especialidad}
+                onChange={e => setAsignarForm(f => ({ ...f, id_especialidad: e.target.value }))}
+              >
+                <option value="">Selecciona una especialidad</option>
+                {especialidades.map(esp => (
+                  <option key={esp.id_especialidad} value={esp.id_especialidad}>
+                    {esp.nombre}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            {doctorSeleccionado && (
+              <div className="md:col-span-2 rounded-lg bg-[#f4fffc] border border-[#b7e8df] px-4 py-3 text-sm text-[#223330]">
+                <span className="font-bold">{doctorSeleccionado.nombre} {doctorSeleccionado.apellido}</span>
+                {' · CMP: '}{doctorSeleccionado.doctor?.cmp || '—'}
+                {' · Especialidad actual: '}
+                <span className="font-bold">{doctorSeleccionado.doctor?.especialidad?.nombre || 'Sin asignar'}</span>
+              </div>
+            )}
+
+            <div className="flex gap-2 md:col-span-2">
+              <button type="submit" disabled={asignando} className={primaryButton}>
+                {asignando ? 'Asignando...' : 'Asignar especialidad'}
+              </button>
+              <button type="button" onClick={() => setShowAsignar(false)} className={secondaryButton}>Cancelar</button>
             </div>
           </form>
         </div>
