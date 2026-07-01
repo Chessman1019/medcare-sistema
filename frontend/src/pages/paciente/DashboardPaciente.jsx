@@ -216,7 +216,18 @@ export default function DashboardPaciente() {
       setDoctores([]); setHorarios([])
       await refreshCitas(); handleSelectTab('citas')
       showSuccess('Cita registrada. Recepción la validará.')
-    } catch (e) { setError(getErrorMessage(e, 'No se pudo registrar la cita.')) }
+    } catch (e) {
+      setError(getErrorMessage(e, 'Este horario ya no esta disponible. Selecciona otro horario.'))
+      setForm(f => ({ ...f, id_horario: '' }))
+      if (form.id_doctor) {
+        try {
+          const res = await getHorarios(form.id_doctor)
+          setHorarios(res.data || [])
+        } catch {
+          setHorarios([])
+        }
+      }
+    }
     finally { setLoading(false) }
   }
 

@@ -5,6 +5,8 @@ import { DateWheelPicker } from '../../components/WheelPickers'
 import { formatTime12h } from '../../utils/timeFormat'
 
 const estadoClass = {
+  disponible:  'bg-[#d8f4ee] text-[#006b5d]',
+  ocupado:      'bg-[#f5f5f2] text-[#46514f]',
   pendiente:    'bg-[#faeeda] text-[#854F0B]',
   confirmada:   'bg-[#d8f4ee] text-[#006b5d]',
   reprogramada: 'bg-[#e8edff] text-[#355382]',
@@ -20,14 +22,41 @@ function formatDateTime(value) {
   if (Number.isNaN(date.getTime())) return value
   return date.toLocaleString('es-PE', { dateStyle: 'medium', timeStyle: 'short' })
 }
+
 function formatEstado(value) {
-  const labels = { pendiente: 'Pendiente', confirmada: 'Confirmada', reprogramada: 'Reprogramada', en_atencion: 'En atención', cancelada: 'Cancelada', completada: 'Completada' }
+  const labels = {
+    disponible: 'Disponible',
+    ocupado: 'Ocupado',
+    pendiente: 'Pendiente',
+    confirmada: 'Confirmada',
+    reprogramada: 'Reprogramada',
+    en_atencion: 'En atencion',
+    cancelada: 'Cancelada',
+    completada: 'Completada',
+  }
   return labels[value] || (value || 'Pendiente').replaceAll('_', ' ')
 }
+
 function doctorLabel(doctor) {
   if (!doctor) return 'Doctor no asignado'
   const source = doctor.usuario || doctor
   return [source.nombre, source.apellido].filter(Boolean).join(' ') || 'Doctor'
+}
+
+function agendaKey(item, index) {
+  return `${item.tipo || 'item'}-${item.id_cita || item.id_horario || index}-${item.estado || 'estado'}`
+}
+
+function agendaFecha(item) {
+  return item.fecha || item.fecha_hora?.slice(0, 10) || 'Sin fecha'
+}
+
+function agendaHoraInicio(item) {
+  return item.hora_inicio || item.fecha_hora?.slice(11, 16) || ''
+}
+
+function agendaHoraFin(item) {
+  return item.hora_fin || item.fecha_fin?.slice(11, 16) || ''
 }
 
 export default function RecepAgenda({ citasFiltradas, filtros, setFiltros, doctores, horariosAgenda, agendaDoctor, onCargarDisponibilidad, onCrearHorario, onGoToTab }) {
@@ -58,10 +87,12 @@ export default function RecepAgenda({ citasFiltradas, filtros, setFiltros, docto
                 onChange={e => setFiltros({ ...filtros, estado: e.target.value })}
                 options={[
                   { value: '', label: 'Todos los estados' },
+                  { value: 'disponible', label: 'Disponible' },
+                  { value: 'ocupado', label: 'Ocupado' },
                   { value: 'pendiente', label: 'Pendiente' },
                   { value: 'confirmada', label: 'Confirmada' },
                   { value: 'reprogramada', label: 'Reprogramada' },
-                  { value: 'en_atencion', label: 'En atención' },
+                  { value: 'en_atencion', label: 'En atencion' },
                   { value: 'completada', label: 'Completada' },
                   { value: 'cancelada', label: 'Cancelada' },
                 ]}
@@ -102,10 +133,13 @@ export default function RecepAgenda({ citasFiltradas, filtros, setFiltros, docto
 
           <div className="medcare-card p-6">
             <div className="mb-4 flex items-center justify-between gap-3">
-              <h3 className="font-extrabold text-[#101828]">Disponibilidad</h3>
+              <div>
+                <h3 className="font-extrabold text-[#101828]">Disponibilidad</h3>
+                <p className="mt-1 text-xs font-bold text-[#52615f]">Horarios libres y ocupados del doctor.</p>
+              </div>
               <button type="button" onClick={() => setMostrarHorarioForm(value => !value)}
                 className="rounded-xl bg-[#007a68] px-3 py-2 text-xs font-extrabold text-white transition hover:brightness-105 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#12b8a3]/20">
-                Agregar más fechas y horas disponibles
+                Agregar horas
               </button>
             </div>
             <MedCareSelect
@@ -122,11 +156,21 @@ export default function RecepAgenda({ citasFiltradas, filtros, setFiltros, docto
             />
             <div className="mt-4 space-y-2">
               {horariosAgenda.length === 0 ? (
-                <p className="rounded-xl bg-[#edf2ff] p-4 text-sm text-[#52615f]">Sin horarios libres.</p>
-              ) : horariosAgenda.slice(0, 8).map(horario => (
-                <div key={horario.id_horario}
-                  className="rounded-xl bg-[#f8fbff] px-4 py-3 text-sm font-bold text-[#223330]">
-                  {horario.fecha} · {formatTime12h(horario.hora_inicio) || horario.hora_inicio} a {formatTime12h(horario.hora_fin) || horario.hora_fin}
+                <p className="rounded-xl bg-[#edf2ff] p-4 text-sm text-[#52615f]">Sin horarios para mostrar.</p>
+              ) : horariosAgenda.slice(0, 12).map((item, index) => (
+                <div key={agendaKey(item, index)}
+                  className="rounded-xl bg-[#f8fbff] px-4 py-3 text-sm text-[#223330]">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="font-extrabold">
+                      {agendaFecha(item)} - {formatTime12h(agendaHoraInicio(item)) || agendaHoraInicio(item)} a {formatTime12h(agendaHoraFin(item)) || agendaHoraFin(item)}
+                    </p>
+                    <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-[11px] font-extrabold ${estadoClass[item.estado] || estadoClass.ocupado}`}>
+                      {formatEstado(item.estado)}
+                    </span>
+                  </div>
+                  {item.paciente && (
+                    <p className="mt-2 text-xs font-bold text-[#52615f]">Paciente: {item.paciente}</p>
+                  )}
                 </div>
               ))}
             </div>

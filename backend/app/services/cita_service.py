@@ -7,7 +7,11 @@ from postgrest.exceptions import APIError
 from app.database import supabase, supabase_admin
 from app.services.notificacion_service import (
     marcar_notificaciones_cita_leidas,
+    notificar_cita_cancelada,
+    notificar_cita_confirmada,
     notificar_cita_finalizada_pendiente,
+    notificar_cita_pendiente,
+    notificar_cita_reprogramada,
 )
 
 try:
@@ -154,6 +158,16 @@ def _is_on_conflict_constraint_error(error: APIError) -> bool:
     return "42P10" in text or "no unique or exclusion constraint matching the ON CONFLICT specification" in text
 
 
+def _is_db_horario_conflict_error(error: APIError) -> bool:
+    text = str(error).lower()
+    return (
+        "otra cita programada" in text
+        or "horario ya no" in text
+        or "solap" in text
+        or "se cruza" in text
+    )
+
+
 def _raise_cita_update_error(error: APIError):
     if _is_on_conflict_constraint_error(error):
         raise ValueError("Hay un trigger antiguo de notificaciones en la base de datos. Ejecuta la migracion 20260628_desactivar_triggers_notificacion_cita.sql.")
@@ -224,7 +238,7 @@ def validar_horario_para_cita(id_horario: int, id_doctor: int | None = None, id_
     if id_doctor is not None and int(horario["id_doctor"]) != int(id_doctor):
         raise ValueError("El horario seleccionado no pertenece al doctor indicado")
     if horario.get("ocupado") and int(id_horario) != int(id_horario_actual or 0):
-        raise ValueError("El horario seleccionado ya se encuentra ocupado")
+        raise ValueError("Este horario ya no esta disponible. Selecciona otro horario.")
     if not is_horario_futuro(horario):
         raise ValueError("El horario seleccionado ya no esta disponible")
     return horario
@@ -239,7 +253,16 @@ def get_horarios_libres(id_doctor: int):
         .order("fecha")\
         .order("hora_inicio")\
         .execute()
-    return [horario for horario in (res.data or []) if is_horario_futuro(horario)]
+    horarios_libres = []
+    for horario in res.data or []:
+        if not is_horario_futuro(horario):
+            continue
+        try:
+            validar_conflicto_horario_cita(horario)
+        except ValueError:
+            continue
+        horarios_libres.append(horario)
+    return horarios_libres
 
 
 def contar_horarios_libres_futuros() -> int:
@@ -248,7 +271,16 @@ def contar_horarios_libres_futuros() -> int:
         .eq("ocupado", False)\
         .gte("fecha", get_lima_today().isoformat())\
         .execute()
-    return len([horario for horario in (res.data or []) if is_horario_futuro(horario)])
+    total = 0
+    for horario in res.data or []:
+        if not is_horario_futuro(horario):
+            continue
+        try:
+            validar_conflicto_horario_cita(horario)
+        except ValueError:
+            continue
+        total += 1
+    return total
 
 
 def validar_conflicto_cita_doctor(
@@ -313,19 +345,23 @@ def crear_cita(data: dict):
         .eq("ocupado", False)\
         .execute()
     if not reserva.data:
-        raise ValueError("El horario seleccionado ya se encuentra ocupado")
+        raise ValueError("Este horario ya no esta disponible. Selecciona otro horario.")
 
     data = dict(data)
     data["id_doctor"] = horario["id_doctor"]
     data["fecha_hora"] = _horario_datetime(horario).isoformat()
     try:
         res = supabase_admin.table("cita").insert(data).execute()
-    except APIError:
+    except APIError as error:
         liberar_horario(data["id_horario"])
+        if _is_db_horario_conflict_error(error):
+            raise ValueError(MENSAJE_CONFLICTO_HORARIO) from error
         raise
     cita = res.data[0] if res.data else None
     if not cita:
         liberar_horario(data["id_horario"])
+    else:
+        notificar_cita_pendiente(cita)
     return cita
 
 def get_citas_paciente(id_paciente: int):
@@ -384,6 +420,211 @@ def agregar_fecha_fin_citas(citas: list[dict]) -> list[dict]:
     return resultado
 
 
+def _normalizar_doctor_relacion(doctor_relacion):
+    if isinstance(doctor_relacion, list):
+        return doctor_relacion[0] if doctor_relacion else {}
+    return doctor_relacion or {}
+
+
+def _doctor_meta_por_id(ids_doctor: list[int] | None = None) -> dict[int, dict]:
+    query = supabase.table("usuario")\
+        .select("id_usuario,nombre,apellido,doctor(id_especialidad,especialidad(nombre))")\
+        .eq("tipo_usuario", "doctor")
+    if ids_doctor:
+        query = query.in_("id_usuario", ids_doctor)
+    try:
+        res = query.execute()
+    except APIError:
+        return {}
+
+    doctores = {}
+    for usuario in res.data or []:
+        doctor = _normalizar_doctor_relacion(usuario.get("doctor"))
+        especialidad = doctor.get("especialidad") or {}
+        nombre = " ".join([
+            str(usuario.get("nombre") or "").strip(),
+            str(usuario.get("apellido") or "").strip(),
+        ]).strip()
+        doctores[int(usuario["id_usuario"])] = {
+            "id_doctor": usuario.get("id_usuario"),
+            "doctor": nombre or "Doctor",
+            "id_especialidad": doctor.get("id_especialidad"),
+            "especialidad": especialidad.get("nombre"),
+        }
+    return doctores
+
+
+def _doctor_ids_por_especialidad(id_especialidad: int | None) -> set[int] | None:
+    if not id_especialidad:
+        return None
+    res = supabase.table("doctor")\
+        .select("id_usuario")\
+        .eq("id_especialidad", id_especialidad)\
+        .execute()
+    return {int(item["id_usuario"]) for item in res.data or []}
+
+
+def _hora_desde_datetime(value) -> str | None:
+    if not value:
+        return None
+    try:
+        return _parse_datetime(value).strftime("%H:%M:%S")
+    except (TypeError, ValueError):
+        return None
+
+
+def _agenda_item_cita(cita: dict, doctor_meta: dict | None = None) -> dict:
+    fecha_hora = cita.get("fecha_hora")
+    fecha_inicio = None
+    try:
+        fecha_inicio = _parse_datetime(fecha_hora)
+    except (TypeError, ValueError):
+        fecha_inicio = None
+    estado = cita.get("estado") or "pendiente"
+    return {
+        "tipo": "cita",
+        "estado": estado,
+        "ocupado": estado in ESTADOS_CONFLICTO_CITA or estado == "completada",
+        "id_cita": cita.get("id_cita"),
+        "id_horario": cita.get("id_horario"),
+        "id_paciente": cita.get("id_paciente"),
+        "paciente": cita.get("paciente") or cita.get("nombre_paciente"),
+        "dni": cita.get("dni"),
+        "id_doctor": cita.get("id_doctor"),
+        "doctor": cita.get("doctor") or cita.get("nombre_doctor") or (doctor_meta or {}).get("doctor"),
+        "id_especialidad": cita.get("id_especialidad") or (doctor_meta or {}).get("id_especialidad"),
+        "especialidad": cita.get("especialidad") or (doctor_meta or {}).get("especialidad"),
+        "fecha": fecha_inicio.date().isoformat() if fecha_inicio else str(fecha_hora or "")[:10],
+        "fecha_hora": fecha_hora,
+        "fecha_fin": cita.get("fecha_fin"),
+        "hora_inicio": _hora_desde_datetime(fecha_hora),
+        "hora_fin": _hora_desde_datetime(cita.get("fecha_fin")),
+        "motivo": cita.get("motivo"),
+        "tipo_atencion": cita.get("tipo_atencion"),
+    }
+
+
+def _agenda_item_horario(horario: dict, doctor_meta: dict | None, estado: str) -> dict:
+    return {
+        "tipo": "horario",
+        "estado": estado,
+        "ocupado": estado == "ocupado",
+        "id_cita": None,
+        "id_horario": horario.get("id_horario"),
+        "id_paciente": None,
+        "paciente": None,
+        "dni": None,
+        "id_doctor": horario.get("id_doctor"),
+        "doctor": (doctor_meta or {}).get("doctor"),
+        "id_especialidad": (doctor_meta or {}).get("id_especialidad"),
+        "especialidad": (doctor_meta or {}).get("especialidad"),
+        "fecha": _date_str(horario.get("fecha")),
+        "fecha_hora": _horario_datetime(horario).isoformat(),
+        "fecha_fin": _horario_fin_datetime(horario).isoformat(),
+        "hora_inicio": _time_str(horario.get("hora_inicio")),
+        "hora_fin": _time_str(horario.get("hora_fin")),
+        "motivo": None,
+        "tipo_atencion": None,
+    }
+
+
+def _aplicar_filtros_agenda(items: list[dict], estado: str | None, paciente: str | None) -> list[dict]:
+    resultado = items
+    estado_normalizado = (estado or "").strip().lower()
+    paciente_normalizado = (paciente or "").strip().lower()
+    if estado_normalizado:
+        if estado_normalizado == "ocupado":
+            resultado = [item for item in resultado if item.get("ocupado")]
+        else:
+            resultado = [item for item in resultado if item.get("estado") == estado_normalizado]
+    if paciente_normalizado:
+        resultado = [
+            item for item in resultado
+            if paciente_normalizado in str(item.get("paciente") or "").lower()
+        ]
+    return resultado
+
+
+def get_agenda_medica(
+    id_doctor: int | None = None,
+    id_especialidad: int | None = None,
+    fecha: str | None = None,
+    estado: str | None = None,
+    paciente: str | None = None,
+) -> list[dict]:
+    cancelar_citas_vencidas()
+    try:
+        fecha_filtro = _parse_date(fecha).isoformat() if fecha else None
+    except (TypeError, ValueError):
+        raise ValueError("Fecha no valida")
+
+    ids_por_especialidad = _doctor_ids_por_especialidad(id_especialidad)
+    ids_doctor: set[int] | None = ids_por_especialidad
+    if id_doctor:
+        ids_doctor = {int(id_doctor)} if ids_doctor is None else ids_doctor & {int(id_doctor)}
+    if ids_doctor is not None and not ids_doctor:
+        return []
+
+    horarios_query = supabase.table("horario_disponible").select("*")
+    citas_query = supabase.table("v_citas_detalle").select("*")
+    if ids_doctor is not None:
+        ids = sorted(ids_doctor)
+        horarios_query = horarios_query.in_("id_doctor", ids)
+        citas_query = citas_query.in_("id_doctor", ids)
+
+    if fecha_filtro:
+        inicio, fin = get_lima_day_bounds(_parse_date(fecha_filtro))
+        horarios_query = horarios_query.eq("fecha", fecha_filtro)
+        citas_query = citas_query.gte("fecha_hora", inicio).lte("fecha_hora", fin)
+    else:
+        inicio, _ = get_lima_day_bounds()
+        horarios_query = horarios_query.gte("fecha", get_lima_today().isoformat())
+        citas_query = citas_query.gte("fecha_hora", inicio)
+
+    horarios = horarios_query.order("fecha").order("hora_inicio").execute().data or []
+    citas = agregar_fecha_fin_citas(
+        citas_query.order("fecha_hora", desc=False).execute().data or []
+    )
+
+    ids_meta = sorted({
+        int(item["id_doctor"])
+        for item in [*horarios, *citas]
+        if item.get("id_doctor")
+    })
+    doctores_meta = _doctor_meta_por_id(ids_meta)
+
+    items = []
+    ids_horarios_con_cita = set()
+    for cita in citas:
+        if cita.get("id_horario"):
+            ids_horarios_con_cita.add(int(cita["id_horario"]))
+        meta = doctores_meta.get(int(cita["id_doctor"])) if cita.get("id_doctor") else None
+        items.append(_agenda_item_cita(cita, meta))
+
+    for horario in horarios:
+        id_horario = int(horario["id_horario"])
+        meta = doctores_meta.get(int(horario["id_doctor"])) if horario.get("id_doctor") else None
+        if not horario.get("ocupado") and is_horario_futuro(horario):
+            try:
+                validar_conflicto_horario_cita(horario)
+            except ValueError:
+                continue
+            items.append(_agenda_item_horario(horario, meta, "disponible"))
+        elif horario.get("ocupado") and id_horario not in ids_horarios_con_cita:
+            items.append(_agenda_item_horario(horario, meta, "ocupado"))
+
+    items = _aplicar_filtros_agenda(items, estado, paciente)
+    return sorted(
+        items,
+        key=lambda item: (
+            item.get("fecha") or "",
+            item.get("hora_inicio") or "",
+            item.get("doctor") or "",
+            item.get("tipo") or "",
+        ),
+    )
+
+
 def _notificar_citas_confirmadas_finalizadas(citas: list[dict], ahora: datetime):
     for cita in citas:
         if cita.get("estado") != "confirmada":
@@ -436,6 +677,8 @@ def cancelar_citas_vencidas(id_cita: int | None = None, *, raise_errors: bool = 
                 .execute()
         for cita_id in ids_cita:
             marcar_notificaciones_cita_leidas(cita_id)
+        for cita in actualizadas:
+            notificar_cita_cancelada(cita)
 
     return actualizadas
 
@@ -465,6 +708,7 @@ def cancelar_cita(id_cita: int):
     marcar_notificaciones_cita_leidas(id_cita)
     if cita and cita.get("id_horario"):
         liberar_horario(cita["id_horario"])
+    notificar_cita_cancelada(res.data[0])
     return res.data
 
 def get_cita(id_cita: int):
@@ -503,6 +747,8 @@ def cambiar_estado_cita(id_cita: int, estado: str):
             .eq("id_cita", id_cita)\
             .execute()
     except APIError as error:
+        if _is_db_horario_conflict_error(error):
+            raise ValueError(MENSAJE_CONFLICTO_HORARIO) from error
         _raise_cita_update_error(error)
     if not res.data:
         raise ValueError("No se pudo actualizar la cita")
@@ -512,6 +758,10 @@ def cambiar_estado_cita(id_cita: int, estado: str):
         liberar_horario(cita["id_horario"])
     if estado in {"confirmada", "cancelada", "completada"}:
         marcar_notificaciones_cita_leidas(id_cita)
+    if estado == "confirmada":
+        notificar_cita_confirmada(res.data[0])
+    elif estado == "cancelada":
+        notificar_cita_cancelada(res.data[0])
     return res.data
 
 def liberar_horario(id_horario: int):
@@ -558,14 +808,18 @@ def reprogramar_cita(id_cita: int, id_horario: int, fecha_hora: str):
             })\
             .eq("id_cita", id_cita)\
             .execute()
-    except APIError:
+    except APIError as error:
         if horario_cambiado:
             liberar_horario(id_horario)
+        if _is_db_horario_conflict_error(error):
+            raise ValueError(MENSAJE_CONFLICTO_HORARIO) from error
         raise
     if horario_cambiado and horario_anterior:
         liberar_horario(horario_anterior)
     if not horario_cambiado:
         ocupar_horario(id_horario)
+    if res.data:
+        notificar_cita_reprogramada(res.data[0])
     return res.data
 
 def registrar_atencion(id_cita: int, data: dict):
