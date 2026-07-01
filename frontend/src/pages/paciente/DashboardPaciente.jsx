@@ -211,7 +211,7 @@ export default function DashboardPaciente() {
         id_doctor: Number(form.id_doctor), id_horario: Number(form.id_horario),
         fecha_hora: `${selectedHorario.fecha}T${selectedHorario.hora_inicio}`,
         motivo: form.motivo, tipo_atencion: 'web'
-      }, user.id)
+      })
       setForm({ id_especialidad: '', id_doctor: '', id_horario: '', motivo: '' })
       setDoctores([]); setHorarios([])
       await refreshCitas(); handleSelectTab('citas')
