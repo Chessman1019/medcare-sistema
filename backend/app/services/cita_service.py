@@ -19,8 +19,21 @@ ESTADOS_CITA = {
     "pendiente", "confirmada", "reprogramada",
     "cancelada", "en_atencion", "completada",
 }
+ESTADOS_CONFLICTO_CITA = {"pendiente", "confirmada", "reprogramada", "en_atencion"}
 ESTADOS_AUTO_CANCELABLES = {"pendiente", "reprogramada"}
 ESTADOS_REVISION_VENCIMIENTO = ESTADOS_AUTO_CANCELABLES | {"confirmada"}
+TRANSICIONES_ESTADO_CITA = {
+    "pendiente": {"confirmada", "cancelada", "reprogramada"},
+    "confirmada": {"en_atencion", "completada", "cancelada", "reprogramada"},
+    "reprogramada": {"confirmada", "en_atencion", "completada", "cancelada", "reprogramada"},
+    "en_atencion": {"completada", "cancelada"},
+    "cancelada": set(),
+    "completada": set(),
+}
+MENSAJE_CONFLICTO_HORARIO = (
+    "Este horario ya no está disponible. El doctor tiene otra cita programada "
+    "en ese rango de tiempo. Selecciona otro horario."
+)
 
 
 def now_lima() -> datetime:
@@ -107,6 +120,22 @@ def _fecha_fin_cita(cita: dict) -> datetime | None:
     return fecha_hora + timedelta(minutes=_duracion_cita(cita))
 
 
+def _horario_fin_datetime(horario: dict) -> datetime:
+    inicio = _horario_datetime(horario)
+    fecha_fin = datetime.combine(
+        _parse_date(horario["fecha"]),
+        _parse_time(horario["hora_fin"]),
+        tzinfo=LIMA_TZ,
+    )
+    if fecha_fin <= inicio:
+        fecha_fin += timedelta(days=1)
+    return fecha_fin
+
+
+def _rangos_solapados(inicio_a: datetime, fin_a: datetime, inicio_b: datetime, fin_b: datetime) -> bool:
+    return inicio_a < fin_b and fin_a > inicio_b
+
+
 def is_horario_futuro(horario: dict) -> bool:
     return _horario_datetime(horario) > now_lima()
 
@@ -164,6 +193,21 @@ def _validar_horario_duplicado(id_doctor: int, fecha: str, hora_inicio: str):
         raise ValueError("Ya existe un horario disponible para ese doctor en esa fecha y hora")
 
 
+def _validar_horario_disponible_solapado(id_doctor: int, fecha: str, hora_inicio: str, hora_fin: str):
+    inicio_nuevo = _parse_time(hora_inicio)
+    fin_nuevo = _parse_time(hora_fin)
+    res = supabase.table("horario_disponible")\
+        .select("id_horario,hora_inicio,hora_fin")\
+        .eq("id_doctor", id_doctor)\
+        .eq("fecha", fecha)\
+        .execute()
+    for horario in res.data or []:
+        inicio_existente = _parse_time(horario["hora_inicio"])
+        fin_existente = _parse_time(horario["hora_fin"])
+        if inicio_nuevo < fin_existente and fin_nuevo > inicio_existente:
+            raise ValueError("El doctor ya tiene un horario disponible que se cruza con ese rango de tiempo")
+
+
 def get_horario(id_horario: int):
     res = supabase.table("horario_disponible")\
         .select("*")\
@@ -207,6 +251,38 @@ def contar_horarios_libres_futuros() -> int:
     return len([horario for horario in (res.data or []) if is_horario_futuro(horario)])
 
 
+def validar_conflicto_cita_doctor(
+    id_doctor: int,
+    fecha_inicio: datetime,
+    fecha_fin: datetime,
+    id_cita_actual: int | None = None,
+):
+    res = supabase_admin.table("cita")\
+        .select("id_cita,id_horario,fecha_hora,duracion_min,estado")\
+        .eq("id_doctor", id_doctor)\
+        .in_("estado", list(ESTADOS_CONFLICTO_CITA))\
+        .execute()
+
+    for cita in _citas_con_horarios(res.data or []):
+        if id_cita_actual is not None and int(cita["id_cita"]) == int(id_cita_actual):
+            continue
+        inicio_existente = _parse_datetime(cita["fecha_hora"])
+        fin_existente = _fecha_fin_cita(cita)
+        if not fin_existente:
+            continue
+        if _rangos_solapados(fecha_inicio, fecha_fin, inicio_existente, fin_existente):
+            raise ValueError(MENSAJE_CONFLICTO_HORARIO)
+
+
+def validar_conflicto_horario_cita(horario: dict, id_cita_actual: int | None = None):
+    validar_conflicto_cita_doctor(
+        int(horario["id_doctor"]),
+        _horario_datetime(horario),
+        _horario_fin_datetime(horario),
+        id_cita_actual=id_cita_actual,
+    )
+
+
 def crear_horario_disponible(data: dict):
     id_doctor = int(data["id_doctor"])
     fecha, hora_inicio, hora_fin = _validar_rango_horario(
@@ -216,6 +292,7 @@ def crear_horario_disponible(data: dict):
     )
     _validar_doctor(id_doctor)
     _validar_horario_duplicado(id_doctor, fecha, hora_inicio)
+    _validar_horario_disponible_solapado(id_doctor, fecha, hora_inicio, hora_fin)
 
     res = supabase_admin.table("horario_disponible").insert({
         "id_doctor": id_doctor,
@@ -228,16 +305,27 @@ def crear_horario_disponible(data: dict):
 
 def crear_cita(data: dict):
     horario = validar_horario_para_cita(data["id_horario"], data.get("id_doctor"))
+    validar_conflicto_horario_cita(horario)
+
+    reserva = supabase_admin.table("horario_disponible")\
+        .update({"ocupado": True})\
+        .eq("id_horario", data["id_horario"])\
+        .eq("ocupado", False)\
+        .execute()
+    if not reserva.data:
+        raise ValueError("El horario seleccionado ya se encuentra ocupado")
+
     data = dict(data)
     data["id_doctor"] = horario["id_doctor"]
     data["fecha_hora"] = _horario_datetime(horario).isoformat()
-    res = supabase_admin.table("cita").insert(data).execute()
+    try:
+        res = supabase_admin.table("cita").insert(data).execute()
+    except APIError:
+        liberar_horario(data["id_horario"])
+        raise
     cita = res.data[0] if res.data else None
-    if cita and data.get("id_horario"):
-        supabase_admin.table("horario_disponible")\
-            .update({"ocupado": True})\
-            .eq("id_horario", data["id_horario"])\
-            .execute()
+    if not cita:
+        liberar_horario(data["id_horario"])
     return cita
 
 def get_citas_paciente(id_paciente: int):
@@ -403,6 +491,12 @@ def cambiar_estado_cita(id_cita: int, estado: str):
         return [cita]
     if estado_actual in {"cancelada", "completada"}:
         raise ValueError("No se puede modificar una cita cancelada o completada")
+    if estado not in TRANSICIONES_ESTADO_CITA.get(estado_actual, set()):
+        raise ValueError(f"No se puede cambiar una cita de {estado_actual} a {estado}")
+    if estado in ESTADOS_CONFLICTO_CITA and cita.get("id_horario"):
+        horario = get_horario(cita["id_horario"])
+        if horario:
+            validar_conflicto_horario_cita(horario, id_cita_actual=id_cita)
     try:
         res = supabase_admin.table("cita")\
             .update({"estado": estado})\
@@ -438,26 +532,48 @@ def reprogramar_cita(id_cita: int, id_horario: int, fecha_hora: str):
         return None
     if cita.get("estado") in ("cancelada", "completada"):
         raise ValueError("No se puede reprogramar una cita cancelada o completada")
+    if "reprogramada" not in TRANSICIONES_ESTADO_CITA.get(cita.get("estado"), set()):
+        raise ValueError(f"No se puede reprogramar una cita en estado {cita.get('estado')}")
     horario_anterior = cita.get("id_horario")
     horario = validar_horario_para_cita(id_horario, id_horario_actual=horario_anterior)
-    res = supabase_admin.table("cita")\
-        .update({
-            "id_horario": id_horario,
-            "id_doctor": horario["id_doctor"],
-            "fecha_hora": _horario_datetime(horario).isoformat(),
-            "estado": "reprogramada",
-        })\
-        .eq("id_cita", id_cita)\
-        .execute()
-    if horario_anterior and horario_anterior != id_horario:
+    validar_conflicto_horario_cita(horario, id_cita_actual=id_cita)
+
+    horario_cambiado = not horario_anterior or int(horario_anterior) != int(id_horario)
+    if horario_cambiado:
+        reserva = supabase_admin.table("horario_disponible")\
+            .update({"ocupado": True})\
+            .eq("id_horario", id_horario)\
+            .eq("ocupado", False)\
+            .execute()
+        if not reserva.data:
+            raise ValueError("El horario seleccionado ya se encuentra ocupado")
+
+    try:
+        res = supabase_admin.table("cita")\
+            .update({
+                "id_horario": id_horario,
+                "id_doctor": horario["id_doctor"],
+                "fecha_hora": _horario_datetime(horario).isoformat(),
+                "estado": "reprogramada",
+            })\
+            .eq("id_cita", id_cita)\
+            .execute()
+    except APIError:
+        if horario_cambiado:
+            liberar_horario(id_horario)
+        raise
+    if horario_cambiado and horario_anterior:
         liberar_horario(horario_anterior)
-    ocupar_horario(id_horario)
+    if not horario_cambiado:
+        ocupar_horario(id_horario)
     return res.data
 
 def registrar_atencion(id_cita: int, data: dict):
     cita = get_cita(id_cita)
     if not cita:
         return None
+    if cita.get("estado") not in {"confirmada", "reprogramada", "en_atencion"}:
+        raise ValueError("Solo se puede registrar atencion en citas confirmadas o en atencion")
     fecha_atencion = str(cita["fecha_hora"]).split("T")[0]
     payload = {
         "id_cita": id_cita,

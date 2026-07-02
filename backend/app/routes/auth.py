@@ -71,7 +71,11 @@ def _get_current_user(authorization: str | None = Header(default=None)):
     if not res.data:
         raise HTTPException(status_code=401, detail="Usuario no encontrado")
 
-    return res.data[0]
+    usuario = res.data[0]
+    if usuario.get("activo") is False:
+        raise HTTPException(status_code=403, detail="Tu cuenta está desactivada. Comunícate con el administrador.")
+
+    return usuario
 
 @router.post("/login")
 @limiter.limit("5/minute")
@@ -79,6 +83,8 @@ def login(request: Request, data: UsuarioLogin):
     user = get_user_by_email(data.email)
     if not user or not verify_password(data.password, user["contrasena_hash"]):
         raise HTTPException(status_code=401, detail="Credenciales incorrectas")
+    if user.get("activo") is False:
+        raise HTTPException(status_code=403, detail="Tu cuenta está desactivada. Comunícate con el administrador.")
     token = create_access_token({"sub": str(user["id_usuario"]), "rol": user["tipo_usuario"]})
     return {
         "access_token": token,
