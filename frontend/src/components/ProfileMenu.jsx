@@ -116,18 +116,23 @@ export default function ProfileMenu() {
   useEffect(() => {
     if (!panel) return
     let mounted = true
-    setLoadingProfile(true)
-    setError('')
-    getPerfil()
-      .then((res) => {
-        if (!mounted) return
-        const data = res.data
-        setProfile(data)
-        setForm({ nombre: data.nombre || '', apellido: data.apellido || '', telefono: data.telefono || '', direccion: data.paciente?.direccion || '', seguro_medico: data.paciente?.seguro_medico || '' })
-      })
-      .catch((e) => { if (mounted) setError(e.response?.data?.detail || 'No se pudo cargar el perfil.') })
-      .finally(() => { if (mounted) setLoadingProfile(false) })
-    return () => { mounted = false }
+    const timer = setTimeout(() => {
+      setLoadingProfile(true)
+      setError('')
+      getPerfil()
+        .then((res) => {
+          if (!mounted) return
+          const data = res.data
+          setProfile(data)
+          setForm({ nombre: data.nombre || '', apellido: data.apellido || '', telefono: data.telefono || '', direccion: data.paciente?.direccion || '', seguro_medico: data.paciente?.seguro_medico || '' })
+        })
+        .catch((e) => { if (mounted) setError(e.response?.data?.detail || 'No se pudo cargar el perfil.') })
+        .finally(() => { if (mounted) setLoadingProfile(false) })
+    }, 0)
+    return () => {
+      mounted = false
+      clearTimeout(timer)
+    }
   }, [panel])
 
   const handleAvatarClick = () => fileInputRef.current?.click()
