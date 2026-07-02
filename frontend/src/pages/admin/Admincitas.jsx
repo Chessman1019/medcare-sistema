@@ -1,20 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import AgendaEmptyState from '../../components/AgendaEmptyState'
+import AgendaStatusBadge from '../../components/AgendaStatusBadge'
 import HorarioDisponibleForm from '../../components/HorarioDisponibleForm'
 import MedCareSelect from '../../components/MedCareSelect'
 import { DateWheelPicker } from '../../components/WheelPickers'
 import { getAgendaMedica } from '../../services/api'
+import { formatAgendaDate, formatAgendaDateTime, getAppointmentEnd } from '../../utils/agendaDisplay'
+import { agendaStatuses, formatAgendaStatus } from '../../utils/agendaStatus'
 import { formatTime12h } from '../../utils/timeFormat'
-
-const statusClass = {
-  disponible:   'bg-[#d8f4ee] text-[#006b5d]',
-  ocupado:      'bg-[#f5f5f2] text-[#46514f]',
-  pendiente:    'bg-[#f5f5f2] text-[#46514f]',
-  confirmada:   'bg-[#d8f4ee] text-[#006b5d]',
-  cancelada:    'bg-[#ffdad6] text-[#93000a]',
-  completada:   'bg-[#d8e5e2] text-[#293533]',
-  reprogramada: 'bg-[#e8edff] text-[#355382]',
-  en_atencion:  'bg-[#dff8fb] text-[#006b5d]',
-}
 
 const actionModalConfig = {
   confirmar: {
@@ -44,39 +37,6 @@ const actionModalConfig = {
     iconClass: 'bg-[#e8edff] text-[#355382]',
     buttonClass: 'rounded-xl bg-[#355382] px-5 py-2.5 text-sm font-extrabold text-white transition hover:bg-[#263f66] disabled:opacity-60',
   },
-}
-
-function formatDate(value) {
-  if (!value) return 'Sin fecha'
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return value
-  return date.toLocaleString('es-PE', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'America/Lima' })
-}
-
-function getFechaFinCita(cita) {
-  if (cita.fecha_fin) return cita.fecha_fin
-  if (!cita.fecha_hora) return null
-
-  const inicio = new Date(cita.fecha_hora)
-  if (Number.isNaN(inicio.getTime())) return null
-
-  const duracion = Number(cita.duracion_min)
-  const minutos = Number.isFinite(duracion) && duracion >= 0 ? duracion : 30
-  return new Date(inicio.getTime() + minutos * 60000).toISOString()
-}
-
-function formatEstadoAgenda(value) {
-  const labels = {
-    disponible: 'Disponible',
-    ocupado: 'Ocupado',
-    pendiente: 'Pendiente',
-    confirmada: 'Confirmada',
-    reprogramada: 'Reprogramada',
-    en_atencion: 'En atencion',
-    cancelada: 'Cancelada',
-    completada: 'Completada',
-  }
-  return labels[value] || (value || 'Pendiente').replaceAll('_', ' ')
 }
 
 function doctorLabel(doctor) {
@@ -205,6 +165,13 @@ export default function AdminCitas({ citas, doctores = [], especialidades, citaN
 
   const modalConfig = accionPendiente ? actionModalConfig[accionPendiente.accion] : null
   const modalLoading = accionPendiente && actionLoading === `${accionPendiente.accion}-${accionPendiente.cita.id_cita}`
+  const agendaResumen = useMemo(() => {
+    return agendaItems.reduce((acc, item) => {
+      const estado = item.estado || 'pendiente'
+      acc[estado] = (acc[estado] || 0) + 1
+      return acc
+    }, {})
+  }, [agendaItems])
 
   return (
     <div className="space-y-6">
@@ -368,27 +335,56 @@ export default function AdminCitas({ citas, doctores = [], especialidades, citaN
           className="mt-3 text-xs font-bold text-[#006b5d] hover:underline">
           Limpiar filtros de agenda
         </button>
-        <div className="mt-4 divide-y divide-[#bdcbc7] overflow-hidden rounded-xl border border-[#bdcbc7]">
-          {agendaLoading ? (
-            <div className="bg-white px-4 py-5 text-sm font-bold text-[#52615f]">Cargando agenda...</div>
-          ) : agendaError ? (
-            <div className="bg-[#fff0ef] px-4 py-5 text-sm font-bold text-[#93000a]">{agendaError}</div>
-          ) : agendaItems.length === 0 ? (
-            <div className="bg-white px-4 py-5 text-sm font-bold text-[#52615f]">No hay horarios con esos filtros.</div>
-          ) : agendaItems.slice(0, 12).map((item, index) => (
-            <div key={agendaKey(item, index)} className="grid gap-2 bg-white px-4 py-3 text-sm md:grid-cols-[1.2fr_1fr_1fr_auto] md:items-center">
-              <div>
-                <p className="font-extrabold text-[#101828]">
-                  {(item.fecha || item.fecha_hora?.slice(0, 10) || 'Sin fecha')} - {formatTime12h(agendaHoraInicio(item)) || agendaHoraInicio(item)} a {formatTime12h(agendaHoraFin(item)) || agendaHoraFin(item)}
-                </p>
-                <p className="text-xs font-bold text-[#52615f]">Dr. {item.doctor || 'Sin doctor asignado'}</p>
-              </div>
-              <span className="text-[#52615f]">{item.especialidad || 'Sin especialidad'}</span>
-              <span className="text-[#52615f]">{item.paciente || 'Sin paciente asignado'}</span>
-              <span className={`w-fit rounded-full px-3 py-1 text-xs font-extrabold ${statusClass[item.estado] || statusClass.ocupado}`}>
-                {formatEstadoAgenda(item.estado)}
+        {agendaItems.length > 0 && (
+          <div className="mt-4 flex flex-wrap gap-2">
+            {agendaStatuses.filter(estado => agendaResumen[estado]).map(estado => (
+              <span key={estado} className="inline-flex items-center gap-2 rounded-full border border-[#d5dfef] bg-white px-3 py-1.5 text-xs font-extrabold text-[#52615f]">
+                {formatAgendaStatus(estado)}
+                <span className="rounded-full bg-[#f0f5f4] px-2 py-0.5 text-[#223330]">{agendaResumen[estado]}</span>
               </span>
-            </div>
+            ))}
+          </div>
+        )}
+        <div className="mt-4 grid gap-3">
+          {agendaLoading ? (
+            <div className="rounded-xl border border-[#d5dfef] bg-white px-4 py-5 text-sm font-bold text-[#52615f]">Cargando agenda...</div>
+          ) : agendaError ? (
+            <div className="rounded-xl border border-[#ffb4ab] bg-[#fff0ef] px-4 py-5 text-sm font-bold text-[#93000a]">{agendaError}</div>
+          ) : agendaItems.length === 0 ? (
+            <AgendaEmptyState
+              compact
+              icon="calendar_month"
+              title="No hay horarios con esos filtros"
+              description="Prueba otra fecha, doctor, especialidad o estado para revisar la agenda."
+            />
+          ) : agendaItems.map((item, index) => (
+            <article key={agendaKey(item, index)} className="rounded-xl border border-[#d5dfef] bg-white p-4 transition hover:border-[#12b8a3]/45 hover:bg-[#fbfcff]">
+              <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                <div className="min-w-0">
+                  <p className="text-xs font-extrabold uppercase tracking-widest text-[#006b5d]">
+                    {formatAgendaDate(item.fecha || item.fecha_hora?.slice(0, 10))}
+                  </p>
+                  <p className="mt-1 text-lg font-extrabold text-[#101828]">
+                    {formatTime12h(agendaHoraInicio(item)) || agendaHoraInicio(item) || 'Sin inicio'} a {formatTime12h(agendaHoraFin(item)) || agendaHoraFin(item) || 'Sin fin'}
+                  </p>
+                </div>
+                <AgendaStatusBadge status={item.estado} size="md" />
+              </div>
+              <div className="mt-4 grid gap-3 text-sm sm:grid-cols-2 xl:grid-cols-3">
+                <div className="rounded-lg bg-[#f8fbff] p-3">
+                  <p className="text-[11px] font-extrabold uppercase tracking-wide text-[#52615f]">Doctor</p>
+                  <p className="mt-1 font-bold text-[#223330]">Dr. {item.doctor || 'Sin doctor asignado'}</p>
+                </div>
+                <div className="rounded-lg bg-[#f8fbff] p-3">
+                  <p className="text-[11px] font-extrabold uppercase tracking-wide text-[#52615f]">Paciente</p>
+                  <p className="mt-1 font-bold text-[#223330]">{item.paciente || 'Sin paciente asignado'}</p>
+                </div>
+                <div className="rounded-lg bg-[#f8fbff] p-3">
+                  <p className="text-[11px] font-extrabold uppercase tracking-wide text-[#52615f]">Especialidad</p>
+                  <p className="mt-1 font-bold text-[#223330]">{item.especialidad || 'Sin especialidad'}</p>
+                </div>
+              </div>
+            </article>
           ))}
         </div>
       </div>
@@ -405,7 +401,16 @@ export default function AdminCitas({ citas, doctores = [], especialidades, citaN
             </thead>
             <tbody className="divide-y divide-[#bdcbc7]">
               {citasFiltradas.length === 0 ? (
-                <tr><td colSpan={9} className="text-center py-12 text-[#52615f]">No hay citas con esos filtros</td></tr>
+                <tr>
+                  <td colSpan={9} className="px-5 py-8">
+                    <AgendaEmptyState
+                      compact
+                      icon="manage_search"
+                      title="No hay citas registradas para los filtros seleccionados"
+                      description="Ajusta el estado, especialidad, doctor o fecha para ampliar la busqueda."
+                    />
+                  </td>
+                </tr>
               ) : citasFiltradas.map((c, i) => (
                 <tr
                   key={c.id_cita}
@@ -426,13 +431,13 @@ export default function AdminCitas({ citas, doctores = [], especialidades, citaN
                   </td>
                   <td className="px-5 py-4 text-sm text-[#52615f]">Dr. {c.doctor}</td>
                   <td className="px-5 py-4 text-sm text-[#52615f]">{c.especialidad}</td>
-                  <td className="px-5 py-4 text-sm text-[#52615f]">{formatDate(c.fecha_hora)}</td>
-                  <td className="px-5 py-4 text-sm text-[#52615f]">{formatDate(getFechaFinCita(c))}</td>
+                  <td className="px-5 py-4 text-sm text-[#52615f]">{formatAgendaDateTime(c.fecha_hora)}</td>
+                  <td className="px-5 py-4 text-sm text-[#52615f]">{formatAgendaDateTime(getAppointmentEnd(c))}</td>
                   <td className="px-5 py-4">
                     <span className="text-xs bg-[#edf2ff] text-[#355382] px-2 py-0.5 rounded-full font-bold">{c.tipo_atencion}</span>
                   </td>
                   <td className="px-5 py-4">
-                    <span className={`text-xs px-3 py-1 rounded-full font-extrabold ${statusClass[c.estado] || statusClass.pendiente}`}>{c.estado}</span>
+                    <AgendaStatusBadge status={c.estado} />
                   </td>
                   <td className="px-5 py-4">
                     <div className="flex gap-1">
@@ -488,7 +493,7 @@ export default function AdminCitas({ citas, doctores = [], especialidades, citaN
             <div className="mt-5 rounded-xl border border-[#d8e3fb] bg-[#f8fbff] p-4 text-sm">
               <p className="font-extrabold text-[#101828]">{accionPendiente.cita.paciente || `Cita #${accionPendiente.cita.id_cita}`}</p>
               <p className="mt-1 text-[#52615f]">Dr. {accionPendiente.cita.doctor || 'Sin doctor asignado'}</p>
-              <p className="mt-1 text-[#52615f]">{formatDate(accionPendiente.cita.fecha_hora)}</p>
+              <p className="mt-1 text-[#52615f]">{formatAgendaDateTime(accionPendiente.cita.fecha_hora)}</p>
             </div>
 
             {modalError && (

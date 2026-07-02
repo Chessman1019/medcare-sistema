@@ -1,41 +1,13 @@
 import { useState } from 'react'
+import AgendaEmptyState from '../../components/AgendaEmptyState'
+import AgendaStatusBadge from '../../components/AgendaStatusBadge'
 import HorarioDisponibleForm from '../../components/HorarioDisponibleForm'
 import MedCareSelect from '../../components/MedCareSelect'
 import { DateWheelPicker } from '../../components/WheelPickers'
+import { formatAgendaDate, formatAgendaDateTime } from '../../utils/agendaDisplay'
 import { formatTime12h } from '../../utils/timeFormat'
 
-const estadoClass = {
-  disponible:  'bg-[#d8f4ee] text-[#006b5d]',
-  ocupado:      'bg-[#f5f5f2] text-[#46514f]',
-  pendiente:    'bg-[#faeeda] text-[#854F0B]',
-  confirmada:   'bg-[#d8f4ee] text-[#006b5d]',
-  reprogramada: 'bg-[#e8edff] text-[#355382]',
-  en_atencion:  'bg-[#dff8fb] text-[#006b5d]',
-  cancelada:    'bg-[#ffdad6] text-[#93000a]',
-  completada:   'bg-[#f5f5f2] text-[#46514f]',
-}
 const inputClass = 'rounded-xl border border-[#bdcbc7] px-3 py-2.5 text-sm transition focus:border-[#007a68] focus:outline-none focus:ring-4 focus:ring-[#12b8a3]/15'
-
-function formatDateTime(value) {
-  if (!value) return 'Sin fecha'
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return value
-  return date.toLocaleString('es-PE', { dateStyle: 'medium', timeStyle: 'short' })
-}
-
-function formatEstado(value) {
-  const labels = {
-    disponible: 'Disponible',
-    ocupado: 'Ocupado',
-    pendiente: 'Pendiente',
-    confirmada: 'Confirmada',
-    reprogramada: 'Reprogramada',
-    en_atencion: 'En atencion',
-    cancelada: 'Cancelada',
-    completada: 'Completada',
-  }
-  return labels[value] || (value || 'Pendiente').replaceAll('_', ' ')
-}
 
 function doctorLabel(doctor) {
   if (!doctor) return 'Doctor no asignado'
@@ -113,20 +85,24 @@ export default function RecepAgenda({
           </div>
           <div className="divide-y divide-[#bdcbc7]">
             {citasFiltradas.length === 0 ? (
-              <div className="p-10 text-center">
-                <span className="material-symbols-outlined text-5xl text-[#bdcbc7]">event_note</span>
-                <p className="mt-3 font-bold text-[#52615f]">No hay citas con esos filtros.</p>
+              <div className="p-5">
+                <AgendaEmptyState
+                  icon="event_note"
+                  title="No hay citas para los filtros seleccionados"
+                  description="Cambia la fecha, doctor o estado para revisar mas resultados."
+                />
               </div>
-            ) : citasFiltradas.slice(0, 12).map(cita => (
+            ) : citasFiltradas.map(cita => (
               <button key={cita.id_cita} type="button"
                 onClick={() => onGoToTab('gestion', { doctor: cita.doctor || '', fecha: cita.fecha_hora?.slice(0, 10) || '' })}
-                className="grid w-full grid-cols-1 items-start gap-2 bg-white px-6 py-4 text-left transition hover:bg-[#f8fbff] md:grid-cols-[1fr_1fr_1fr_auto] md:items-center">
-                <span className="font-extrabold text-[#101828]">{cita.paciente}</span>
-                <span className="text-sm text-[#52615f]">Dr. {cita.doctor}</span>
-                <span className="text-sm text-[#52615f]">{formatDateTime(cita.fecha_hora)}</span>
-                <span className={`rounded-full px-3 py-1 text-xs font-extrabold ${estadoClass[cita.estado] || estadoClass.pendiente}`}>
-                  {formatEstado(cita.estado)}
+                className="grid w-full grid-cols-1 items-start gap-3 bg-white px-6 py-4 text-left transition hover:bg-[#f8fbff] md:grid-cols-[1.1fr_1fr_1fr_auto] md:items-center">
+                <span className="min-w-0">
+                  <span className="block font-extrabold text-[#101828]">{cita.paciente}</span>
+                  <span className="block text-xs font-semibold text-[#52615f]">{cita.especialidad || 'Sin especialidad'}</span>
                 </span>
+                <span className="text-sm font-semibold text-[#52615f]">Dr. {cita.doctor}</span>
+                <span className="text-sm text-[#52615f]">{formatAgendaDateTime(cita.fecha_hora)}</span>
+                <AgendaStatusBadge status={cita.estado} />
               </button>
             ))}
           </div>
@@ -214,21 +190,29 @@ export default function RecepAgenda({
             </div>
             <div className="mt-4 space-y-2">
               {horariosAgenda.length === 0 ? (
-                <p className="rounded-xl bg-[#edf2ff] p-4 text-sm text-[#52615f]">Sin horarios para mostrar.</p>
-              ) : horariosAgenda.slice(0, 12).map((item, index) => (
+                <AgendaEmptyState
+                  compact
+                  icon="free_cancellation"
+                  title="Sin horarios para mostrar"
+                  description="Selecciona un doctor o fecha para revisar disponibilidad."
+                />
+              ) : horariosAgenda.map((item, index) => (
                 <div key={agendaKey(item, index)}
-                  className="rounded-xl bg-[#f8fbff] px-4 py-3 text-sm text-[#223330]">
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="font-extrabold">
-                      {agendaFecha(item)} - {formatTime12h(agendaHoraInicio(item)) || agendaHoraInicio(item)} a {formatTime12h(agendaHoraFin(item)) || agendaHoraFin(item)}
-                    </p>
-                    <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-[11px] font-extrabold ${estadoClass[item.estado] || estadoClass.ocupado}`}>
-                      {formatEstado(item.estado)}
-                    </span>
+                  className="rounded-xl border border-[#d5dfef] bg-[#f8fbff] px-4 py-3 text-sm text-[#223330]">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div>
+                      <p className="text-xs font-extrabold uppercase tracking-widest text-[#006b5d]">{formatAgendaDate(agendaFecha(item))}</p>
+                      <p className="mt-1 font-extrabold">
+                        {formatTime12h(agendaHoraInicio(item)) || agendaHoraInicio(item) || 'Sin inicio'} a {formatTime12h(agendaHoraFin(item)) || agendaHoraFin(item) || 'Sin fin'}
+                      </p>
+                    </div>
+                    <AgendaStatusBadge status={item.estado} />
                   </div>
-                  {item.paciente && (
-                    <p className="mt-2 text-xs font-bold text-[#52615f]">Paciente: {item.paciente}</p>
-                  )}
+                  <div className="mt-3 grid gap-2 text-xs font-bold text-[#52615f]">
+                    <p>Doctor: Dr. {item.doctor || 'Sin doctor asignado'}</p>
+                    <p>Paciente: {item.paciente || 'Sin paciente asignado'}</p>
+                    <p>Especialidad: {item.especialidad || 'Sin especialidad'}</p>
+                  </div>
                 </div>
               ))}
             </div>
