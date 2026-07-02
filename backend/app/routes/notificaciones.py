@@ -146,12 +146,12 @@ def _validar_acceso_notificacion(id_notif: int, usuario: dict):
     rol_destino = notificacion.get("rol_destino")
 
     if rol == "paciente":
-        if rol_destino in ROLES_ADMINISTRATIVOS_NOTIFICACION:
+        if rol_destino and rol_destino != "paciente":
             raise HTTPException(status_code=403, detail="No tienes permiso para esta notificacion")
         if int(notificacion.get("id_paciente") or 0) == usuario_id:
             return notificacion
     elif rol == "doctor":
-        if rol_destino in ROLES_ADMINISTRATIVOS_NOTIFICACION:
+        if rol_destino and rol_destino != "doctor":
             raise HTTPException(status_code=403, detail="No tienes permiso para esta notificacion")
         if int(notificacion.get("id_doctor") or 0) == usuario_id:
             return notificacion
@@ -182,7 +182,7 @@ def notificaciones_paciente(id_paciente: int, usuario: dict = Depends(require_ro
     return _listar_notificaciones(
         "id_paciente",
         id_paciente,
-        excluir_roles=ROLES_ADMINISTRATIVOS_NOTIFICACION,
+        rol_destino="paciente",
     )
 
 
@@ -193,7 +193,7 @@ def notificaciones_doctor(id_doctor: int, usuario: dict = Depends(require_roles(
     return _listar_notificaciones(
         "id_doctor",
         id_doctor,
-        excluir_roles=ROLES_ADMINISTRATIVOS_NOTIFICACION,
+        rol_destino="doctor",
     )
 
 
