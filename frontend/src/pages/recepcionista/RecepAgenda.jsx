@@ -59,7 +59,19 @@ function agendaHoraFin(item) {
   return item.hora_fin || item.fecha_fin?.slice(11, 16) || ''
 }
 
-export default function RecepAgenda({ citasFiltradas, filtros, setFiltros, doctores, horariosAgenda, agendaDoctor, onCargarDisponibilidad, onCrearHorario, onGoToTab }) {
+export default function RecepAgenda({
+  citasFiltradas,
+  filtros,
+  setFiltros,
+  doctores,
+  especialidades = [],
+  horariosAgenda,
+  agendaDoctor,
+  agendaFiltros,
+  setAgendaFiltros,
+  onCrearHorario,
+  onGoToTab,
+}) {
   const [mostrarHorarioForm, setMostrarHorarioForm] = useState(false)
 
   return (
@@ -142,18 +154,64 @@ export default function RecepAgenda({ citasFiltradas, filtros, setFiltros, docto
                 Agregar horas
               </button>
             </div>
-            <MedCareSelect
-              className={`w-full ${inputClass}`}
-              value={agendaDoctor}
-              onChange={e => onCargarDisponibilidad(e.target.value)}
-              options={[
-                { value: '', label: 'Selecciona doctor' },
-                ...doctores.map(doctor => ({
-                  value: doctor.id_usuario,
-                  label: `Dr. ${doctorLabel(doctor)}`,
-                })),
-              ]}
-            />
+            <div className="grid grid-cols-1 gap-3">
+              <MedCareSelect
+                className={`w-full ${inputClass}`}
+                value={agendaFiltros.id_doctor}
+                onChange={e => setAgendaFiltros({ ...agendaFiltros, id_doctor: e.target.value })}
+                options={[
+                  { value: '', label: 'Todos los doctores' },
+                  ...doctores.map(doctor => ({
+                    value: doctor.id_usuario,
+                    label: `Dr. ${doctorLabel(doctor)}`,
+                  })),
+                ]}
+              />
+              <MedCareSelect
+                className={`w-full ${inputClass}`}
+                value={agendaFiltros.id_especialidad}
+                onChange={e => setAgendaFiltros({ ...agendaFiltros, id_especialidad: e.target.value })}
+                options={[
+                  { value: '', label: 'Todas las especialidades' },
+                  ...especialidades.map(especialidad => ({
+                    value: especialidad.id_especialidad,
+                    label: especialidad.nombre,
+                  })),
+                ]}
+              />
+              <input
+                className={`w-full ${inputClass}`}
+                placeholder="Buscar paciente"
+                value={agendaFiltros.paciente}
+                onChange={e => setAgendaFiltros({ ...agendaFiltros, paciente: e.target.value })}
+              />
+              <DateWheelPicker
+                value={agendaFiltros.fecha}
+                onChange={fecha => setAgendaFiltros({ ...agendaFiltros, fecha })}
+                clearable
+                inputClassName={`w-full ${inputClass}`}
+              />
+              <MedCareSelect
+                className={`w-full ${inputClass}`}
+                value={agendaFiltros.estado}
+                onChange={e => setAgendaFiltros({ ...agendaFiltros, estado: e.target.value })}
+                options={[
+                  { value: '', label: 'Todos los estados' },
+                  { value: 'disponible', label: 'Disponible' },
+                  { value: 'ocupado', label: 'Ocupado' },
+                  { value: 'pendiente', label: 'Pendiente' },
+                  { value: 'confirmada', label: 'Confirmada' },
+                  { value: 'reprogramada', label: 'Reprogramada' },
+                  { value: 'en_atencion', label: 'En atencion' },
+                  { value: 'cancelada', label: 'Cancelada' },
+                  { value: 'completada', label: 'Completada' },
+                ]}
+              />
+              <button type="button" onClick={() => setAgendaFiltros({ id_doctor: '', id_especialidad: '', paciente: '', fecha: '', estado: '' })}
+                className="text-left text-xs font-bold text-[#006b5d] hover:underline">
+                Limpiar filtros de agenda
+              </button>
+            </div>
             <div className="mt-4 space-y-2">
               {horariosAgenda.length === 0 ? (
                 <p className="rounded-xl bg-[#edf2ff] p-4 text-sm text-[#52615f]">Sin horarios para mostrar.</p>
