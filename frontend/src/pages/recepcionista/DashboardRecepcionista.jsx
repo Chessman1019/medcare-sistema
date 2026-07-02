@@ -5,6 +5,7 @@ import { useAuth } from '../../context/AuthContext'
 import {
   actualizarSoporteTicket, cancelarCita, completarCita, confirmarCita, crearUsuario, enviarSoporte,
   crearHorarioDisponible,
+  getAgendaMedica,
   getCitasHoy, getDoctores, getEspecialidades, getHorarios,
   getNotificacionesCitasPendientes,
   getPacientes, getSoporteTickets, getStatsCitas, getTodasCitas, getUsuarios, getCodigosSugeridos,
@@ -254,12 +255,28 @@ export default function DashboardRecepcionista() {
     finally { setActionLoading('') }
   }
 
-  const cargarDisponibilidad = async (idDoctor) => {
+  const cargarDisponibilidad = useCallback(async (idDoctor) => {
     setAgendaDoctor(idDoctor)
     if (!idDoctor) { setHorariosAgenda([]); return }
-    try { const res = await getHorarios(idDoctor); setHorariosAgenda(res.data || []) }
-    catch { setHorariosAgenda([]) }
-  }
+    try {
+      const res = await getAgendaMedica({
+        id_doctor: idDoctor,
+        fecha: filtros.fecha || undefined,
+        estado: filtros.estado || undefined,
+      })
+      setHorariosAgenda(res.data || [])
+    } catch {
+      setHorariosAgenda([])
+    }
+  }, [filtros.fecha, filtros.estado])
+
+  useEffect(() => {
+    if (tab !== 'agenda' || !agendaDoctor) return undefined
+    const timer = window.setTimeout(() => {
+      cargarDisponibilidad(agendaDoctor)
+    }, 150)
+    return () => window.clearTimeout(timer)
+  }, [tab, agendaDoctor, filtros.fecha, filtros.estado, cargarDisponibilidad])
 
   const registrarHorarioDisponible = async (payload) => {
     const res = await crearHorarioDisponible(payload)
@@ -267,7 +284,11 @@ export default function DashboardRecepcionista() {
     setStats(statsR.data)
     if (String(agendaDoctor || payload.id_doctor) === String(payload.id_doctor)) {
       setAgendaDoctor(String(payload.id_doctor))
-      const horariosR = await getHorarios(payload.id_doctor)
+      const horariosR = await getAgendaMedica({
+        id_doctor: payload.id_doctor,
+        fecha: filtros.fecha || undefined,
+        estado: filtros.estado || undefined,
+      })
       setHorariosAgenda(horariosR.data || [])
     }
     return res.data

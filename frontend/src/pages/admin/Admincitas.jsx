@@ -2,8 +2,12 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import HorarioDisponibleForm from '../../components/HorarioDisponibleForm'
 import MedCareSelect from '../../components/MedCareSelect'
 import { DateWheelPicker } from '../../components/WheelPickers'
+import { getAgendaMedica } from '../../services/api'
+import { formatTime12h } from '../../utils/timeFormat'
 
 const statusClass = {
+  disponible:   'bg-[#d8f4ee] text-[#006b5d]',
+  ocupado:      'bg-[#f5f5f2] text-[#46514f]',
   pendiente:    'bg-[#f5f5f2] text-[#46514f]',
   confirmada:   'bg-[#d8f4ee] text-[#006b5d]',
   cancelada:    'bg-[#ffdad6] text-[#93000a]',
@@ -61,8 +65,44 @@ function getFechaFinCita(cita) {
   return new Date(inicio.getTime() + minutos * 60000).toISOString()
 }
 
+function formatEstadoAgenda(value) {
+  const labels = {
+    disponible: 'Disponible',
+    ocupado: 'Ocupado',
+    pendiente: 'Pendiente',
+    confirmada: 'Confirmada',
+    reprogramada: 'Reprogramada',
+    en_atencion: 'En atencion',
+    cancelada: 'Cancelada',
+    completada: 'Completada',
+  }
+  return labels[value] || (value || 'Pendiente').replaceAll('_', ' ')
+}
+
+function doctorLabel(doctor) {
+  if (!doctor) return 'Doctor'
+  const source = doctor.usuario || doctor
+  return [source.nombre, source.apellido].filter(Boolean).join(' ') || 'Doctor'
+}
+
+function agendaKey(item, index) {
+  return `${item.tipo || 'item'}-${item.id_cita || item.id_horario || index}-${item.estado || 'estado'}`
+}
+
+function agendaHoraInicio(item) {
+  return item.hora_inicio || item.fecha_hora?.slice(11, 16) || ''
+}
+
+function agendaHoraFin(item) {
+  return item.hora_fin || item.fecha_fin?.slice(11, 16) || ''
+}
+
 export default function AdminCitas({ citas, doctores = [], especialidades, citaNotificada, onAccion, actionLoading = '', onRefresh, onCrearHorario }) {
   const [filtros, setFiltros] = useState({ estado: '', especialidad: '', doctor: '', fecha: '' })
+  const [agendaFiltros, setAgendaFiltros] = useState({ id_doctor: '', fecha: '', estado: '' })
+  const [agendaItems, setAgendaItems] = useState([])
+  const [agendaLoading, setAgendaLoading] = useState(false)
+  const [agendaError, setAgendaError] = useState('')
   const [mostrarHorarioForm, setMostrarHorarioForm] = useState(false)
   const [accionPendiente, setAccionPendiente] = useState(null)
   const [modalError, setModalError] = useState('')
@@ -88,6 +128,33 @@ export default function AdminCitas({ citas, doctores = [], especialidades, citaN
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [accionPendiente, actionLoading])
 
+  useEffect(() => {
+    let activo = true
+    const timer = window.setTimeout(async () => {
+      setAgendaLoading(true)
+      setAgendaError('')
+      try {
+        const res = await getAgendaMedica({
+          id_doctor: agendaFiltros.id_doctor || undefined,
+          fecha: agendaFiltros.fecha || undefined,
+          estado: agendaFiltros.estado || undefined,
+        })
+        if (activo) setAgendaItems(res.data || [])
+      } catch (error) {
+        if (activo) {
+          setAgendaItems([])
+          setAgendaError(error.response?.data?.detail || 'No se pudo cargar la agenda.')
+        }
+      } finally {
+        if (activo) setAgendaLoading(false)
+      }
+    }, 150)
+    return () => {
+      activo = false
+      window.clearTimeout(timer)
+    }
+  }, [agendaFiltros])
+
   const citasFiltradas = useMemo(() => {
     let resultado = [...citas]
     if (filtros.estado) resultado = resultado.filter(c => c.estado === filtros.estado)
@@ -102,6 +169,7 @@ export default function AdminCitas({ citas, doctores = [], especialidades, citaN
   }, [citas, filtros, citaNotificada])
 
   const aplicarFiltros = (nuevosFiltros) => setFiltros(nuevosFiltros)
+  const refrescarAgenda = () => setAgendaFiltros(actual => ({ ...actual }))
   const abrirConfirmacion = (cita, accion) => {
     setModalError('')
     setAccionPendiente({ cita, accion })
@@ -116,10 +184,21 @@ export default function AdminCitas({ citas, doctores = [], especialidades, citaN
     setModalError('')
     try {
       await onAccion(accionPendiente.cita.id_cita, accionPendiente.accion)
+      refrescarAgenda()
       setAccionPendiente(null)
     } catch (error) {
       setModalError(error.message || 'No se pudo actualizar la cita.')
     }
+  }
+
+  const crearHorarioYActualizarAgenda = async (payload) => {
+    const horario = await onCrearHorario(payload)
+    setAgendaFiltros(actual => ({
+      ...actual,
+      id_doctor: actual.id_doctor || String(payload.id_doctor || ''),
+    }))
+    refrescarAgenda()
+    return horario
   }
 
   const modalConfig = accionPendiente ? actionModalConfig[accionPendiente.accion] : null
@@ -137,7 +216,7 @@ export default function AdminCitas({ citas, doctores = [], especialidades, citaN
             <span className="material-symbols-outlined text-[18px]">add_circle</span>
             Agregar más fechas y horas disponibles
           </button>
-          <button onClick={onRefresh} className="flex items-center gap-2 medcare-secondary-button px-4 py-2">
+          <button onClick={() => { onRefresh(); refrescarAgenda() }} className="flex items-center gap-2 medcare-secondary-button px-4 py-2">
             <span className="material-symbols-outlined text-[18px]">refresh</span>
             Actualizar
           </button>
@@ -147,7 +226,7 @@ export default function AdminCitas({ citas, doctores = [], especialidades, citaN
       {mostrarHorarioForm && (
         <HorarioDisponibleForm
           doctores={doctores}
-          onSubmit={onCrearHorario}
+          onSubmit={crearHorarioYActualizarAgenda}
           onCancel={() => setMostrarHorarioForm(false)}
         />
       )}
@@ -199,6 +278,87 @@ export default function AdminCitas({ citas, doctores = [], especialidades, citaN
           className="mt-3 text-xs font-bold text-[#006b5d] hover:underline">
           Limpiar filtros
         </button>
+      </div>
+
+      <div className="medcare-card p-5">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <h3 className="text-sm font-extrabold uppercase tracking-widest text-[#006b5d]">Agenda medica</h3>
+            <p className="mt-1 text-sm font-semibold text-[#52615f]">Horarios disponibles y ocupados por doctor.</p>
+          </div>
+          <button type="button" onClick={refrescarAgenda}
+            className="flex items-center gap-2 medcare-secondary-button px-4 py-2">
+            <span className="material-symbols-outlined text-[18px]">refresh</span>
+            Actualizar agenda
+          </button>
+        </div>
+        <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-3">
+          <div>
+            <label className="block text-xs font-bold text-[#223330] mb-1">Doctor</label>
+            <MedCareSelect
+              className="medcare-input"
+              value={agendaFiltros.id_doctor}
+              onChange={e => setAgendaFiltros({ ...agendaFiltros, id_doctor: e.target.value })}
+              options={[
+                { value: '', label: 'Todos los doctores' },
+                ...doctores.map(doctor => ({
+                  value: doctor.id_usuario,
+                  label: `Dr. ${doctorLabel(doctor)}`,
+                })),
+              ]}
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-bold text-[#223330] mb-1">Fecha</label>
+            <DateWheelPicker
+              value={agendaFiltros.fecha}
+              onChange={fecha => setAgendaFiltros({ ...agendaFiltros, fecha })}
+              clearable
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-bold text-[#223330] mb-1">Estado</label>
+            <MedCareSelect
+              className="medcare-input"
+              value={agendaFiltros.estado}
+              onChange={e => setAgendaFiltros({ ...agendaFiltros, estado: e.target.value })}
+              options={[
+                { value: '', label: 'Todos' },
+                { value: 'disponible', label: 'Disponible' },
+                { value: 'ocupado', label: 'Ocupado' },
+                { value: 'pendiente', label: 'Pendiente' },
+                { value: 'confirmada', label: 'Confirmada' },
+                { value: 'reprogramada', label: 'Reprogramada' },
+                { value: 'en_atencion', label: 'En atencion' },
+                { value: 'cancelada', label: 'Cancelada' },
+                { value: 'completada', label: 'Completada' },
+              ]}
+            />
+          </div>
+        </div>
+        <div className="mt-4 divide-y divide-[#bdcbc7] overflow-hidden rounded-xl border border-[#bdcbc7]">
+          {agendaLoading ? (
+            <div className="bg-white px-4 py-5 text-sm font-bold text-[#52615f]">Cargando agenda...</div>
+          ) : agendaError ? (
+            <div className="bg-[#fff0ef] px-4 py-5 text-sm font-bold text-[#93000a]">{agendaError}</div>
+          ) : agendaItems.length === 0 ? (
+            <div className="bg-white px-4 py-5 text-sm font-bold text-[#52615f]">No hay horarios con esos filtros.</div>
+          ) : agendaItems.slice(0, 12).map((item, index) => (
+            <div key={agendaKey(item, index)} className="grid gap-2 bg-white px-4 py-3 text-sm md:grid-cols-[1.2fr_1fr_1fr_auto] md:items-center">
+              <div>
+                <p className="font-extrabold text-[#101828]">
+                  {(item.fecha || item.fecha_hora?.slice(0, 10) || 'Sin fecha')} - {formatTime12h(agendaHoraInicio(item)) || agendaHoraInicio(item)} a {formatTime12h(agendaHoraFin(item)) || agendaHoraFin(item)}
+                </p>
+                <p className="text-xs font-bold text-[#52615f]">Dr. {item.doctor || 'Sin doctor asignado'}</p>
+              </div>
+              <span className="text-[#52615f]">{item.especialidad || 'Sin especialidad'}</span>
+              <span className="text-[#52615f]">{item.paciente || 'Sin paciente asignado'}</span>
+              <span className={`w-fit rounded-full px-3 py-1 text-xs font-extrabold ${statusClass[item.estado] || statusClass.ocupado}`}>
+                {formatEstadoAgenda(item.estado)}
+              </span>
+            </div>
+          ))}
+        </div>
       </div>
 
       <div className="medcare-card overflow-hidden">

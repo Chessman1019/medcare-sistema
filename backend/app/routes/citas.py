@@ -7,6 +7,7 @@ from app.services.cita_service import (
     cambiar_estado_cita,
     contar_horarios_libres_futuros,
     crear_cita,
+    get_agenda_medica,
     get_cita,
     get_citas_doctor,
     get_citas_paciente,
@@ -127,6 +128,43 @@ def estadisticas(_: dict = Depends(require_admin_or_reception)):
         "horarios_libres": horarios_libres,
         "lista_espera": len(lista_espera),
     }
+
+@router.get("/agenda")
+def agenda_medica(
+    id_doctor: int | None = Query(default=None),
+    id_especialidad: int | None = Query(default=None),
+    fecha: str | None = Query(default=None),
+    estado: str | None = Query(default=None),
+    paciente: str | None = Query(default=None),
+    _: dict = Depends(require_admin_or_reception),
+):
+    try:
+        return get_agenda_medica(
+            id_doctor=id_doctor,
+            id_especialidad=id_especialidad,
+            fecha=fecha,
+            estado=estado,
+            paciente=paciente,
+        )
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error))
+
+
+@router.get("/agenda/doctor/{id_doctor}")
+def agenda_doctor(
+    id_doctor: int,
+    fecha: str | None = Query(default=None),
+    estado: str | None = Query(default=None),
+    usuario: dict = Depends(get_current_user),
+):
+    if not _es_gestor_citas(usuario):
+        if usuario.get("rol") != "doctor" or id_doctor != _usuario_id(usuario):
+            raise HTTPException(status_code=403, detail="No tienes permiso para ver agenda de este doctor")
+    try:
+        return get_agenda_medica(id_doctor=id_doctor, fecha=fecha, estado=estado)
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error))
+
 
 @router.get("/paciente/{id_paciente}")
 def citas_paciente(id_paciente: int, usuario: dict = Depends(get_current_user)):
