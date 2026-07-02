@@ -1,6 +1,6 @@
 import { useAuth } from '../../context/AuthContext'
 
-export default function AdminInicio({ stats, listaEspera, doctores, especialidades, onRefresh }) {
+export default function AdminInicio({ stats, listaEspera }) {
     const { user } = useAuth()
 
     return (

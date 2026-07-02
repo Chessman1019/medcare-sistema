@@ -23,7 +23,7 @@ const generoOptions = [
   { value: 'Otro', label: 'Otro' },
 ]
 
-export default function RecepUsuarios({ usuarios, usuarioAdmin, setUsuarioAdmin, especialidades, codigosSugeridos = {}, actionLoading, onCrearUsuario, onShowMessage }) {
+export default function RecepUsuarios({ usuarios, usuarioAdmin, setUsuarioAdmin, especialidades, codigosSugeridos = {}, actionLoading, onCrearUsuario }) {
   const [filtros, setFiltros] = useState({ busqueda: '', rol: '', estado: '' })
   const maxBirthDate = getLimaDateInputValue()
   const { fieldErrors, applyErrors, clearFieldError, inputClass: fieldInputClass } = useFormValidation()
