@@ -8,6 +8,9 @@ ROLES_NOTIFICACION_CITA = ("administrador", "recepcionista")
 TIPO_CITA_PENDIENTE = "cita_pendiente"
 TIPO_RECORDATORIO_CITA = "recordatorio_cita_pendiente"
 TIPO_CITA_FINALIZADA_PENDIENTE = "cita_finalizada_pendiente_gestion"
+TIPO_CITA_CONFIRMADA = "cita_confirmada"
+TIPO_CITA_CANCELADA = "cita_cancelada"
+TIPO_CITA_REPROGRAMADA = "cita_reprogramada"
 DB_TIPOS_NOTIFICACION_CITA = {
     TIPO_CITA_PENDIENTE: "cita_creada",
     TIPO_RECORDATORIO_CITA: "recordatorio_24h",
@@ -162,6 +165,23 @@ def _descripcion_cita(cita: dict) -> str:
     return " · ".join([parte for parte in partes if parte])
 
 
+def _detalle_cita(cita: dict) -> dict:
+    id_cita = cita.get("id_cita")
+    if not id_cita:
+        return cita
+    try:
+        res = supabase.table("v_citas_detalle")\
+            .select("*")\
+            .eq("id_cita", id_cita)\
+            .limit(1)\
+            .execute()
+    except APIError:
+        return cita
+    if not res.data:
+        return cita
+    return {**cita, **_citas_con_fecha_fin(res.data)[0]}
+
+
 def _insertar_notificacion_si_no_existe(
     cita: dict,
     rol: str,
@@ -237,6 +257,17 @@ def sincronizar_notificaciones_citas_pendientes():
                 )
 
 
+def notificar_cita_pendiente(cita: dict):
+    cita = _detalle_cita(cita)
+    for rol in ROLES_NOTIFICACION_CITA:
+        _insertar_notificacion_si_no_existe(
+            cita,
+            rol,
+            TIPO_CITA_PENDIENTE,
+            f"Tienes una cita pendiente por aprobar. {_descripcion_cita(cita)}",
+        )
+
+
 def notificar_cita_finalizada_pendiente(cita: dict, fecha_fin: datetime):
     mensaje = (
         "Tienes una cita finalizada pendiente de gestionar. "
@@ -251,6 +282,54 @@ def notificar_cita_finalizada_pendiente(cita: dict, fecha_fin: datetime):
             mensaje,
             fecha_fin.isoformat(),
         )
+
+
+def notificar_cita_confirmada(cita: dict):
+    cita = _detalle_cita(cita)
+    _insertar_notificacion_si_no_existe(
+        cita,
+        "paciente",
+        TIPO_CITA_CONFIRMADA,
+        "Tu cita fue aprobada.",
+    )
+    _insertar_notificacion_si_no_existe(
+        cita,
+        "doctor",
+        TIPO_CITA_CONFIRMADA,
+        f"Tienes una cita confirmada asignada. {_descripcion_cita(cita)}",
+    )
+
+
+def notificar_cita_cancelada(cita: dict):
+    cita = _detalle_cita(cita)
+    _insertar_notificacion_si_no_existe(
+        cita,
+        "paciente",
+        TIPO_CITA_CANCELADA,
+        "Tu cita fue cancelada.",
+    )
+    _insertar_notificacion_si_no_existe(
+        cita,
+        "doctor",
+        TIPO_CITA_CANCELADA,
+        f"Una cita de tu agenda fue cancelada. {_descripcion_cita(cita)}",
+    )
+
+
+def notificar_cita_reprogramada(cita: dict):
+    cita = _detalle_cita(cita)
+    _insertar_notificacion_si_no_existe(
+        cita,
+        "paciente",
+        TIPO_CITA_REPROGRAMADA,
+        "Tu cita fue reprogramada.",
+    )
+    _insertar_notificacion_si_no_existe(
+        cita,
+        "doctor",
+        TIPO_CITA_REPROGRAMADA,
+        f"Una cita de tu agenda fue reprogramada. {_descripcion_cita(cita)}",
+    )
 
 
 def _notificacion_cita_visible(notificacion: dict, cita: dict | None) -> bool:

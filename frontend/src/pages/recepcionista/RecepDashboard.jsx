@@ -32,7 +32,7 @@ function buildDonutGradient(items, total) {
 }
 function percentage(value, total) { if (!total) return 0; return Math.round((value / total) * 100) }
 
-export default function RecepDashboard({ stats, citas, citasHoy, doctores, pacientes, usuarios, especialidades, isAdmin, onGoToTab }) {
+export default function RecepDashboard({ stats, citas, citasHoy, isAdmin, onGoToTab }) {
   const totalCitas = citas.length
   const estadoMetricas = ['pendiente', 'confirmada', 'reprogramada', 'en_atencion', 'completada', 'cancelada'].map(estado => ({
     key: estado, label: formatEstado(estado),

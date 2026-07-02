@@ -16,10 +16,10 @@ function formatStatus(value) {
 function isManageable(cita) { return cita && !['cancelada', 'completada'].includes(cita.estado) }
 
 export default function PacienteInicio({
-  user, proximaCita, filteredCitas, historial, notificaciones,
+  user, proximaCita, filteredCitas, historial,
   quickPanel, setQuickPanel, activeAppointments, supportMessage,
   setSupportMessage, supportLoading, searchTerm, cancelingId,
-  quickPanelRef, onAgendar, onCancelar, onReprogramar, onEnviarSoporte,
+  quickPanelRef, onCancelar, onReprogramar, onEnviarSoporte,
   onSelectTab, quickActions, soporteTickets = [],
 }) {
   const renderQuickPanel = () => {

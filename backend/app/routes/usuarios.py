@@ -6,6 +6,7 @@ from postgrest.exceptions import APIError
 from app.schemas.usuario import UsuarioAdminCreate
 from app.services.auth_service import decode_token, hash_password
 from app.services.input_validation import normalize_optional_phone
+from app.services.security import require_admin_or_reception
 from fastapi import APIRouter, Body, Depends, Header, HTTPException
 from app.database import supabase, supabase_admin
 
@@ -193,14 +194,14 @@ def toggle_disponible(id_usuario: int, data: dict, _: dict = Depends(require_adm
 
 # ── Pacientes ───────────────────────────────────────────────
 @router.get("/pacientes")
-def get_pacientes():
+def get_pacientes(_: dict = Depends(require_admin_or_reception)):
     res = supabase.table("usuario").select("*, paciente(*)").eq("tipo_usuario", "paciente").execute()
     return res.data
 
 
 # ── Lista de espera ─────────────────────────────────────────
 @router.get("/lista-espera")
-def get_lista_espera():
+def get_lista_espera(_: dict = Depends(require_admin_or_reception)):
     res = supabase.table("lista_espera").select("*, paciente(*, usuario(*)), especialidad(*)").eq("estado", "en_espera").execute()
     return res.data
 

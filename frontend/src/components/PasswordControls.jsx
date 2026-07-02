@@ -78,12 +78,14 @@ export function PasswordField({
   className = '',
   inputClassName = 'medcare-input',
   error = false,
-  required: _required,
-  minLength: _minLength,
-  maxLength: _maxLength,
-  pattern: _pattern,
-  ...inputProps
+  ...rawInputProps
 }) {
+  const inputProps = { ...rawInputProps }
+  delete inputProps.required
+  delete inputProps.minLength
+  delete inputProps.maxLength
+  delete inputProps.pattern
+
   const [visible, setVisible] = useState(false)
   const inputId = inputProps.id || inputProps.name || `password-${label?.replace(/\s+/g, '-').toLowerCase()}`
   const resolvedInputClass = `${inputClassName}${error ? ' medcare-input-invalid' : ''}`

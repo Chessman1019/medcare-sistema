@@ -1,4 +1,6 @@
 import { formatTime12h } from '../../utils/timeFormat'
+import AgendaEmptyState from '../../components/AgendaEmptyState'
+import AgendaStatusBadge from '../../components/AgendaStatusBadge'
 import FormError from '../../components/FormError'
 import MedCareSelect from '../../components/MedCareSelect'
 import { useFormValidation } from '../../hooks/useFormValidation'
@@ -198,9 +200,14 @@ export default function PacienteAgendar({ form, setForm, especialidades, doctore
               {loadingHorarios ? (
                 <p className="col-span-2 rounded-xl bg-[#edf2ff] p-5 text-sm text-[#52615f]">Cargando horarios disponibles...</p>
               ) : horarios.length === 0 ? (
-                <p className="col-span-2 rounded-xl bg-[#edf2ff] p-5 text-sm text-[#52615f]">
-                  {form.id_doctor ? 'No hay citas disponibles por el momento. Vuelve a intentarlo más tarde.' : 'Selecciona un doctor para ver disponibilidad.'}
-                </p>
+                <div className="col-span-2">
+                  <AgendaEmptyState
+                    compact
+                    icon={form.id_doctor ? 'event_busy' : 'person_search'}
+                    title={form.id_doctor ? 'No hay horarios disponibles' : 'Selecciona un doctor para ver disponibilidad'}
+                    description={form.id_doctor ? 'Este doctor no tiene horarios libres para solicitar en este momento.' : 'Cuando elijas un doctor, solo veras horarios realmente disponibles.'}
+                  />
+                </div>
               ) : horarios.map(horario => {
                 const selected = String(form.id_horario) === String(horario.id_horario)
                 const details = getHorarioDetails(horario)
@@ -213,7 +220,7 @@ export default function PacienteAgendar({ form, setForm, especialidades, doctore
                         <p className="text-xs font-extrabold uppercase tracking-widest text-[#006b5d]">Fecha</p>
                         <p className="mt-1 text-lg font-extrabold text-[#101828]">{details.fecha}</p>
                       </div>
-                      {selected && <span className="material-symbols-outlined text-[20px] text-[#006b5d]">check_circle</span>}
+                      {selected ? <span className="material-symbols-outlined text-[20px] text-[#006b5d]">check_circle</span> : <AgendaStatusBadge status="disponible" showIcon={false} />}
                     </div>
                     <div className="mt-4 grid grid-cols-2 gap-2">
                       <div className="rounded-lg bg-white/75 p-2">
@@ -246,6 +253,15 @@ export default function PacienteAgendar({ form, setForm, especialidades, doctore
         <div className="space-y-6 p-7">
           <div><p className="text-xs font-extrabold uppercase tracking-widest text-[#006b5d]">Especialidad</p><p className="mt-1 text-lg font-extrabold">{selectedEspecialidad?.nombre || 'Pendiente'}</p></div>
           <div><p className="text-xs font-extrabold uppercase tracking-widest text-[#006b5d]">Doctor</p><p className="mt-1 text-lg font-extrabold">{selectedDoctor ? `Dr. ${doctorFullName(selectedDoctor)}` : 'Pendiente'}</p></div>
+          <div>
+            <p className="text-xs font-extrabold uppercase tracking-widest text-[#006b5d]">Estado</p>
+            <div className="mt-2">
+              <AgendaStatusBadge status={selectedHorario ? 'pendiente' : 'disponible'} size="md" />
+            </div>
+            <p className="mt-2 text-sm font-semibold text-[#52615f]">
+              {selectedHorario ? 'Al confirmar, la cita quedara pendiente de validacion.' : 'Elige un horario disponible para completar la solicitud.'}
+            </p>
+          </div>
           <div>
             <p className="text-xs font-extrabold uppercase tracking-widest text-[#006b5d]">Fecha y hora</p>
             {selectedHorarioDetails ? (

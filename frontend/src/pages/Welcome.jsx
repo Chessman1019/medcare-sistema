@@ -47,11 +47,13 @@ export default function Welcome() {
   // Preload siguiente imagen
   useEffect(() => {
     const next = (current + 1) % SLIDES.length
-    if (!loaded.includes(next)) {
+    if (loaded.includes(next)) return
+    const timer = setTimeout(() => {
       const img = new Image()
       img.src = SLIDES[next].image
-      setLoaded((prev) => [...prev, next])
-    }
+      setLoaded((prev) => (prev.includes(next) ? prev : [...prev, next]))
+    }, 0)
+    return () => clearTimeout(timer)
   }, [current, loaded])
 
   // Auto-avance cada 4 s

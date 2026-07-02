@@ -82,8 +82,15 @@ export default function AdminConfiguracion() {
     } catch (e) { console.error(e) }
   }, [])
 
-  useEffect(() => { fetchConfig() }, [fetchConfig])
-  useEffect(() => { if (configTab === 'usuarios') fetchUsuarios() }, [configTab, fetchUsuarios])
+  useEffect(() => {
+    const timer = setTimeout(() => { fetchConfig() }, 0)
+    return () => clearTimeout(timer)
+  }, [fetchConfig])
+  useEffect(() => {
+    if (configTab !== 'usuarios') return
+    const timer = setTimeout(() => { fetchUsuarios() }, 0)
+    return () => clearTimeout(timer)
+  }, [configTab, fetchUsuarios])
 
   const guardarConfig = async (e) => {
     e.preventDefault()

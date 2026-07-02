@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import MedCareSelect from '../../components/MedCareSelect'
 import { getSoporteTickets, actualizarSoporteTicket } from '../../services/api'
 
@@ -25,20 +25,23 @@ export default function AdminSoporte() {
     const [error, setError] = useState('')
     const [filtroEstado, setFiltroEstado] = useState('')
 
-    const showMsg = (t) => { setMsg(t); setTimeout(() => setMsg(''), 3000) }
-    const showError = (t) => { setError(t); setTimeout(() => setError(''), 3000) }
+    const showMsg = useCallback((t) => { setMsg(t); setTimeout(() => setMsg(''), 3000) }, [])
+    const showError = useCallback((t) => { setError(t); setTimeout(() => setError(''), 3000) }, [])
 
-    const fetchTickets = async () => {
+    const fetchTickets = useCallback(async () => {
         try {
             const params = filtroEstado ? { estado: filtroEstado } : {}
             const r = await getSoporteTickets(params)
             setTickets(r.data || [])
-        } catch (e) {
+        } catch {
             showError('No se pudieron cargar los tickets.')
         } finally { setLoading(false) }
-    }
+    }, [filtroEstado, showError])
 
-    useEffect(() => { fetchTickets() }, [filtroEstado])
+    useEffect(() => {
+        const timer = setTimeout(() => { fetchTickets() }, 0)
+        return () => clearTimeout(timer)
+    }, [fetchTickets])
 
     const abrirTicket = (ticket) => {
         setSelected(ticket)

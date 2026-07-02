@@ -3,7 +3,7 @@ import { useAuth } from '../../context/AuthContext'
 import Layout from '../../components/Layout'
 import PortalSidebar from '../../components/PortalSidebar'
 import {
-  eliminarNotificacion, enviarSoporte, getCitasDoctor, getHistorial,
+  eliminarNotificacion, enviarSoporte, getAgendaDoctor, getCitasDoctor, getHistorial,
   getNotificacionesDoctor, marcarNotificacionLeida, registrarAtencion,
   getSoporteTickets,
 } from '../../services/api'
@@ -33,6 +33,10 @@ export default function DashboardDoctor() {
   const userId = user?.id
   const [tab, setTab] = useState('agenda')
   const [citas, setCitas] = useState([])
+  const [agendaItems, setAgendaItems] = useState([])
+  const [agendaFiltros, setAgendaFiltros] = useState({ fecha: '', estado: '' })
+  const [agendaLoading, setAgendaLoading] = useState(false)
+  const [agendaError, setAgendaError] = useState('')
   const [notificaciones, setNotificaciones] = useState([])
   const [soporteTickets, setSoporteTickets] = useState([])
   const [loading, setLoading] = useState(true)
@@ -74,7 +78,7 @@ export default function DashboardDoctor() {
         setLoading(false)
         await refreshSoporte()
         return
-      } catch (error) {
+      } catch {
         intentos++
         if (intentos < 5) await new Promise(res => setTimeout(res, 1000))
       }
@@ -83,20 +87,56 @@ export default function DashboardDoctor() {
     setMessage('No se pudo cargar la agenda médica.')
   }, [userId, refreshSoporte])
 
-  useEffect(() => { fetchCitas() }, [fetchCitas])
+  const fetchAgenda = useCallback(async () => {
+    if (!userId) return
+    setAgendaLoading(true)
+    setAgendaError('')
+    try {
+      const res = await getAgendaDoctor(userId, {
+        fecha: agendaFiltros.fecha || undefined,
+        estado: agendaFiltros.estado || undefined,
+      })
+      setAgendaItems(res.data || [])
+    } catch (error) {
+      setAgendaItems([])
+      setAgendaError(error.response?.data?.detail || 'No se pudo cargar tu agenda.')
+    } finally {
+      setAgendaLoading(false)
+    }
+  }, [userId, agendaFiltros])
+
+  useEffect(() => {
+    const timer = window.setTimeout(fetchCitas, 0)
+    return () => window.clearTimeout(timer)
+  }, [fetchCitas])
+  useEffect(() => {
+    const timer = window.setTimeout(fetchAgenda, 0)
+    return () => window.clearTimeout(timer)
+  }, [fetchAgenda])
 
   useEffect(() => {
     if (!focusVersion) return
     window.setTimeout(() => { contentRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }) }, 0)
   }, [focusVersion])
 
-  const agendaDiaria = useMemo(() => {
+  const agendaFiltrada = useMemo(() => {
     const term = searchTerm.trim().toLowerCase()
-    return citas
-      .filter(c => isToday(c.fecha_hora) && c.estado !== 'cancelada')
-      .filter(c => !term || [c.paciente, c.dni, c.especialidad, c.estado, c.motivo].some(f => String(f || '').toLowerCase().includes(term)))
+    return agendaItems
+      .filter(item => !term || [
+        item.paciente,
+        item.dni,
+        item.especialidad,
+        item.estado,
+        item.motivo,
+        item.fecha,
+        formatDateTime(item.fecha_hora),
+      ].some(f => String(f || '').toLowerCase().includes(term)))
       .sort((a, b) => new Date(a.fecha_hora) - new Date(b.fecha_hora))
-  }, [citas, searchTerm])
+  }, [agendaItems, searchTerm])
+
+  const agendaDiaria = useMemo(() => {
+    return agendaFiltrada.filter(item => item.tipo === 'cita' && isToday(item.fecha_hora) && item.estado !== 'cancelada')
+  }, [agendaFiltrada])
 
   const pacientesUnicos = useMemo(() => {
     const term = searchTerm.trim().toLowerCase()
@@ -179,7 +219,7 @@ export default function DashboardDoctor() {
       await registrarAtencion(selected.id_cita, form)
       setMessage('Atención registrada correctamente.')
       setSelected(null); setForm(emptyAtencion); setHistorial([])
-      await fetchCitas(); goToTab('agenda')
+      await Promise.all([fetchCitas(), fetchAgenda()]); goToTab('agenda')
     } catch (error) {
       setMessage(error.response?.data?.detail || 'No se pudo registrar la atención.')
     } finally { setSaving(false) }
@@ -322,8 +362,17 @@ export default function DashboardDoctor() {
         )}
 
         {tab === 'agenda' && (
-          <DoctorAgenda agendaDiaria={agendaDiaria} enAtencion={enAtencion}
-            pacientesUnicos={pacientesUnicos} onAtender={abrirAtencion} />
+          <DoctorAgenda
+            agendaItems={agendaFiltrada}
+            agendaLoading={agendaLoading}
+            agendaError={agendaError}
+            agendaFiltros={agendaFiltros}
+            setAgendaFiltros={setAgendaFiltros}
+            enAtencion={enAtencion}
+            pacientesUnicos={pacientesUnicos}
+            onAtender={abrirAtencion}
+            onRefresh={() => { fetchAgenda(); fetchCitas() }}
+          />
         )}
         {tab === 'atencion' && (
           <DoctorAtencion selected={selected} form={form} setForm={setForm}
