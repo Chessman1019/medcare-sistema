@@ -56,6 +56,7 @@ export const crearHorarioDisponible = (data) => API.post('/horarios/', data)
 
 export const crearCita = (data) => API.post('/citas/', data)
 export const getAgendaMedica = (params = {}) => API.get('/citas/agenda', { params })
+export const getAgendaDoctor = (id, params = {}) => API.get(`/citas/agenda/doctor/${id}`, { params })
 export const getTodasCitas = () => API.get('/citas/todas')
 export const getCitasHoy = () => API.get('/citas/hoy')
 export const getStatsCitas = () => API.get('/citas/stats')
