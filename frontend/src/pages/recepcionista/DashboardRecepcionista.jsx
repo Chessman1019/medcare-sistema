@@ -53,6 +53,7 @@ export default function DashboardRecepcionista() {
   const [searchTerm, setSearchTerm] = useState('')
   const [citaNotificada, setCitaNotificada] = useState(null)
   const [agendaDoctor, setAgendaDoctor] = useState('')
+  const [agendaFiltros, setAgendaFiltros] = useState({ id_doctor: '', id_especialidad: '', paciente: '', fecha: '', estado: '' })
   const [horariosAgenda, setHorariosAgenda] = useState([])
   const [reprogramacion, setReprogramacion] = useState(null)
   const [registro, setRegistro] = useState(emptyRegistro)
@@ -255,42 +256,40 @@ export default function DashboardRecepcionista() {
     finally { setActionLoading('') }
   }
 
-  const cargarDisponibilidad = useCallback(async (idDoctor) => {
-    setAgendaDoctor(idDoctor)
-    if (!idDoctor) { setHorariosAgenda([]); return }
+  const cargarDisponibilidad = useCallback(async (filtrosAgenda) => {
+    setAgendaDoctor(filtrosAgenda.id_doctor || '')
     try {
       const res = await getAgendaMedica({
-        id_doctor: idDoctor,
-        fecha: filtros.fecha || undefined,
-        estado: filtros.estado || undefined,
+        id_doctor: filtrosAgenda.id_doctor || undefined,
+        id_especialidad: filtrosAgenda.id_especialidad || undefined,
+        paciente: filtrosAgenda.paciente || undefined,
+        fecha: filtrosAgenda.fecha || undefined,
+        estado: filtrosAgenda.estado || undefined,
       })
       setHorariosAgenda(res.data || [])
     } catch {
       setHorariosAgenda([])
     }
-  }, [filtros.fecha, filtros.estado])
+  }, [])
 
   useEffect(() => {
-    if (tab !== 'agenda' || !agendaDoctor) return undefined
+    if (tab !== 'agenda') return undefined
     const timer = window.setTimeout(() => {
-      cargarDisponibilidad(agendaDoctor)
+      cargarDisponibilidad(agendaFiltros)
     }, 150)
     return () => window.clearTimeout(timer)
-  }, [tab, agendaDoctor, filtros.fecha, filtros.estado, cargarDisponibilidad])
+  }, [tab, agendaFiltros, cargarDisponibilidad])
 
   const registrarHorarioDisponible = async (payload) => {
     const res = await crearHorarioDisponible(payload)
     const statsR = await getStatsCitas()
     setStats(statsR.data)
-    if (String(agendaDoctor || payload.id_doctor) === String(payload.id_doctor)) {
-      setAgendaDoctor(String(payload.id_doctor))
-      const horariosR = await getAgendaMedica({
-        id_doctor: payload.id_doctor,
-        fecha: filtros.fecha || undefined,
-        estado: filtros.estado || undefined,
-      })
-      setHorariosAgenda(horariosR.data || [])
+    const siguientesFiltros = {
+      ...agendaFiltros,
+      id_doctor: agendaFiltros.id_doctor || String(payload.id_doctor || ''),
     }
+    setAgendaFiltros(siguientesFiltros)
+    await cargarDisponibilidad(siguientesFiltros)
     return res.data
   }
 
@@ -382,8 +381,10 @@ export default function DashboardRecepcionista() {
         )}
         {tab === 'agenda' && (
           <RecepAgenda citasFiltradas={citasFiltradas} filtros={filtros} setFiltros={setFiltros}
-            doctores={doctores} horariosAgenda={horariosAgenda} agendaDoctor={agendaDoctor}
-            onCargarDisponibilidad={cargarDisponibilidad} onCrearHorario={registrarHorarioDisponible}
+            doctores={doctores} especialidades={especialidades}
+            horariosAgenda={horariosAgenda} agendaDoctor={agendaDoctor}
+            agendaFiltros={agendaFiltros} setAgendaFiltros={setAgendaFiltros}
+            onCrearHorario={registrarHorarioDisponible}
             onGoToTab={goToTab} onShowMessage={showMessage} />
         )}
         {tab === 'gestion' && (

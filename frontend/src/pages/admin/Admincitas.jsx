@@ -99,7 +99,7 @@ function agendaHoraFin(item) {
 
 export default function AdminCitas({ citas, doctores = [], especialidades, citaNotificada, onAccion, actionLoading = '', onRefresh, onCrearHorario }) {
   const [filtros, setFiltros] = useState({ estado: '', especialidad: '', doctor: '', fecha: '' })
-  const [agendaFiltros, setAgendaFiltros] = useState({ id_doctor: '', fecha: '', estado: '' })
+  const [agendaFiltros, setAgendaFiltros] = useState({ id_doctor: '', id_especialidad: '', paciente: '', fecha: '', estado: '' })
   const [agendaItems, setAgendaItems] = useState([])
   const [agendaLoading, setAgendaLoading] = useState(false)
   const [agendaError, setAgendaError] = useState('')
@@ -136,6 +136,8 @@ export default function AdminCitas({ citas, doctores = [], especialidades, citaN
       try {
         const res = await getAgendaMedica({
           id_doctor: agendaFiltros.id_doctor || undefined,
+          id_especialidad: agendaFiltros.id_especialidad || undefined,
+          paciente: agendaFiltros.paciente || undefined,
           fecha: agendaFiltros.fecha || undefined,
           estado: agendaFiltros.estado || undefined,
         })
@@ -244,6 +246,8 @@ export default function AdminCitas({ citas, doctores = [], especialidades, citaN
                 { value: '', label: 'Todos' },
                 { value: 'pendiente', label: 'Pendiente' },
                 { value: 'confirmada', label: 'Confirmada' },
+                { value: 'reprogramada', label: 'Reprogramada' },
+                { value: 'en_atencion', label: 'En atencion' },
                 { value: 'cancelada', label: 'Cancelada' },
                 { value: 'completada', label: 'Completada' },
               ]}
@@ -292,7 +296,7 @@ export default function AdminCitas({ citas, doctores = [], especialidades, citaN
             Actualizar agenda
           </button>
         </div>
-        <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-3">
+        <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-5">
           <div>
             <label className="block text-xs font-bold text-[#223330] mb-1">Doctor</label>
             <MedCareSelect
@@ -306,6 +310,30 @@ export default function AdminCitas({ citas, doctores = [], especialidades, citaN
                   label: `Dr. ${doctorLabel(doctor)}`,
                 })),
               ]}
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-bold text-[#223330] mb-1">Especialidad</label>
+            <MedCareSelect
+              className="medcare-input"
+              value={agendaFiltros.id_especialidad}
+              onChange={e => setAgendaFiltros({ ...agendaFiltros, id_especialidad: e.target.value })}
+              options={[
+                { value: '', label: 'Todas' },
+                ...especialidades.map(especialidad => ({
+                  value: especialidad.id_especialidad,
+                  label: especialidad.nombre,
+                })),
+              ]}
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-bold text-[#223330] mb-1">Paciente</label>
+            <input
+              className="medcare-input"
+              placeholder="Buscar paciente..."
+              value={agendaFiltros.paciente}
+              onChange={e => setAgendaFiltros({ ...agendaFiltros, paciente: e.target.value })}
             />
           </div>
           <div>
@@ -336,6 +364,10 @@ export default function AdminCitas({ citas, doctores = [], especialidades, citaN
             />
           </div>
         </div>
+        <button type="button" onClick={() => setAgendaFiltros({ id_doctor: '', id_especialidad: '', paciente: '', fecha: '', estado: '' })}
+          className="mt-3 text-xs font-bold text-[#006b5d] hover:underline">
+          Limpiar filtros de agenda
+        </button>
         <div className="mt-4 divide-y divide-[#bdcbc7] overflow-hidden rounded-xl border border-[#bdcbc7]">
           {agendaLoading ? (
             <div className="bg-white px-4 py-5 text-sm font-bold text-[#52615f]">Cargando agenda...</div>
