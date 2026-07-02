@@ -19,7 +19,6 @@ export default function SeguroMedicoField({
   label = 'Seguro médico',
   className = '',
   inputClassName = 'medcare-input mt-2',
-  required = false,
   disabled = false,
 }) {
   const [seguros, setSeguros] = useState([])

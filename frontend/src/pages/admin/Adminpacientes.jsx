@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import MedCareSelect from '../../components/MedCareSelect'
 
-export default function AdminPacientes({ pacientes, onRefresh }) {
+export default function AdminPacientes({ pacientes }) {
   const [filtros, setFiltros] = useState({ busqueda: '', genero: '', seguro: '', estado: '' })
   const [selectedId, setSelectedId] = useState(null)
 
