@@ -1,19 +1,11 @@
 import { formatTime12h } from '../../utils/timeFormat'
+import AgendaEmptyState from '../../components/AgendaEmptyState'
+import AgendaStatusBadge from '../../components/AgendaStatusBadge'
 import MedCareSelect from '../../components/MedCareSelect'
+import { formatAgendaDateTime } from '../../utils/agendaDisplay'
 
-const statusClass = { pendiente: 'bg-[#f5f5f2] text-[#46514f]', confirmada: 'bg-[#d8f4ee] text-[#006b5d]', reprogramada: 'bg-[#e8edff] text-[#355382]', cancelada: 'bg-[#ffdad6] text-[#93000a]', completada: 'bg-[#d8e5e2] text-[#293533]', en_atencion: 'bg-[#dff8fb] text-[#006b5d]' }
 const dangerButtonClass = 'rounded-xl border border-[#ffb4ab] bg-white px-4 py-3 font-extrabold text-[#93000a] transition hover:-translate-y-0.5 hover:bg-[#fff0ef] hover:shadow-sm focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#ffb4ab]/30 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60'
 
-function formatDate(value) {
-  if (!value) return 'Sin fecha'
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return value
-  return date.toLocaleString('es-PE', { dateStyle: 'medium', timeStyle: 'short' })
-}
-function formatStatus(value) {
-  const labels = { pendiente: 'Pendiente', confirmada: 'Confirmada', reprogramada: 'Reprogramada', cancelada: 'Cancelada', completada: 'Completada', en_atencion: 'En atención' }
-  return labels[value] || (value || 'Pendiente').replaceAll('_', ' ')
-}
 function isManageable(cita) { return cita && !['cancelada', 'completada'].includes(cita.estado) }
 
 export default function PacienteCitas({ filteredCitas, reprogramacion, setReprogramacion, searchTerm, savingReprogramacion, cancelingId, onCancelar, onReprogramar, onGuardarReprogramacion, onAgendar }) {
@@ -53,18 +45,21 @@ export default function PacienteCitas({ filteredCitas, reprogramacion, setReprog
 
       <div className="space-y-4">
         {filteredCitas.length === 0 ? (
-          <div className="medcare-card p-10 text-center text-[#52615f]">
-            <p>{searchTerm ? 'No encontramos citas con esa búsqueda.' : 'No tienes citas registradas.'}</p>
-            <button type="button" onClick={onAgendar} className="medcare-primary-button mt-5 px-6 py-3">Nueva cita</button>
-          </div>
+          <AgendaEmptyState
+            icon={searchTerm ? 'manage_search' : 'event_available'}
+            title={searchTerm ? 'No encontramos citas con esa busqueda' : 'Todavia no tienes citas registradas'}
+            description={searchTerm ? 'Prueba con otro doctor, especialidad o estado.' : 'Agenda una cita y aqui veras el estado de tu solicitud.'}
+            actionLabel="Nueva cita"
+            onAction={onAgendar}
+          />
         ) : filteredCitas.map(cita => (
           <article key={cita.id_cita} className="medcare-card flex flex-col gap-5 p-6 transition hover:-translate-y-0.5 hover:shadow-lg md:flex-row md:items-center md:justify-between">
             <div>
               <div className="flex flex-wrap items-center gap-3">
                 <h3 className="text-xl font-extrabold text-[#101828]">Dr. {cita.doctor}</h3>
-                <span className={`rounded-full px-3 py-1 text-sm font-extrabold ${statusClass[cita.estado] || statusClass.pendiente}`}>{formatStatus(cita.estado)}</span>
+                <AgendaStatusBadge status={cita.estado} size="md" />
               </div>
-              <p className="mt-2 text-[#52615f]">{cita.especialidad} · {formatDate(cita.fecha_hora)}</p>
+              <p className="mt-2 text-[#52615f]">{cita.especialidad} · {formatAgendaDateTime(cita.fecha_hora)}</p>
               {cita.motivo && <p className="mt-1 text-sm text-[#52615f]">{cita.motivo}</p>}
             </div>
             {isManageable(cita) ? (

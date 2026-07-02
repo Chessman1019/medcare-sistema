@@ -290,7 +290,7 @@ def notificar_cita_confirmada(cita: dict):
         cita,
         "paciente",
         TIPO_CITA_CONFIRMADA,
-        f"Tu cita fue aprobada. {_descripcion_cita(cita)}",
+        "Tu cita fue aprobada.",
     )
     _insertar_notificacion_si_no_existe(
         cita,
@@ -306,7 +306,7 @@ def notificar_cita_cancelada(cita: dict):
         cita,
         "paciente",
         TIPO_CITA_CANCELADA,
-        f"Tu cita fue cancelada. {_descripcion_cita(cita)}",
+        "Tu cita fue cancelada.",
     )
     _insertar_notificacion_si_no_existe(
         cita,
@@ -322,7 +322,7 @@ def notificar_cita_reprogramada(cita: dict):
         cita,
         "paciente",
         TIPO_CITA_REPROGRAMADA,
-        f"Tu cita fue reprogramada. {_descripcion_cita(cita)}",
+        "Tu cita fue reprogramada.",
     )
     _insertar_notificacion_si_no_existe(
         cita,

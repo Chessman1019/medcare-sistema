@@ -10,6 +10,12 @@ import {
 import PacienteInicio from './PacienteInicio'
 import PacienteAgendar from './PacienteAgendar'
 import PacienteCitas from './PacienteCitas'
+import {
+  buildPatientAppointmentNotificationDetails,
+  getAppointmentNotificationTime,
+  getPatientAppointmentNotificationDescription,
+  getPatientAppointmentNotificationTitle,
+} from '../../utils/appointmentNotifications'
 
 function formatDate(value) {
   if (!value) return 'Sin fecha'
@@ -269,13 +275,18 @@ export default function DashboardPaciente() {
     { key: 'soporte',    icon: 'support_agent',   label: 'Soporte',          detail: `${soporteTickets.length} solicitudes` },
   ]
 
-  const notificationItems = notificaciones.length ? notificaciones.slice(0, 6).map(item => {
+  const notificacionesPaciente = notificaciones.filter(item => !item.rol_destino || item.rol_destino === 'paciente')
+
+  const notificationItems = notificacionesPaciente.length ? notificacionesPaciente.slice(0, 6).map(item => {
     const read = item.leida ?? item.enviada
+    const details = buildPatientAppointmentNotificationDetails(item)
+    const description = getPatientAppointmentNotificationDescription(item)
     return {
       key: item.id_notif,
-      title: item.tipo?.replaceAll('_', ' ') || 'Notificación',
-      description: item.mensaje,
-      time: formatDate(item.fecha_programada),
+      title: getPatientAppointmentNotificationTitle(item),
+      description,
+      details,
+      time: getAppointmentNotificationTime(item),
       actionLabel: read ? 'Ver citas' : 'No leída · Ver citas',
       read,
       onClick: () => handleNotificacion(item),
@@ -298,7 +309,7 @@ export default function DashboardPaciente() {
     }] : []),
   ]
 
-  const unreadNotificationCount = notificaciones.filter(item => !(item.leida ?? item.enviada)).length
+  const unreadNotificationCount = notificacionesPaciente.filter(item => !(item.leida ?? item.enviada)).length
 
   const helpItems = [
     { title: 'Soporte del paciente', description: 'Pide ayuda para horarios o reprogramaciones.', actionLabel: 'Solicitar apoyo', onClick: () => openInicioPanel('soporte') },
