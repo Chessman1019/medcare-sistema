@@ -1,3 +1,5 @@
+import logging
+
 from datetime import date, datetime, time, timedelta, timezone
 from zoneinfo import ZoneInfo
 from zoneinfo import ZoneInfoNotFoundError
@@ -8,7 +10,10 @@ from app.database import supabase, supabase_admin
 from app.services.notificacion_service import (
     marcar_notificaciones_cita_leidas,
     notificar_cita_finalizada_pendiente,
+    notificar_horario_liberado,
 )
+
+logger = logging.getLogger(__name__)
 
 try:
     LIMA_TZ = ZoneInfo("America/Lima")
@@ -129,6 +134,14 @@ def _raise_cita_update_error(error: APIError):
     if _is_on_conflict_constraint_error(error):
         raise ValueError("Hay un trigger antiguo de notificaciones en la base de datos. Ejecuta la migracion 20260628_desactivar_triggers_notificacion_cita.sql.")
     raise error
+
+
+def _notificar_lista_espera_seguro(cita: dict):
+    """Notifica a recepcion/admin sobre la lista de espera sin romper la cancelacion si falla."""
+    try:
+        notificar_horario_liberado(cita)
+    except Exception as error:
+        logger.warning("No se pudo notificar la lista de espera: %s", error)
 
 
 def _validar_rango_horario(fecha, hora_inicio, hora_fin) -> tuple[str, str, str]:
@@ -377,6 +390,7 @@ def cancelar_cita(id_cita: int):
     marcar_notificaciones_cita_leidas(id_cita)
     if cita and cita.get("id_horario"):
         liberar_horario(cita["id_horario"])
+        _notificar_lista_espera_seguro(cita)
     return res.data
 
 def get_cita(id_cita: int):
@@ -416,6 +430,7 @@ def cambiar_estado_cita(id_cita: int, estado: str):
         ocupar_horario(cita["id_horario"])
     if estado == "cancelada" and cita.get("id_horario"):
         liberar_horario(cita["id_horario"])
+        _notificar_lista_espera_seguro(cita)
     if estado in {"confirmada", "cancelada", "completada"}:
         marcar_notificaciones_cita_leidas(id_cita)
     return res.data
@@ -451,6 +466,7 @@ def reprogramar_cita(id_cita: int, id_horario: int, fecha_hora: str):
         .execute()
     if horario_anterior and horario_anterior != id_horario:
         liberar_horario(horario_anterior)
+        _notificar_lista_espera_seguro(cita)
     ocupar_horario(id_horario)
     return res.data
 

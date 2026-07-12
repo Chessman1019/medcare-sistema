@@ -8,10 +8,12 @@ ROLES_NOTIFICACION_CITA = ("administrador", "recepcionista")
 TIPO_CITA_PENDIENTE = "cita_pendiente"
 TIPO_RECORDATORIO_CITA = "recordatorio_cita_pendiente"
 TIPO_CITA_FINALIZADA_PENDIENTE = "cita_finalizada_pendiente_gestion"
+TIPO_HORARIO_LIBERADO = "horario_liberado"
 DB_TIPOS_NOTIFICACION_CITA = {
     TIPO_CITA_PENDIENTE: "cita_creada",
     TIPO_RECORDATORIO_CITA: "recordatorio_24h",
     TIPO_CITA_FINALIZADA_PENDIENTE: TIPO_CITA_FINALIZADA_PENDIENTE,
+    TIPO_HORARIO_LIBERADO: TIPO_HORARIO_LIBERADO,
 }
 SCHEMA_COLUMNS_PERSISTENTES = ("leida", "leida_en", "eliminada", "eliminada_en", "rol_destino", "clave")
 
@@ -251,6 +253,60 @@ def notificar_cita_finalizada_pendiente(cita: dict, fecha_fin: datetime):
             mensaje,
             fecha_fin.isoformat(),
         )
+
+
+def notificar_horario_liberado(cita: dict):
+    """Al liberarse un horario por cancelacion o reprogramacion, avisa a
+    recepcion/admin del primer paciente en lista de espera (FIFO) de esa
+    especialidad para que lo contacten y agenden la cita."""
+    id_doctor = cita.get("id_doctor")
+    id_cita = cita.get("id_cita")
+    if not id_doctor or not id_cita:
+        return None
+
+    try:
+        doctor_res = supabase_admin.table("doctor")\
+            .select("id_especialidad, especialidad(nombre)")\
+            .eq("id_usuario", id_doctor)\
+            .limit(1)\
+            .execute()
+    except APIError:
+        return None
+    if not doctor_res.data:
+        return None
+
+    id_especialidad = doctor_res.data[0].get("id_especialidad")
+    especialidad_nombre = (doctor_res.data[0].get("especialidad") or {}).get("nombre") or "la especialidad"
+
+    try:
+        espera_res = supabase_admin.table("lista_espera")\
+            .select("id_espera, fecha_solicitud, paciente(usuario(nombre, apellido, telefono, email))")\
+            .eq("estado", "en_espera")\
+            .eq("id_especialidad", id_especialidad)\
+            .order("fecha_solicitud")\
+            .limit(1)\
+            .execute()
+    except APIError:
+        return None
+    if not espera_res.data:
+        return None  # nadie esperando esta especialidad
+
+    usuario = ((espera_res.data[0].get("paciente") or {}).get("usuario") or {})
+    nombre = f"{usuario.get('nombre', '')} {usuario.get('apellido', '')}".strip() or "un paciente"
+    contacto = usuario.get("telefono") or usuario.get("email") or ""
+    mensaje = (
+        f"Se libero un horario de {especialidad_nombre} y hay pacientes en lista de espera. "
+        f"El primero en la cola es {nombre}"
+        + (f" ({contacto})" if contacto else "")
+        + ". Contactalo para agendar la cita en el horario liberado."
+    )
+
+    resultados = []
+    for rol in ROLES_NOTIFICACION_CITA:
+        resultados.append(
+            _insertar_notificacion_si_no_existe(cita, rol, TIPO_HORARIO_LIBERADO, mensaje)
+        )
+    return resultados
 
 
 def _notificacion_cita_visible(notificacion: dict, cita: dict | None) -> bool:
