@@ -11,7 +11,6 @@ export default function CodigoSugeridoField({
   suggested = '',
   inputClassName = 'medcare-input mt-2',
   className = '',
-  required = true,
   disabled = false,
 }) {
   const normalizedSuggested = normalizeCode(suggested)

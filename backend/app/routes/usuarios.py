@@ -6,6 +6,7 @@ from postgrest.exceptions import APIError
 from app.schemas.usuario import UsuarioAdminCreate
 from app.services.auth_service import decode_token, hash_password
 from app.services.input_validation import normalize_optional_phone
+from app.services.security import require_admin_or_reception
 from fastapi import APIRouter, Body, Depends, Header, HTTPException
 from app.database import supabase, supabase_admin
 
@@ -47,15 +48,6 @@ def require_admin(authorization: str | None = Header(default=None)):
     payload = decode_token(authorization.replace("Bearer ", "", 1).strip())
     if not payload or payload.get("rol") != "administrador":
         raise HTTPException(status_code=403, detail="Solo un administrador puede realizar esta acción")
-    return payload
-
-def get_current_user(authorization: str | None = Header(default=None)):
-    """Valida el token de cualquier usuario autenticado (sin restricción de rol)."""
-    if not authorization or not authorization.startswith("Bearer "):
-        raise HTTPException(status_code=401, detail="Token requerido")
-    payload = decode_token(authorization.replace("Bearer ", "", 1).strip())
-    if not payload:
-        raise HTTPException(status_code=401, detail="Token inválido o expirado")
     return payload
 
 def _get_or_raise_unique(table, field, value, message):
@@ -202,55 +194,16 @@ def toggle_disponible(id_usuario: int, data: dict, _: dict = Depends(require_adm
 
 # ── Pacientes ───────────────────────────────────────────────
 @router.get("/pacientes")
-def get_pacientes():
+def get_pacientes(_: dict = Depends(require_admin_or_reception)):
     res = supabase.table("usuario").select("*, paciente(*)").eq("tipo_usuario", "paciente").execute()
     return res.data
 
 
 # ── Lista de espera ─────────────────────────────────────────
 @router.get("/lista-espera")
-def get_lista_espera():
-    res = supabase.table("lista_espera")\
-        .select("*, paciente(*, usuario(*)), especialidad(*)")\
-        .eq("estado", "en_espera")\
-        .order("fecha_solicitud")\
-        .execute()
+def get_lista_espera(_: dict = Depends(require_admin_or_reception)):
+    res = supabase.table("lista_espera").select("*, paciente(*, usuario(*)), especialidad(*)").eq("estado", "en_espera").execute()
     return res.data
-
-@router.post("/lista-espera")
-def agregar_lista_espera(data: dict = Body(...), _: dict = Depends(get_current_user)):
-    id_paciente = data.get("id_paciente")
-    id_especialidad = data.get("id_especialidad")
-    if not id_paciente or not id_especialidad:
-        raise HTTPException(status_code=400, detail="id_paciente e id_especialidad son requeridos")
-
-    existente = supabase.table("lista_espera")\
-        .select("id_espera")\
-        .eq("id_paciente", id_paciente)\
-        .eq("id_especialidad", id_especialidad)\
-        .eq("estado", "en_espera")\
-        .execute()
-    if existente.data:
-        raise HTTPException(status_code=400, detail="Ya estás en lista de espera para esta especialidad")
-
-    try:
-        res = supabase_admin.table("lista_espera").insert({
-            "id_paciente": int(id_paciente),
-            "id_especialidad": int(id_especialidad),
-            "estado": "en_espera",
-        }).execute()
-    except APIError as error:
-        raise HTTPException(status_code=400, detail=str(error))
-    if not res.data:
-        raise HTTPException(status_code=400, detail="No se pudo registrar en la lista de espera")
-    return res.data[0]
-
-@router.patch("/lista-espera/{id_espera}")
-def actualizar_lista_espera(id_espera: int, data: dict = Body(...), _: dict = Depends(require_admin)):
-    supabase_admin.table("lista_espera").update({
-        "estado": data["estado"]
-    }).eq("id_espera", id_espera).execute()
-    return {"mensaje": "Lista de espera actualizada"}
 
 
 # ── Configuración ───────────────────────────────────────────
@@ -282,3 +235,9 @@ def actualizar_especialidad(id_especialidad: int, data: dict = Body(...), _: dic
         "descripcion": data.get("descripcion", ""),
     }).eq("id_especialidad", id_especialidad).execute()
     return res.data[0]
+@router.patch("/lista-espera/{id_espera}")
+def actualizar_lista_espera(id_espera: int, data: dict = Body(...), _: dict = Depends(require_admin)):
+    supabase_admin.table("lista_espera").update({
+        "estado": data["estado"]
+    }).eq("id_espera", id_espera).execute()
+    return {"mensaje": "Lista de espera actualizada"}

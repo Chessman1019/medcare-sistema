@@ -2,6 +2,7 @@ import { useState } from 'react'
 import axios from 'axios'
 import FormAlert from '../../components/FormAlert'
 import FormError from '../../components/FormError'
+import MedCareSelect from '../../components/MedCareSelect'
 import { useFormValidation } from '../../hooks/useFormValidation'
 import { validateName } from '../../utils/formValidation'
 
@@ -157,34 +158,34 @@ export default function AdminEspecialidades({ especialidades, doctores, onRefres
           <form noValidate onSubmit={guardarAsignacion} className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <label className="block text-sm font-bold text-[#223330]">
               Doctor
-              <select
+              <MedCareSelect
                 className={inputClass}
                 value={asignarForm.id_usuario}
                 onChange={e => setAsignarForm(f => ({ ...f, id_usuario: e.target.value }))}
-              >
-                <option value="">Selecciona un doctor</option>
-                {doctores.map(d => (
-                  <option key={d.id_usuario} value={d.id_usuario}>
-                    {d.nombre} {d.apellido} {d.doctor?.especialidad?.nombre ? `— actual: ${d.doctor.especialidad.nombre}` : '— sin especialidad'}
-                  </option>
-                ))}
-              </select>
+                options={[
+                  { value: '', label: 'Selecciona un doctor' },
+                  ...doctores.map(d => ({
+                    value: d.id_usuario,
+                    label: `${d.nombre} ${d.apellido} ${d.doctor?.especialidad?.nombre ? `— actual: ${d.doctor.especialidad.nombre}` : '— sin especialidad'}`,
+                  })),
+                ]}
+              />
             </label>
 
             <label className="block text-sm font-bold text-[#223330]">
               Nueva especialidad
-              <select
+              <MedCareSelect
                 className={inputClass}
                 value={asignarForm.id_especialidad}
                 onChange={e => setAsignarForm(f => ({ ...f, id_especialidad: e.target.value }))}
-              >
-                <option value="">Selecciona una especialidad</option>
-                {especialidades.map(esp => (
-                  <option key={esp.id_especialidad} value={esp.id_especialidad}>
-                    {esp.nombre}
-                  </option>
-                ))}
-              </select>
+                options={[
+                  { value: '', label: 'Selecciona una especialidad' },
+                  ...especialidades.map(esp => ({
+                    value: esp.id_especialidad,
+                    label: esp.nombre,
+                  })),
+                ]}
+              />
             </label>
 
             {doctorSeleccionado && (

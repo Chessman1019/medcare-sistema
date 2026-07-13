@@ -1,38 +1,12 @@
 import { useEffect, useRef } from 'react'
+import AgendaEmptyState from '../../components/AgendaEmptyState'
+import AgendaStatusBadge from '../../components/AgendaStatusBadge'
 import MedCareSelect from '../../components/MedCareSelect'
+import { formatAgendaDateTime, getAppointmentEnd } from '../../utils/agendaDisplay'
 import { formatTime12h } from '../../utils/timeFormat'
 
-const estadoClass = {
-  pendiente:    'bg-[#faeeda] text-[#854F0B]',
-  confirmada:   'bg-[#d8f4ee] text-[#006b5d]',
-  reprogramada: 'bg-[#e8edff] text-[#355382]',
-  en_atencion:  'bg-[#dff8fb] text-[#006b5d]',
-  cancelada:    'bg-[#ffdad6] text-[#93000a]',
-  completada:   'bg-[#f5f5f2] text-[#46514f]',
-}
 const inputClass = 'rounded-xl border border-[#bdcbc7] px-3 py-2.5 text-sm transition focus:border-[#007a68] focus:outline-none focus:ring-4 focus:ring-[#12b8a3]/15 disabled:cursor-not-allowed disabled:bg-[#f8fbff]'
 
-function formatDateTime(value) {
-  if (!value) return 'Sin fecha'
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return value
-  return date.toLocaleString('es-PE', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'America/Lima' })
-}
-function getFechaFinCita(cita) {
-  if (cita.fecha_fin) return cita.fecha_fin
-  if (!cita.fecha_hora) return null
-
-  const inicio = new Date(cita.fecha_hora)
-  if (Number.isNaN(inicio.getTime())) return null
-
-  const duracion = Number(cita.duracion_min)
-  const minutos = Number.isFinite(duracion) && duracion >= 0 ? duracion : 30
-  return new Date(inicio.getTime() + minutos * 60000).toISOString()
-}
-function formatEstado(value) {
-  const labels = { pendiente: 'Pendiente', confirmada: 'Confirmada', reprogramada: 'Reprogramada', en_atencion: 'En atención', cancelada: 'Cancelada', completada: 'Completada' }
-  return labels[value] || (value || 'Pendiente').replaceAll('_', ' ')
-}
 function doctorLabel(doctor) {
   if (!doctor) return 'Doctor no asignado'
   const source = doctor.usuario || doctor
@@ -116,7 +90,16 @@ export default function RecepGestion({ citasFiltradas, doctores, citaNotificada,
             </thead>
             <tbody className="divide-y divide-[#bdcbc7]">
               {citasFiltradas.length === 0 ? (
-                <tr><td colSpan="6" className="px-5 py-10 text-center text-[#52615f]">No hay citas con esos filtros.</td></tr>
+                <tr>
+                  <td colSpan="6" className="px-5 py-8">
+                    <AgendaEmptyState
+                      compact
+                      icon="manage_search"
+                      title="No hay citas para gestionar"
+                      description="No hay resultados con los filtros actuales. Ajusta fecha, doctor o estado."
+                    />
+                  </td>
+                </tr>
               ) : citasFiltradas.map(cita => (
                 <tr
                   key={cita.id_cita}
@@ -128,12 +111,10 @@ export default function RecepGestion({ citasFiltradas, doctores, citaNotificada,
                     <p className="text-xs text-[#52615f]">{cita.dni}</p>
                   </td>
                   <td className="px-5 py-4 text-sm text-[#52615f]">Dr. {cita.doctor}</td>
-                  <td className="px-5 py-4 text-sm text-[#52615f]">{formatDateTime(cita.fecha_hora)}</td>
-                  <td className="px-5 py-4 text-sm text-[#52615f]">{formatDateTime(getFechaFinCita(cita))}</td>
+                  <td className="px-5 py-4 text-sm text-[#52615f]">{formatAgendaDateTime(cita.fecha_hora)}</td>
+                  <td className="px-5 py-4 text-sm text-[#52615f]">{formatAgendaDateTime(getAppointmentEnd(cita))}</td>
                   <td className="px-5 py-4">
-                    <span className={`rounded-full px-3 py-1 text-xs font-extrabold ${estadoClass[cita.estado] || estadoClass.pendiente}`}>
-                      {formatEstado(cita.estado)}
-                    </span>
+                    <AgendaStatusBadge status={cita.estado} />
                   </td>
                   <td className="px-5 py-4">
                     <div className="flex flex-wrap gap-2">

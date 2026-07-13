@@ -1,8 +1,10 @@
 from datetime import datetime, timezone
 from typing import Optional
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from app.database import supabase, supabase_admin
 from app.schemas.soporte import SoporteTicketCreate, SoporteTicketUpdate
+from app.services.cita_service import get_cita
+from app.services.security import get_current_user, require_roles
 
 router = APIRouter()
 
@@ -34,18 +36,44 @@ def _normalizar_estado(estado: str) -> str:
     return estado_limpio
 
 
+def _es_personal_autorizado(usuario: dict) -> bool:
+    return usuario.get("rol") in {"administrador", "recepcionista"}
+
+
+def _validar_cita_soporte(id_cita: int | None, usuario: dict):
+    if id_cita is None or _es_personal_autorizado(usuario):
+        return
+    cita = get_cita(id_cita)
+    if not cita:
+        raise HTTPException(status_code=404, detail="Cita no encontrada")
+    usuario_id = int(usuario["id_usuario"])
+    if usuario.get("rol") == "paciente" and int(cita["id_paciente"]) == usuario_id:
+        return
+    if usuario.get("rol") == "doctor" and int(cita["id_doctor"]) == usuario_id:
+        return
+    raise HTTPException(status_code=403, detail="No tienes permiso para asociar este ticket a la cita")
+
+
 @router.get("/tickets")
 def listar_tickets_soporte(
     rol: Optional[str] = Query(default=None),
     id_usuario: Optional[int] = Query(default=None),
     estado: Optional[str] = Query(default=None),
     limit: int = Query(default=50, ge=1, le=100),
+    usuario: dict = Depends(get_current_user),
 ):
     query = supabase.table("v_soporte_ticket_detalle").select("*")
-    if rol:
-        query = query.eq("rol", _normalizar_rol(rol))
-    if id_usuario is not None:
-        query = query.eq("id_usuario", id_usuario)
+    if _es_personal_autorizado(usuario):
+        if rol:
+            query = query.eq("rol", _normalizar_rol(rol))
+        if id_usuario is not None:
+            query = query.eq("id_usuario", id_usuario)
+    else:
+        if id_usuario is not None and id_usuario != int(usuario["id_usuario"]):
+            raise HTTPException(status_code=403, detail="No tienes permiso para ver tickets de otro usuario")
+        if rol and _normalizar_rol(rol) != usuario["rol"]:
+            raise HTTPException(status_code=403, detail="No tienes permiso para ver tickets de otro rol")
+        query = query.eq("id_usuario", usuario["id_usuario"]).eq("rol", usuario["rol"])
     if estado:
         query = query.eq("estado", _normalizar_estado(estado))
     res = query.order("fecha_actualizacion", desc=True).limit(limit).execute()
@@ -53,13 +81,14 @@ def listar_tickets_soporte(
 
 
 @router.post("/tickets")
-def crear_ticket_soporte(data: SoporteTicketCreate):
+def crear_ticket_soporte(data: SoporteTicketCreate, usuario: dict = Depends(get_current_user)):
     mensaje = data.mensaje.strip()
     if not mensaje:
         raise HTTPException(status_code=400, detail="El mensaje de soporte no puede estar vacio")
+    _validar_cita_soporte(data.id_cita, usuario)
     payload = {
-        "id_usuario": data.id_usuario,
-        "rol": _normalizar_rol(data.rol),
+        "id_usuario": usuario["id_usuario"],
+        "rol": usuario["rol"],
         "contexto": data.contexto,
         "mensaje": mensaje,
         "id_cita": data.id_cita,
@@ -76,7 +105,11 @@ def crear_ticket_soporte(data: SoporteTicketCreate):
 
 
 @router.put("/tickets/{id_ticket}/estado")
-def actualizar_estado_ticket(id_ticket: int, data: SoporteTicketUpdate):
+def actualizar_estado_ticket(
+    id_ticket: int,
+    data: SoporteTicketUpdate,
+    _: dict = Depends(require_roles("administrador", "recepcionista")),
+):
     estado = _normalizar_estado(data.estado)
     now = datetime.now(timezone.utc).isoformat()
     payload = {

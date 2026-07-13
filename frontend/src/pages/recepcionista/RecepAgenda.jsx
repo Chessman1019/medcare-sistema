@@ -1,36 +1,49 @@
 import { useState } from 'react'
+import AgendaEmptyState from '../../components/AgendaEmptyState'
+import AgendaStatusBadge from '../../components/AgendaStatusBadge'
 import HorarioDisponibleForm from '../../components/HorarioDisponibleForm'
 import MedCareSelect from '../../components/MedCareSelect'
 import { DateWheelPicker } from '../../components/WheelPickers'
+import { formatAgendaDate, formatAgendaDateTime } from '../../utils/agendaDisplay'
 import { formatTime12h } from '../../utils/timeFormat'
 
-const estadoClass = {
-  pendiente:    'bg-[#faeeda] text-[#854F0B]',
-  confirmada:   'bg-[#d8f4ee] text-[#006b5d]',
-  reprogramada: 'bg-[#e8edff] text-[#355382]',
-  en_atencion:  'bg-[#dff8fb] text-[#006b5d]',
-  cancelada:    'bg-[#ffdad6] text-[#93000a]',
-  completada:   'bg-[#f5f5f2] text-[#46514f]',
-}
 const inputClass = 'rounded-xl border border-[#bdcbc7] px-3 py-2.5 text-sm transition focus:border-[#007a68] focus:outline-none focus:ring-4 focus:ring-[#12b8a3]/15'
 
-function formatDateTime(value) {
-  if (!value) return 'Sin fecha'
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return value
-  return date.toLocaleString('es-PE', { dateStyle: 'medium', timeStyle: 'short' })
-}
-function formatEstado(value) {
-  const labels = { pendiente: 'Pendiente', confirmada: 'Confirmada', reprogramada: 'Reprogramada', en_atencion: 'En atención', cancelada: 'Cancelada', completada: 'Completada' }
-  return labels[value] || (value || 'Pendiente').replaceAll('_', ' ')
-}
 function doctorLabel(doctor) {
   if (!doctor) return 'Doctor no asignado'
   const source = doctor.usuario || doctor
   return [source.nombre, source.apellido].filter(Boolean).join(' ') || 'Doctor'
 }
 
-export default function RecepAgenda({ citasFiltradas, filtros, setFiltros, doctores, horariosAgenda, agendaDoctor, onCargarDisponibilidad, onCrearHorario, onGoToTab }) {
+function agendaKey(item, index) {
+  return `${item.tipo || 'item'}-${item.id_cita || item.id_horario || index}-${item.estado || 'estado'}`
+}
+
+function agendaFecha(item) {
+  return item.fecha || item.fecha_hora?.slice(0, 10) || 'Sin fecha'
+}
+
+function agendaHoraInicio(item) {
+  return item.hora_inicio || item.fecha_hora?.slice(11, 16) || ''
+}
+
+function agendaHoraFin(item) {
+  return item.hora_fin || item.fecha_fin?.slice(11, 16) || ''
+}
+
+export default function RecepAgenda({
+  citasFiltradas,
+  filtros,
+  setFiltros,
+  doctores,
+  especialidades = [],
+  horariosAgenda,
+  agendaDoctor,
+  agendaFiltros,
+  setAgendaFiltros,
+  onCrearHorario,
+  onGoToTab,
+}) {
   const [mostrarHorarioForm, setMostrarHorarioForm] = useState(false)
 
   return (
@@ -58,10 +71,12 @@ export default function RecepAgenda({ citasFiltradas, filtros, setFiltros, docto
                 onChange={e => setFiltros({ ...filtros, estado: e.target.value })}
                 options={[
                   { value: '', label: 'Todos los estados' },
+                  { value: 'disponible', label: 'Disponible' },
+                  { value: 'ocupado', label: 'Ocupado' },
                   { value: 'pendiente', label: 'Pendiente' },
                   { value: 'confirmada', label: 'Confirmada' },
                   { value: 'reprogramada', label: 'Reprogramada' },
-                  { value: 'en_atencion', label: 'En atención' },
+                  { value: 'en_atencion', label: 'En atencion' },
                   { value: 'completada', label: 'Completada' },
                   { value: 'cancelada', label: 'Cancelada' },
                 ]}
@@ -70,20 +85,24 @@ export default function RecepAgenda({ citasFiltradas, filtros, setFiltros, docto
           </div>
           <div className="divide-y divide-[#bdcbc7]">
             {citasFiltradas.length === 0 ? (
-              <div className="p-10 text-center">
-                <span className="material-symbols-outlined text-5xl text-[#bdcbc7]">event_note</span>
-                <p className="mt-3 font-bold text-[#52615f]">No hay citas con esos filtros.</p>
+              <div className="p-5">
+                <AgendaEmptyState
+                  icon="event_note"
+                  title="No hay citas para los filtros seleccionados"
+                  description="Cambia la fecha, doctor o estado para revisar mas resultados."
+                />
               </div>
-            ) : citasFiltradas.slice(0, 12).map(cita => (
+            ) : citasFiltradas.map(cita => (
               <button key={cita.id_cita} type="button"
                 onClick={() => onGoToTab('gestion', { doctor: cita.doctor || '', fecha: cita.fecha_hora?.slice(0, 10) || '' })}
-                className="grid w-full grid-cols-1 items-start gap-2 bg-white px-6 py-4 text-left transition hover:bg-[#f8fbff] md:grid-cols-[1fr_1fr_1fr_auto] md:items-center">
-                <span className="font-extrabold text-[#101828]">{cita.paciente}</span>
-                <span className="text-sm text-[#52615f]">Dr. {cita.doctor}</span>
-                <span className="text-sm text-[#52615f]">{formatDateTime(cita.fecha_hora)}</span>
-                <span className={`rounded-full px-3 py-1 text-xs font-extrabold ${estadoClass[cita.estado] || estadoClass.pendiente}`}>
-                  {formatEstado(cita.estado)}
+                className="grid w-full grid-cols-1 items-start gap-3 bg-white px-6 py-4 text-left transition hover:bg-[#f8fbff] md:grid-cols-[1.1fr_1fr_1fr_auto] md:items-center">
+                <span className="min-w-0">
+                  <span className="block font-extrabold text-[#101828]">{cita.paciente}</span>
+                  <span className="block text-xs font-semibold text-[#52615f]">{cita.especialidad || 'Sin especialidad'}</span>
                 </span>
+                <span className="text-sm font-semibold text-[#52615f]">Dr. {cita.doctor}</span>
+                <span className="text-sm text-[#52615f]">{formatAgendaDateTime(cita.fecha_hora)}</span>
+                <AgendaStatusBadge status={cita.estado} />
               </button>
             ))}
           </div>
@@ -102,31 +121,98 @@ export default function RecepAgenda({ citasFiltradas, filtros, setFiltros, docto
 
           <div className="medcare-card p-6">
             <div className="mb-4 flex items-center justify-between gap-3">
-              <h3 className="font-extrabold text-[#101828]">Disponibilidad</h3>
+              <div>
+                <h3 className="font-extrabold text-[#101828]">Disponibilidad</h3>
+                <p className="mt-1 text-xs font-bold text-[#52615f]">Horarios libres y ocupados del doctor.</p>
+              </div>
               <button type="button" onClick={() => setMostrarHorarioForm(value => !value)}
                 className="rounded-xl bg-[#007a68] px-3 py-2 text-xs font-extrabold text-white transition hover:brightness-105 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#12b8a3]/20">
-                Agregar más fechas y horas disponibles
+                Agregar horas
               </button>
             </div>
-            <MedCareSelect
-              className={`w-full ${inputClass}`}
-              value={agendaDoctor}
-              onChange={e => onCargarDisponibilidad(e.target.value)}
-              options={[
-                { value: '', label: 'Selecciona doctor' },
-                ...doctores.map(doctor => ({
-                  value: doctor.id_usuario,
-                  label: `Dr. ${doctorLabel(doctor)}`,
-                })),
-              ]}
-            />
+            <div className="grid grid-cols-1 gap-3">
+              <MedCareSelect
+                className={`w-full ${inputClass}`}
+                value={agendaFiltros.id_doctor}
+                onChange={e => setAgendaFiltros({ ...agendaFiltros, id_doctor: e.target.value })}
+                options={[
+                  { value: '', label: 'Todos los doctores' },
+                  ...doctores.map(doctor => ({
+                    value: doctor.id_usuario,
+                    label: `Dr. ${doctorLabel(doctor)}`,
+                  })),
+                ]}
+              />
+              <MedCareSelect
+                className={`w-full ${inputClass}`}
+                value={agendaFiltros.id_especialidad}
+                onChange={e => setAgendaFiltros({ ...agendaFiltros, id_especialidad: e.target.value })}
+                options={[
+                  { value: '', label: 'Todas las especialidades' },
+                  ...especialidades.map(especialidad => ({
+                    value: especialidad.id_especialidad,
+                    label: especialidad.nombre,
+                  })),
+                ]}
+              />
+              <input
+                className={`w-full ${inputClass}`}
+                placeholder="Buscar paciente"
+                value={agendaFiltros.paciente}
+                onChange={e => setAgendaFiltros({ ...agendaFiltros, paciente: e.target.value })}
+              />
+              <DateWheelPicker
+                value={agendaFiltros.fecha}
+                onChange={fecha => setAgendaFiltros({ ...agendaFiltros, fecha })}
+                clearable
+                inputClassName={`w-full ${inputClass}`}
+              />
+              <MedCareSelect
+                className={`w-full ${inputClass}`}
+                value={agendaFiltros.estado}
+                onChange={e => setAgendaFiltros({ ...agendaFiltros, estado: e.target.value })}
+                options={[
+                  { value: '', label: 'Todos los estados' },
+                  { value: 'disponible', label: 'Disponible' },
+                  { value: 'ocupado', label: 'Ocupado' },
+                  { value: 'pendiente', label: 'Pendiente' },
+                  { value: 'confirmada', label: 'Confirmada' },
+                  { value: 'reprogramada', label: 'Reprogramada' },
+                  { value: 'en_atencion', label: 'En atencion' },
+                  { value: 'cancelada', label: 'Cancelada' },
+                  { value: 'completada', label: 'Completada' },
+                ]}
+              />
+              <button type="button" onClick={() => setAgendaFiltros({ id_doctor: '', id_especialidad: '', paciente: '', fecha: '', estado: '' })}
+                className="text-left text-xs font-bold text-[#006b5d] hover:underline">
+                Limpiar filtros de agenda
+              </button>
+            </div>
             <div className="mt-4 space-y-2">
               {horariosAgenda.length === 0 ? (
-                <p className="rounded-xl bg-[#edf2ff] p-4 text-sm text-[#52615f]">Sin horarios libres.</p>
-              ) : horariosAgenda.slice(0, 8).map(horario => (
-                <div key={horario.id_horario}
-                  className="rounded-xl bg-[#f8fbff] px-4 py-3 text-sm font-bold text-[#223330]">
-                  {horario.fecha} · {formatTime12h(horario.hora_inicio) || horario.hora_inicio} a {formatTime12h(horario.hora_fin) || horario.hora_fin}
+                <AgendaEmptyState
+                  compact
+                  icon="free_cancellation"
+                  title="Sin horarios para mostrar"
+                  description="Selecciona un doctor o fecha para revisar disponibilidad."
+                />
+              ) : horariosAgenda.map((item, index) => (
+                <div key={agendaKey(item, index)}
+                  className="rounded-xl border border-[#d5dfef] bg-[#f8fbff] px-4 py-3 text-sm text-[#223330]">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div>
+                      <p className="text-xs font-extrabold uppercase tracking-widest text-[#006b5d]">{formatAgendaDate(agendaFecha(item))}</p>
+                      <p className="mt-1 font-extrabold">
+                        {formatTime12h(agendaHoraInicio(item)) || agendaHoraInicio(item) || 'Sin inicio'} a {formatTime12h(agendaHoraFin(item)) || agendaHoraFin(item) || 'Sin fin'}
+                      </p>
+                    </div>
+                    <AgendaStatusBadge status={item.estado} />
+                  </div>
+                  <div className="mt-3 grid gap-2 text-xs font-bold text-[#52615f]">
+                    <p>Doctor: Dr. {item.doctor || 'Sin doctor asignado'}</p>
+                    <p>Paciente: {item.paciente || 'Sin paciente asignado'}</p>
+                    <p>Especialidad: {item.especialidad || 'Sin especialidad'}</p>
+                  </div>
                 </div>
               ))}
             </div>

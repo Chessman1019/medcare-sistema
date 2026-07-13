@@ -1,9 +1,10 @@
 from datetime import datetime, timezone
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from postgrest.exceptions import APIError
 from app.database import supabase, supabase_admin
 from app.schemas.notificacion import SoporteCreate
-from app.services.cita_service import cancelar_citas_vencidas
+from app.services.cita_service import cancelar_citas_vencidas, get_cita
+from app.services.security import get_current_user, require_roles
 from app.services.notificacion_service import (
     eliminar_notificacion,
     listar_notificaciones_citas,
@@ -114,37 +115,110 @@ def _listar_notificaciones(
     )
 
 
+def _obtener_notificacion_detalle(id_notif: int):
+    res = (
+        supabase.table("v_notificaciones_detalle")
+        .select("*")
+        .eq("id_notif", id_notif)
+        .limit(1)
+        .execute()
+    )
+    if res.data:
+        return res.data[0]
+
+    res = (
+        supabase_admin.table("notificacion")
+        .select("*")
+        .eq("id_notif", id_notif)
+        .limit(1)
+        .execute()
+    )
+    return res.data[0] if res.data else None
+
+
+def _validar_acceso_notificacion(id_notif: int, usuario: dict):
+    notificacion = _obtener_notificacion_detalle(id_notif)
+    if not notificacion:
+        raise HTTPException(status_code=404, detail="Notificacion no encontrada")
+
+    rol = usuario.get("rol")
+    usuario_id = int(usuario["id_usuario"])
+    rol_destino = notificacion.get("rol_destino")
+
+    if rol == "paciente":
+        if rol_destino and rol_destino != "paciente":
+            raise HTTPException(status_code=403, detail="No tienes permiso para esta notificacion")
+        if int(notificacion.get("id_paciente") or 0) == usuario_id:
+            return notificacion
+    elif rol == "doctor":
+        if rol_destino and rol_destino != "doctor":
+            raise HTTPException(status_code=403, detail="No tienes permiso para esta notificacion")
+        if int(notificacion.get("id_doctor") or 0) == usuario_id:
+            return notificacion
+    elif rol in ROLES_ADMINISTRATIVOS_NOTIFICACION and rol_destino == rol:
+        return notificacion
+
+    raise HTTPException(status_code=403, detail="No tienes permiso para esta notificacion")
+
+
+def _validar_cita_soporte(id_cita: int | None, usuario: dict):
+    if id_cita is None or usuario.get("rol") in ROLES_ADMINISTRATIVOS_NOTIFICACION:
+        return
+    cita = get_cita(id_cita)
+    if not cita:
+        raise HTTPException(status_code=404, detail="Cita no encontrada")
+    usuario_id = int(usuario["id_usuario"])
+    if usuario.get("rol") == "paciente" and int(cita["id_paciente"]) == usuario_id:
+        return
+    if usuario.get("rol") == "doctor" and int(cita["id_doctor"]) == usuario_id:
+        return
+    raise HTTPException(status_code=403, detail="No tienes permiso para asociar esta solicitud a la cita")
+
+
 @router.get("/paciente/{id_paciente}")
-def notificaciones_paciente(id_paciente: int):
+def notificaciones_paciente(id_paciente: int, usuario: dict = Depends(require_roles("paciente"))):
+    if id_paciente != int(usuario["id_usuario"]):
+        raise HTTPException(status_code=403, detail="No tienes permiso para ver estas notificaciones")
     return _listar_notificaciones(
         "id_paciente",
         id_paciente,
-        excluir_roles=ROLES_ADMINISTRATIVOS_NOTIFICACION,
+        rol_destino="paciente",
     )
 
 
 @router.get("/doctor/{id_doctor}")
-def notificaciones_doctor(id_doctor: int):
+def notificaciones_doctor(id_doctor: int, usuario: dict = Depends(require_roles("doctor"))):
+    if id_doctor != int(usuario["id_usuario"]):
+        raise HTTPException(status_code=403, detail="No tienes permiso para ver estas notificaciones")
     return _listar_notificaciones(
         "id_doctor",
         id_doctor,
-        excluir_roles=ROLES_ADMINISTRATIVOS_NOTIFICACION,
+        rol_destino="doctor",
     )
 
 
 @router.get("/admin")
-def notificaciones_admin():
+def notificaciones_admin(_: dict = Depends(require_roles("administrador"))):
     return _listar_notificaciones(rol_destino="administrador")
 
 
 @router.get("/citas-pendientes")
-def notificaciones_citas_pendientes(rol: str | None = Query(default=None)):
+def notificaciones_citas_pendientes(
+    rol: str | None = Query(default=None),
+    usuario: dict = Depends(require_roles("administrador", "recepcionista")),
+):
+    rol_destino = rol or usuario.get("rol")
+    if rol_destino not in ROLES_ADMINISTRATIVOS_NOTIFICACION:
+        raise HTTPException(status_code=400, detail="Rol de notificacion no valido")
+    if rol_destino != usuario.get("rol"):
+        raise HTTPException(status_code=403, detail="No tienes permiso para ver notificaciones de otro rol")
     cancelar_citas_vencidas()
-    return listar_notificaciones_citas(rol)
+    return listar_notificaciones_citas(rol_destino)
 
 
 @router.put("/{id_notif}/marcar-enviada")
-def marcar_notificacion_enviada(id_notif: int):
+def marcar_notificacion_enviada(id_notif: int, usuario: dict = Depends(get_current_user)):
+    _validar_acceso_notificacion(id_notif, usuario)
     res = supabase_admin.table("notificacion").update({
         "enviada": True,
         "enviado_en": datetime.now(timezone.utc).isoformat(),
@@ -155,7 +229,8 @@ def marcar_notificacion_enviada(id_notif: int):
 
 
 @router.put("/{id_notif}/marcar-leida")
-def marcar_leida(id_notif: int):
+def marcar_leida(id_notif: int, usuario: dict = Depends(get_current_user)):
+    _validar_acceso_notificacion(id_notif, usuario)
     notificacion = marcar_notificacion_leida(id_notif)
     if not notificacion:
         raise HTTPException(status_code=404, detail="Notificacion no encontrada")
@@ -163,7 +238,8 @@ def marcar_leida(id_notif: int):
 
 
 @router.delete("/{id_notif}")
-def eliminar(id_notif: int):
+def eliminar(id_notif: int, usuario: dict = Depends(get_current_user)):
+    _validar_acceso_notificacion(id_notif, usuario)
     notificacion = eliminar_notificacion(id_notif)
     if not notificacion:
         raise HTTPException(status_code=404, detail="Notificacion no encontrada")
@@ -171,13 +247,14 @@ def eliminar(id_notif: int):
 
 
 @router.post("/soporte")
-def crear_solicitud_soporte(data: SoporteCreate):
+def crear_solicitud_soporte(data: SoporteCreate, usuario: dict = Depends(get_current_user)):
     mensaje = data.mensaje.strip()
     if not mensaje:
         raise HTTPException(status_code=400, detail="El mensaje de soporte no puede estar vacio")
+    _validar_cita_soporte(data.id_cita, usuario)
     payload = {
-        "id_usuario": data.id_usuario,
-        "rol": data.rol,
+        "id_usuario": usuario["id_usuario"],
+        "rol": usuario["rol"],
         "contexto": data.contexto,
         "mensaje": mensaje,
         "id_cita": data.id_cita,
