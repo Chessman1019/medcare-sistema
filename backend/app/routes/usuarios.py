@@ -50,6 +50,15 @@ def require_admin(authorization: str | None = Header(default=None)):
         raise HTTPException(status_code=403, detail="Solo un administrador puede realizar esta acción")
     return payload
 
+def get_current_user(authorization: str | None = Header(default=None)):
+    """Valida el token de cualquier usuario autenticado (sin restricción de rol)."""
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Token requerido")
+    payload = decode_token(authorization.replace("Bearer ", "", 1).strip())
+    if not payload:
+        raise HTTPException(status_code=401, detail="Token inválido o expirado")
+    return payload
+
 def _get_or_raise_unique(table, field, value, message):
     if value in (None, ""):
         return
@@ -202,8 +211,47 @@ def get_pacientes(_: dict = Depends(require_admin_or_reception)):
 # ── Lista de espera ─────────────────────────────────────────
 @router.get("/lista-espera")
 def get_lista_espera(_: dict = Depends(require_admin_or_reception)):
-    res = supabase.table("lista_espera").select("*, paciente(*, usuario(*)), especialidad(*)").eq("estado", "en_espera").execute()
+    res = supabase.table("lista_espera")\
+        .select("*, paciente(*, usuario(*)), especialidad(*)")\
+        .eq("estado", "en_espera")\
+        .order("fecha_solicitud")\
+        .execute()
     return res.data
+
+@router.post("/lista-espera")
+def agregar_lista_espera(data: dict = Body(...), _: dict = Depends(get_current_user)):
+    id_paciente = data.get("id_paciente")
+    id_especialidad = data.get("id_especialidad")
+    if not id_paciente or not id_especialidad:
+        raise HTTPException(status_code=400, detail="id_paciente e id_especialidad son requeridos")
+
+    existente = supabase.table("lista_espera")\
+        .select("id_espera")\
+        .eq("id_paciente", id_paciente)\
+        .eq("id_especialidad", id_especialidad)\
+        .eq("estado", "en_espera")\
+        .execute()
+    if existente.data:
+        raise HTTPException(status_code=400, detail="Ya estás en lista de espera para esta especialidad")
+
+    try:
+        res = supabase_admin.table("lista_espera").insert({
+            "id_paciente": int(id_paciente),
+            "id_especialidad": int(id_especialidad),
+            "estado": "en_espera",
+        }).execute()
+    except APIError as error:
+        raise HTTPException(status_code=400, detail=str(error))
+    if not res.data:
+        raise HTTPException(status_code=400, detail="No se pudo registrar en la lista de espera")
+    return res.data[0]
+
+@router.patch("/lista-espera/{id_espera}")
+def actualizar_lista_espera(id_espera: int, data: dict = Body(...), _: dict = Depends(require_admin)):
+    supabase_admin.table("lista_espera").update({
+        "estado": data["estado"]
+    }).eq("id_espera", id_espera).execute()
+    return {"mensaje": "Lista de espera actualizada"}
 
 
 # ── Configuración ───────────────────────────────────────────
@@ -235,9 +283,3 @@ def actualizar_especialidad(id_especialidad: int, data: dict = Body(...), _: dic
         "descripcion": data.get("descripcion", ""),
     }).eq("id_especialidad", id_especialidad).execute()
     return res.data[0]
-@router.patch("/lista-espera/{id_espera}")
-def actualizar_lista_espera(id_espera: int, data: dict = Body(...), _: dict = Depends(require_admin)):
-    supabase_admin.table("lista_espera").update({
-        "estado": data["estado"]
-    }).eq("id_espera", id_espera).execute()
-    return {"mensaje": "Lista de espera actualizada"}
