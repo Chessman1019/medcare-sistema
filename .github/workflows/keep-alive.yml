@@ -1,0 +1,22 @@
+name: Keep Alive (Supabase + Render)
+
+on:
+  schedule:
+    - cron: "0 5,17 * * *"   # 2 veces al dia (5:00 y 17:00 UTC = 12am y 12pm hora Peru)
+  workflow_dispatch:          # permite ejecutarlo manualmente para probar
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Supabase (consulta simple via REST)
+        run: |
+          curl -s -f -o /dev/null -w "Supabase status: %{http_code}\n" \
+            "${{ secrets.SUPABASE_URL }}/rest/v1/usuarios?select=id&limit=1" \
+            -H "apikey: ${{ secrets.SUPABASE_ANON_KEY }}" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_ANON_KEY }}"
+
+      - name: Ping backend en Render (lo despierta)
+        run: |
+          curl -s -o /dev/null -w "Render status: %{http_code}\n" \
+            "https://medcare-sistema.onrender.com/" || true
