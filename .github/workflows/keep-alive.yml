@@ -2,8 +2,8 @@ name: Keep Alive (Supabase + Render)
 
 on:
   schedule:
-    - cron: "0 5,17 * * *"   # 2 veces al dia (5:00 y 17:00 UTC = 12am y 12pm hora Peru)
-  workflow_dispatch:          # permite ejecutarlo manualmente para probar
+    - cron: "0 5,17 * * *"
+  workflow_dispatch:
 
 jobs:
   ping:
@@ -11,10 +11,16 @@ jobs:
     steps:
       - name: Ping Supabase (consulta simple via REST)
         run: |
-          curl -s -f -o /dev/null -w "Supabase status: %{http_code}\n" \
+          STATUS=$(curl -s -o response.txt -w "%{http_code}" \
             "${{ secrets.SUPABASE_URL }}/rest/v1/usuarios?select=id&limit=1" \
             -H "apikey: ${{ secrets.SUPABASE_ANON_KEY }}" \
-            -H "Authorization: Bearer ${{ secrets.SUPABASE_ANON_KEY }}"
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_ANON_KEY }}")
+          echo "Supabase status: $STATUS"
+          echo "Respuesta: $(cat response.txt | head -c 300)"
+          if [ "$STATUS" != "200" ]; then
+            echo "::error::Supabase respondio $STATUS"
+            exit 1
+          fi
 
       - name: Ping backend en Render (lo despierta)
         run: |
